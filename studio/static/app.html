@@ -216,6 +216,60 @@
   details.card > summary::after { content: "▾"; float: right; color: var(--muted); }
   details[open].card > summary { margin-bottom: 14px; }
 
+  /* tasks board */
+  main.wide, body:has(main.wide) .bar { max-width: 1440px; }
+  .kb { display: flex; gap: 14px; overflow-x: auto; align-items: flex-start; padding-bottom: 12px; scroll-snap-type: x proximity; }
+  .kb-col { flex: 0 0 290px; display: flex; flex-direction: column; min-width: 0; scroll-snap-align: start; }
+  .kb-head { display: flex; align-items: center; gap: 4px; padding: 0 2px; }
+  .kb-head h3 { margin: 0; font-size: 1.05rem; flex: 1; }
+  .kb-add { border: 0; background: none; font: inherit; font-size: 1.3rem; line-height: 1; padding: 2px 8px; border-radius: 6px; cursor: pointer; color: var(--muted); }
+  .kb-add:hover { background: var(--soft); color: var(--ink); }
+  .kb-bar { display: flex; height: 7px; border-radius: 9px; overflow: hidden; background: var(--soft); }
+  .kb-bar i { display: block; height: 100%; }
+  .kb-n { font-weight: 700; font-size: .85rem; color: var(--muted); min-width: 14px; text-align: right; }
+  .kb-body { display: grid; gap: 8px; min-height: 90px; padding: 8px 2px 4px; border-radius: 12px; align-content: start; transition: background .1s; }
+  .kb-body.over, .kb-col.fold.over { background: var(--soft); }
+  .kb-none { text-align: center; padding: 18px 8px; border: 1px dashed var(--line); border-radius: 10px; }
+  .kb-col.fold { flex: 0 0 46px; align-items: center; gap: 10px; padding: 8px 0; border-radius: 12px; cursor: pointer; min-height: 200px; }
+  .kb-col.fold:hover { background: var(--soft); }
+  .kb-fold-l { writing-mode: vertical-rl; font-weight: 700; color: var(--muted); font-size: 1.02rem; }
+  .kb-card { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--st); border-radius: 10px; padding: 10px 12px; cursor: pointer;
+             display: grid; gap: 6px; min-width: 0; }
+  .kb-card:hover { box-shadow: 0 2px 10px rgba(40,30,0,.08); }
+  .kb-card.dragging { opacity: .4; }
+  .kb-card[draggable] { cursor: grab; }
+  .kb-title { font-weight: 700; overflow-wrap: anywhere; }
+  .kb-sub { overflow-wrap: anywhere; margin-top: -4px; }
+  .kb-ph { height: 60px; border: 2px dashed #cfc9b8; border-radius: 10px; }
+  .kb-due { font-weight: 600; } .kb-due.soon { color: var(--warn); } .kb-due.late { color: var(--danger); }
+  .kb-foot { display: flex; align-items: center; gap: 8px; }
+  .kb-star { border: 0; background: none; padding: 0 2px; font-size: 1.2rem; line-height: 1; cursor: pointer; color: #b9b3a5; }
+  .kb-star.on { color: #e9a400; } .kb-star:disabled { cursor: default; }
+  .kb-meta { display: inline-flex; align-items: center; gap: 3px; font-size: .8rem; color: var(--muted); font-weight: 600; }
+  .kb-meta.full { color: var(--ok); }
+  .kb-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--card); box-shadow: 0 0 0 1px var(--line); cursor: pointer; padding: 0; flex: none; }
+  .kb-dot:disabled { cursor: default; }
+  .avs { display: inline-flex; }
+  .av { width: 24px; height: 24px; border-radius: 6px; color: #fff; display: inline-grid; place-items: center; font-size: .75rem; font-weight: 700; margin-left: 3px; flex: none; }
+  .av.more { background: var(--soft); color: var(--muted); }
+  .tg { font-size: .75rem; font-weight: 700; padding: 2px 9px; border-radius: 99px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .tg.vendor { background: var(--card); color: #5b34b0; box-shadow: inset 0 0 0 1px #c9b6f2; }
+  .kb-menu { position: absolute; z-index: 15; background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.14); padding: 4px; display: grid; width: 190px; }
+  .kb-menu button { border: 0; background: none; text-align: left; padding: 8px 10px; border-radius: 7px; font: inherit; font-size: .9rem; cursor: pointer; }
+  .kb-menu button:hover, .kb-menu button.on { background: var(--soft); }
+  .kb-quick { background: var(--card); border: 1px solid var(--brand); border-radius: 10px; padding: 8px; }
+  .tk-h { margin: 16px 0 8px; font-size: .95rem; }
+  .tk-vendor { background: #f6f1ff; border: 1px solid #e3d8fa; border-radius: 12px; padding: 12px 14px 4px; margin: 4px 0 12px; }
+  .tk-vendor.box { padding-bottom: 12px; }
+  .tk-check { display: grid; gap: 6px; }
+  .tk-f { margin-bottom: 12px; } .tk-lbl { display: block; margin-bottom: 4px; font-weight: 600; font-size: .85rem; }
+  .tk-person { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .tk-person:has(input:checked) { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .tk-cl { display: grid; gap: 6px; margin-bottom: 8px; }
+  .tk-cl-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+  .tk-cl-row input[type=text] { padding: 6px 9px; }
+  @media (max-width: 640px) { .kb-col { flex-basis: 84vw; } .tk-stats { grid-template-columns: 1fr 1fr; gap: 10px; } .tk-stats .card { padding: 12px 14px; } }
+
   /* overlays */
   #modal-root .ov { position: fixed; inset: 0; background: rgba(20,16,0,.5); display: grid; place-items: center; z-index: 20; padding: 16px; }
   #modal-root .dlg { background: var(--card); border-radius: 16px; padding: 24px; width: 100%; max-width: 460px; max-height: 92vh; overflow: auto; }
@@ -337,7 +391,7 @@ function shell(inner, active) {
   const link = (h, t, k) => `<a href="${h}" class="${active === k ? "on" : ""}">${t}</a>`;
   $app.innerHTML = `<header class="top"><div class="bar">
       <a class="logo" href="#/" title="${esc(a.company)}">${a.logo_url ? `<img class="hdrlogo" src="${esc(a.logo_url)}" alt="${esc(a.company)}" style="${a.logo_badge_light ? BADGE(26, false) + "height:26px" : ""}">` : `<i>${init}</i><span>${esc(a.company)}</span>`}</a>
-      <nav>${link("#/", "Overview", "home")}${link("#/clients", "Clients", "clients")}${link("#/events", "Events", "events")}${link("#/calendar", "Calendar", "calendar")}${link("#/billing", "Billing", "billing")}${link("#/team", "Team", "team")}${link("#/settings", "Settings", "settings")}${ME.user.platform_admin ? `<a href="/admin">Admin</a>` : ""}</nav>
+      <nav>${link("#/", "Overview", "home")}${link("#/clients", "Clients", "clients")}${link("#/events", "Events", "events")}${link("#/calendar", "Calendar", "calendar")}${link("#/tasks", "Tasks", "tasks")}${link("#/billing", "Billing", "billing")}${link("#/team", "Team", "team")}${link("#/settings", "Settings", "settings")}${ME.user.platform_admin ? `<a href="/admin">Admin</a>` : ""}</nav>
       <div class="who">${ME.user.role !== "owner" ? `<span class="badge" title="Your role">${esc(ME.user.role_label)}</span>` : ""}<span class="badge">${esc(a.plan_label)} plan</span><button class="btn sm" id="logout">Sign out</button></div>
     </div></header><main>${inner}</main>`;
   document.getElementById("logout").onclick = async () => { try { await api("POST", "/api/auth/logout"); } catch (e) {} ME = null; location.hash = "#/login"; };
@@ -1709,6 +1763,295 @@ async function itemDetail(id) {
     } });
 }
 
+/* ------------------------------------------------------------------ tasks: the project board */
+const TK_ST = { on_track: "#a39c8c", ready: "#1f9d55", changes: "#e0a01b", blocked: "#c8402b" };
+const TAG_COLORS = [["#e6f0ff", "#1f55ad"], ["#f1e9ff", "#5b34b0"], ["#dff3e6", "#1f7a45"], ["#ffe4ea", "#a3153a"], ["#fdf0d5", "#8a5a00"], ["#def3f4", "#16676e"]];
+const AV_COLORS = ["#7a4fd6", "#2f6fd6", "#1f9d55", "#c8402b", "#b7791f", "#16676e", "#a3153a"];
+const ICON_CHECK = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICON_TALK = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+const hashOf = s => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+const tagChip = t => { const [bg, fg] = TAG_COLORS[hashOf(t.toLowerCase()) % TAG_COLORS.length]; return `<span class="tg" style="background:${bg};color:${fg}">${esc(t)}</span>`; };
+const avatar = p => `<span class="av" style="background:${AV_COLORS[p.id % AV_COLORS.length]}" title="${esc(p.name)}">${esc((p.name || "?").trim().charAt(0).toUpperCase())}</span>`;
+const TK_WHO = { all: ["All", () => true], mine: ["Mine", t => t.assignees.some(a => a.id === TK.me)], starred: ["Starred", t => t.starred],
+  overdue: ["Overdue", t => t.overdue], blocked: ["Blocked", t => t.status === "blocked"], vendor: ["With vendors", t => !!t.vendor] };
+const TK_LOG = { created: "Created in", moved: "Moved", status: "Status:", vendor: "Given to vendor", vendor_off: "No longer with", edited: "Edited" };
+let TK = null, TK_F = { who: "all", client: "", q: "" };
+const tkUnfolded = k => { try { return localStorage.getItem("pf_kb_" + k) === "1"; } catch (e) { return false; } };
+const tkFold = (k, open) => { try { localStorage.setItem("pf_kb_" + k, open ? "1" : "0"); } catch (e) {} };
+const stageLabel = k => (TK.stages.find(s => s.key === k) || { label: k }).label;
+const mayUpdate = t => TK.can_manage || (TK.can_work && t.assignees.some(a => a.id === TK.me));
+const putTask = t => { const i = TK.tasks.findIndex(x => x.id === t.id); if (i >= 0) TK.tasks[i] = t; else TK.tasks.push(t); };
+const columnOf = (stage, without) => TK.tasks.filter(t => t.stage === stage && t.id !== without).sort((a, b) => a.position - b.position || a.id - b.id).map(t => t.id);
+function dueText(t) {
+  if (!t.deadline) return "";
+  const days = Math.round((new Date(t.deadline + "T00:00:00") - new Date(TK.today + "T00:00:00")) / 86400000);
+  const txt = t.overdue ? (days === -1 ? "1 day late" : `${-days} days late`)
+    : days === 0 ? "Today" : days === 1 ? "Tomorrow" : days === -1 ? "Yesterday" : days > 1 ? `In ${days} days` : `${-days} days ago`;
+  const soon = !t.overdue && days >= 0 && days <= 2 && t.stage !== "done" && t.stage !== "cancelled";
+  return `<span class="kb-due ${t.overdue ? "late" : soon ? "soon" : ""}" title="${esc(fmtDay(t.deadline))}">${txt}</span>`;
+}
+const waVendor = t => {
+  const v = t.vendor, d = (v.phone || "").replace(/\D/g, "");
+  const msg = encodeURIComponent([`Hi ${v.name}, this is ${ME.account.company}.`, `Work: ${t.title}${t.event ? ` (${t.event.name})` : ""}`, v.work,
+    t.deadline ? `Needed by ${fmtDay(t.deadline)}.` : ""].filter(Boolean).join("\n"));
+  return d.length >= 10 ? `https://wa.me/${d}?text=${msg}` : `https://wa.me/?text=${msg}`;
+};
+async function refreshTasks() { TK = await api("GET", "/api/tasks"); paintBoard(); }
+
+async function viewTasks() {
+  stopPoll(); document.title = "Tasks · Photo Finder Studio";
+  TK = await api("GET", "/api/tasks");
+  shell(`<div class="head"><div><h1>Tasks</h1><div class="muted">Every job from planning to delivery: who's on it, when it's due, and the work given to vendors.</div></div>
+      <div class="row">${TK.can_manage ? `<button class="btn primary" id="tk-new">New task</button>` : ""}</div></div>
+    <div class="stats tk-stats" style="margin-bottom:18px" id="tk-stats"></div>
+    <div class="row" style="margin-bottom:14px;justify-content:space-between"><div class="chips" id="tk-chips"></div>
+      <div class="row"><select id="tk-client" style="width:auto" aria-label="Client"><option value="">All clients</option>${TK.clients.map(c => `<option value="${c.id}" ${String(c.id) === TK_F.client ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select>
+        <input id="tk-q" type="search" class="inv-search" placeholder="Search tasks, people, vendors" value="${esc(TK_F.q)}" aria-label="Search"></div></div>
+    <div class="kb" id="kb"></div>`, "tasks");
+  $app.querySelector("main").classList.add("wide");
+  paintBoard();
+  const add = document.getElementById("tk-new"); if (add) add.onclick = () => taskModal();
+  document.getElementById("tk-client").onchange = e => { TK_F.client = e.target.value; paintBoard(); };
+  document.getElementById("tk-q").oninput = e => { TK_F.q = e.target.value; paintBoard(); };
+}
+function cardHtml(t) {
+  const up = mayUpdate(t), where = [t.client && t.client.name, t.event && t.event.name].filter(Boolean).join(" · ");
+  return `<article class="kb-card" data-task="${t.id}" ${up ? `draggable="true"` : ""} style="--st:${TK_ST[t.status] || TK_ST.on_track}">
+    <div class="kb-title">${esc(t.title)}</div>${where ? `<div class="muted small kb-sub">${esc(where)}</div>` : ""}
+    ${t.tags.length || t.vendor ? `<div class="chips">${t.vendor ? `<span class="tg vendor" title="Given to a vendor">Vendor · ${esc(t.vendor.name)}</span>` : ""}${t.tags.map(tagChip).join("")}</div>` : ""}
+    ${t.deadline ? `<div class="small">${dueText(t)}</div>` : ""}
+    <div class="kb-foot"><button class="kb-star ${t.starred ? "on" : ""}" data-star="${t.id}" ${up ? "" : "disabled"} title="Priority" aria-label="${t.starred ? "Remove star" : "Star"}">${t.starred ? "★" : "☆"}</button>
+      ${t.checklist.length ? `<span class="kb-meta ${t.checked === t.checklist.length ? "full" : ""}" title="Checklist">${ICON_CHECK}${t.checked}/${t.checklist.length}</span>` : ""}
+      ${t.comments ? `<span class="kb-meta" title="Comments">${ICON_TALK}${t.comments}</span>` : ""}
+      <span class="grow"></span><span class="avs">${t.assignees.slice(0, 3).map(avatar).join("")}${t.assignees.length > 3 ? `<span class="av more">+${t.assignees.length - 3}</span>` : ""}</span>
+      <button class="kb-dot" data-dot="${t.id}" style="background:${TK_ST[t.status]}" ${up ? "" : "disabled"} title="${esc(t.status_label)}" aria-label="Status: ${esc(t.status_label)}"></button></div></article>`;
+}
+function paintBoard() {
+  document.querySelectorAll(".kb-menu").forEach(m => m.remove());
+  const kb = document.getElementById("kb"); if (!kb) return;
+  const s = TK.summary, tile = (k, v, cls = "") => `<div class="card inv-tile ${cls}" style="margin:0"><div class="muted small">${k}</div><div class="inv-v">${v}</div></div>`;
+  document.getElementById("tk-stats").innerHTML = tile("Open tasks", num(s.open)) + tile("Overdue", s.overdue ? `<span style="color:var(--danger)">${num(s.overdue)}</span>` : "0", s.overdue ? "hot" : "")
+    + tile("On my plate", num(s.mine)) + tile("With vendors", num(s.vendors)) + (s.vendor_balance !== null ? tile("Owed to vendors", esc(fmtMoney(s.vendor_balance))) : "");
+  document.getElementById("tk-chips").innerHTML = Object.entries(TK_WHO).filter(([k, [, f]]) => k === "all" || k === TK_F.who || TK.tasks.some(f))
+    .map(([k, [label, f]]) => `<button class="chip ${TK_F.who === k ? "on" : ""}" data-who="${k}">${label} <span class="muted">${TK.tasks.filter(f).length}</span></button>`).join("");
+  document.querySelectorAll("[data-who]").forEach(b => b.onclick = () => { TK_F.who = b.dataset.who; paintBoard(); });
+  const q = TK_F.q.trim().toLowerCase(), who = TK_WHO[TK_F.who][1];
+  const shown = TK.tasks.filter(t => who(t) && (!TK_F.client || (t.client && t.client.id === +TK_F.client))
+    && (!q || [t.title, t.description, t.client && t.client.name, t.event && t.event.name, t.vendor && t.vendor.name, ...t.tags, ...t.assignees.map(a => a.name)]
+      .some(x => (x || "").toLowerCase().includes(q))));
+  kb.innerHTML = TK.stages.map(st => {
+    const list = shown.filter(t => t.stage === st.key).sort((a, b) => a.position - b.position || a.id - b.id);
+    if (st.closed && !tkUnfolded(st.key))
+      return `<div class="kb-col fold" data-unfold="${st.key}" data-drop="${st.key}" title="Show ${esc(st.label)}"><span class="kb-n">${list.length}</span><span class="kb-fold-l">${esc(st.label)}</span></div>`;
+    const n = k => list.filter(t => t.status === k).length;
+    const bar = Object.keys(TK_ST).map(k => n(k) ? `<i style="width:${n(k) / list.length * 100}%;background:${TK_ST[k]}" title="${esc(TK.statuses[k])}: ${n(k)}"></i>` : "").join("");
+    return `<section class="kb-col"><div class="kb-head"><h3>${esc(st.label)}</h3>
+        ${TK.can_manage ? `<button class="kb-add" data-quick="${st.key}" title="Add a task to ${esc(st.label)}" aria-label="Add a task to ${esc(st.label)}">+</button>` : ""}
+        ${st.closed ? `<button class="kb-add" data-fold="${st.key}" title="Fold" aria-label="Fold ${esc(st.label)}">‹</button>` : ""}</div>
+      <div class="row" style="gap:8px;flex-wrap:nowrap;margin:8px 2px 0"><div class="kb-bar grow">${bar}</div><span class="kb-n">${list.length}</span></div>
+      <div class="kb-body" data-drop="${st.key}">${list.map(cardHtml).join("")
+        || `<div class="kb-none muted small">${TK.tasks.length ? "Nothing here" : TK.can_manage && st.key === "new" ? "Press + to add your first task" : "Nothing here yet"}</div>`}</div></section>`;
+  }).join("");
+  kb.querySelectorAll("[data-unfold]").forEach(c => c.onclick = () => { tkFold(c.dataset.unfold, true); paintBoard(); });
+  kb.querySelectorAll("[data-fold]").forEach(b => b.onclick = () => { tkFold(b.dataset.fold, false); paintBoard(); });
+  kb.querySelectorAll("[data-quick]").forEach(b => b.onclick = () => quickAdd(b.dataset.quick));
+  kb.querySelectorAll(".kb-card").forEach(c => c.onclick = e => { if (!e.target.closest("button")) taskDetail(+c.dataset.task); });
+  kb.querySelectorAll("[data-star]").forEach(b => b.onclick = async () => {
+    const t = TK.tasks.find(x => x.id === +b.dataset.star);
+    try { putTask(await api("POST", `/api/tasks/${t.id}/quick`, { starred: !t.starred })); paintBoard(); } catch (x) { fail(x); } });
+  kb.querySelectorAll("[data-dot]").forEach(b => b.onclick = () => statusMenu(b, TK.tasks.find(x => x.id === +b.dataset.dot)));
+  bindDrag(kb);
+}
+function bindDrag(kb) {
+  let dragId = null;
+  const ph = document.createElement("div"); ph.className = "kb-ph";
+  const clear = () => { ph.remove(); kb.querySelectorAll(".over").forEach(x => x.classList.remove("over")); };
+  kb.querySelectorAll(".kb-card[draggable]").forEach(c => {
+    c.ondragstart = e => { dragId = +c.dataset.task; e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", String(dragId)); } catch (x) {}
+      setTimeout(() => c.classList.add("dragging")); };
+    c.ondragend = () => { c.classList.remove("dragging"); clear(); dragId = null; };
+  });
+  kb.querySelectorAll("[data-drop]").forEach(z => {
+    z.ondragover = e => {
+      if (dragId === null) return;
+      e.preventDefault(); z.classList.add("over");
+      if (!z.classList.contains("kb-body")) return;  // a folded column: the task goes to the end
+      const next = [...z.querySelectorAll(".kb-card:not(.dragging)")].find(c => { const r = c.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
+      if (next) z.insertBefore(ph, next); else z.appendChild(ph);
+    };
+    z.ondragleave = e => { if (!z.contains(e.relatedTarget)) { z.classList.remove("over"); ph.remove(); } };
+    z.ondrop = async e => {
+      e.preventDefault(); if (dragId === null) return;
+      const id = dragId, stage = z.dataset.drop;
+      let next = ph.parentNode === z ? ph.nextElementSibling : null;
+      while (next && +next.dataset.task === id) next = next.nextElementSibling;
+      clear();
+      // the whole column, not just what the filters show, so hidden tasks keep their place
+      const order = columnOf(stage, id), at = next ? order.indexOf(+next.dataset.task) : -1;
+      order.splice(at < 0 ? order.length : at, 0, id);
+      const t = TK.tasks.find(x => x.id === id), from = t.stage;
+      t.stage = stage; order.forEach((x, i) => { TK.tasks.find(y => y.id === x).position = i + 1; });
+      paintBoard();  // move it now; the server's answer follows
+      try { await api("POST", `/api/tasks/${id}/move`, { stage, order }); if (from !== stage) toast(`Moved to ${stageLabel(stage)}.`); } catch (x) { fail(x); }
+      refreshTasks().catch(fail);
+    };
+  });
+}
+function statusMenu(btn, t) {
+  document.querySelectorAll(".kb-menu").forEach(m => m.remove());
+  const m = document.createElement("div"); m.className = "kb-menu"; m.setAttribute("role", "menu");
+  m.innerHTML = Object.entries(TK.statuses).map(([k, v]) => `<button role="menuitem" data-s="${k}" class="${k === t.status ? "on" : ""}"><span class="dot" style="background:${TK_ST[k]}"></span>${esc(v)}</button>`).join("");
+  document.body.appendChild(m);
+  const r = btn.getBoundingClientRect();
+  m.style.top = (r.bottom + window.scrollY + 6) + "px"; m.style.left = Math.max(8, r.right + window.scrollX - 190) + "px";
+  const off = e => { if (!m.contains(e.target)) close(); }, close = () => { m.remove(); document.removeEventListener("mousedown", off, true); };
+  setTimeout(() => document.addEventListener("mousedown", off, true));
+  m.querySelector("button.on").focus();
+  m.onkeydown = e => { if (e.key === "Escape") { close(); btn.focus(); } };
+  m.querySelectorAll("[data-s]").forEach(b => b.onclick = async () => {
+    close(); if (b.dataset.s === t.status) return;
+    try { putTask(await api("POST", `/api/tasks/${t.id}/quick`, { status: b.dataset.s })); paintBoard(); } catch (x) { fail(x); } });
+}
+function quickAdd(stage) {
+  const body = document.querySelector(`.kb-body[data-drop="${stage}"]`); if (!body) return;
+  const open = body.querySelector(".kb-quick"); if (open) { open.querySelector("input").focus(); return; }
+  const f = document.createElement("form"); f.className = "kb-quick";
+  f.innerHTML = `<input maxlength="150" placeholder="Task title, then Enter" aria-label="Task title" required>
+    <div class="row" style="justify-content:flex-end;margin-top:6px;gap:6px"><button type="button" class="btn sm" data-x>Cancel</button><button type="button" class="btn sm" data-more>More details</button><button class="btn sm primary">Add</button></div>`;
+  body.prepend(f);
+  const inp = f.querySelector("input"); inp.focus();
+  f.querySelector("[data-x]").onclick = () => f.remove();
+  f.querySelector("[data-more]").onclick = () => { f.remove(); taskModal(null, { stage, title: inp.value }); };
+  inp.onkeydown = e => { if (e.key === "Escape") f.remove(); };
+  f.onsubmit = async e => {
+    e.preventDefault(); const title = inp.value.trim(); if (!title) return;
+    try { await api("POST", "/api/tasks", { title, stage }); await refreshTasks(); quickAdd(stage); } catch (x) { fail(x); }
+  };
+}
+function taskModal(t, preset = {}) {
+  const v = t || { title: preset.title || "", description: "", stage: preset.stage || "new", status: "on_track", starred: false, deadline: "", tags: [],
+                   client: null, event: null, assignees: [], checklist: [], vendor: null };
+  const vd = v.vendor || { name: "", phone: "", work: "", amount: "", paid: "" };
+  const checklist = v.checklist.map(c => ({ ...c }));
+  const opt = (val, label, cur) => `<option value="${esc(val)}" ${String(val) === String(cur) ? "selected" : ""}>${esc(label)}</option>`;
+  const tags = [...new Set(TK.tasks.flatMap(x => x.tags))];
+  modal(`<h2>${t ? "Edit task" : "New task"}</h2><form id="tkf">
+    <label class="f"><span>Title</span><input name="title" required maxlength="150" value="${esc(v.title)}" placeholder="Edit the highlights, Album design, Deliver to client"></label>
+    <div class="three"><label class="f"><span>Stage</span><select name="stage">${TK.stages.map(s => opt(s.key, s.label, v.stage)).join("")}</select></label>
+      <label class="f"><span>Status</span><select name="status">${Object.entries(TK.statuses).map(([k, l]) => opt(k, l, v.status)).join("")}</select></label>
+      <label class="f"><span>Deadline <small>(optional)</small></span><input name="deadline" type="date" value="${esc(v.deadline || "")}"></label></div>
+    <div class="two"><label class="f"><span>Client <small>(optional)</small></span><select name="client_id"><option value="">No client</option>${TK.clients.map(c => opt(c.id, c.name, v.client && v.client.id)).join("")}</select></label>
+      <label class="f"><span>Event <small>(optional)</small></span><select name="event_id"></select></label></div>
+    <div class="tk-f"><span class="tk-lbl">People on it <small class="muted" style="font-weight:400">(optional)</small></span><div class="chips" id="tk-people">${TK.members.map(p =>
+      `<label class="chip tk-person"><input type="checkbox" value="${p.id}" ${v.assignees.some(a => a.id === p.id) ? "checked" : ""}>${esc(p.name)}${p.me ? " (you)" : ""}</label>`).join("")}</div></div>
+    <label class="f"><span>Tags <small>(separate with commas, at most 8)</small></span><input name="tags" list="tk-tags" maxlength="300" value="${esc(v.tags.join(", "))}" placeholder="Post-prod, Onsite, Prep">
+      <datalist id="tk-tags">${tags.map(x => `<option value="${esc(x)}">`).join("")}</datalist></label>
+    <label class="f"><span>Description <small>(optional)</small></span><textarea name="description" rows="3" maxlength="4000">${esc(v.description)}</textarea></label>
+    <div class="tk-f"><span class="tk-lbl">Checklist <small class="muted" style="font-weight:400">(optional)</small></span><div class="tk-cl" id="tk-cl"></div><button type="button" class="btn sm" id="tk-cl-add">Add a step</button></div>
+    <label class="check"><input type="checkbox" id="tk-isv" ${v.vendor ? "checked" : ""}> Given to a vendor <small class="muted" style="font-weight:400">(editor, album printer, drone team…)</small></label>
+    <div class="tk-vendor" id="tk-v" ${v.vendor ? "" : "hidden"}>
+      <div class="two"><label class="f"><span>Vendor name</span><input name="vendor_name" list="tk-vendors" maxlength="120" value="${esc(vd.name)}" placeholder="Ravi Edits">
+          <datalist id="tk-vendors">${TK.vendors.map(x => `<option value="${esc(x.name)}">`).join("")}</datalist></label>
+        <label class="f"><span>Vendor number <small>(WhatsApp)</small></span><input name="vendor_phone" type="tel" maxlength="40" value="${esc(vd.phone)}" placeholder="+91 98450 00000"></label></div>
+      <label class="f"><span>Work given</span><textarea name="vendor_work" rows="3" maxlength="4000" placeholder="What they do, what you send them, what they deliver back">${esc(vd.work)}</textarea></label>
+      <div class="three"><label class="f"><span>Agreed amount</span><input name="vendor_amount" type="number" min="0" step="0.01" inputmode="decimal" value="${esc(vd.amount || "")}" placeholder="0"></label>
+        <label class="f"><span>Paid so far</span><input name="vendor_paid" type="number" min="0" step="0.01" inputmode="decimal" value="${esc(vd.paid || "")}" placeholder="0"></label>
+        <div class="tk-f"><span class="tk-lbl">Balance</span><div id="tk-bal" style="padding:9px 0;font-weight:700"></div></div></div></div>
+    <label class="check"><input type="checkbox" name="starred" ${v.starred ? "checked" : ""}> High priority (starred)</label>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">${t ? "Save" : "Add task"}</button></div></form>`,
+  { cls: "edit", onMount: (ov, close) => {
+    const form = ov.querySelector("#tkf"), cl = ov.querySelector("#tk-cl"), clSel = form.client_id, evSel = form.event_id;
+    const fillEvents = keep => { const c = +clSel.value || null;
+      evSel.innerHTML = `<option value="">No event</option>` + TK.events.filter(e => !c || e.client_id === c)
+        .map(e => `<option value="${e.id}" ${e.id === keep ? "selected" : ""}>${esc(e.name)}${e.date ? " · " + esc(fmtDay(e.date)) : ""}</option>`).join(""); };
+    fillEvents(v.event && v.event.id);
+    clSel.onchange = () => fillEvents(+evSel.value);
+    evSel.onchange = () => { const e = TK.events.find(x => x.id === +evSel.value); if (e && !clSel.value) { clSel.value = e.client_id; fillEvents(e.id); } };
+    const paintCl = () => {
+      cl.innerHTML = checklist.map((c, i) => `<div class="tk-cl-row"><input type="checkbox" data-d="${i}" ${c.done ? "checked" : ""} aria-label="Done">
+        <input type="text" data-t="${i}" maxlength="200" value="${esc(c.text)}" placeholder="A step, for example Colour correction" aria-label="Step"><button type="button" class="btn sm" data-r="${i}" aria-label="Remove step">×</button></div>`).join("");
+      cl.querySelectorAll("[data-d]").forEach(x => x.onchange = () => { checklist[+x.dataset.d].done = x.checked; });
+      cl.querySelectorAll("[data-t]").forEach(x => { x.oninput = () => { checklist[+x.dataset.t].text = x.value; };
+        x.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); addStep(); } }; });
+      cl.querySelectorAll("[data-r]").forEach(x => x.onclick = () => { checklist.splice(+x.dataset.r, 1); paintCl(); });
+    };
+    const addStep = () => { if (checklist.length >= 50) return toast("A task can have at most 50 steps.", true);
+      checklist.push({ text: "", done: false }); paintCl(); const all = cl.querySelectorAll("[data-t]"); all[all.length - 1].focus(); };
+    paintCl(); ov.querySelector("#tk-cl-add").onclick = addStep;
+    const isv = ov.querySelector("#tk-isv"), box = ov.querySelector("#tk-v");
+    isv.onchange = () => { box.hidden = !isv.checked; if (isv.checked) form.vendor_name.focus(); };
+    form.vendor_name.onchange = () => { const k = TK.vendors.find(x => x.name.toLowerCase() === form.vendor_name.value.trim().toLowerCase());
+      if (k && !form.vendor_phone.value) form.vendor_phone.value = k.phone; };
+    const bal = () => { const a = Number(form.vendor_amount.value) || 0, p = Number(form.vendor_paid.value) || 0;
+      ov.querySelector("#tk-bal").innerHTML = !a ? `<span class="muted">—</span>` : p >= a ? `<span style="color:var(--ok)">Paid in full</span>` : `<span style="color:var(--danger)">${esc(fmtMoney(a - p))}</span>`; };
+    form.vendor_amount.oninput = form.vendor_paid.oninput = bal; bal();
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const d = Object.fromEntries(new FormData(form));
+      const tagList = (d.tags || "").split(",").map(x => x.trim()).filter(Boolean);
+      if (tagList.length > 8) return toast("Use at most 8 tags.", true);
+      if (isv.checked && !d.vendor_name.trim()) { form.vendor_name.focus(); return toast("Add the vendor's name, or untick \"Given to a vendor\".", true); }
+      const body = { title: d.title, stage: d.stage, status: d.status, starred: !!d.starred, deadline: d.deadline || null, tags: tagList,
+        client_id: +d.client_id || null, event_id: +d.event_id || null, description: d.description || "",
+        assignees: [...ov.querySelectorAll("#tk-people input:checked")].map(x => +x.value), checklist: checklist.filter(c => c.text.trim()),
+        ...(isv.checked ? { vendor_name: d.vendor_name, vendor_phone: d.vendor_phone, vendor_work: d.vendor_work,
+          vendor_amount: Number(d.vendor_amount) || 0, vendor_paid: Number(d.vendor_paid) || 0 } : { vendor_name: "" }) };
+      try { const r = await api(t ? "PATCH" : "POST", t ? "/api/tasks/" + t.id : "/api/tasks", body); close(); toast(t ? "Saved." : `"${r.title}" added.`); await refreshTasks(); }
+      catch (x) { fail(x); }
+    };
+  } });
+}
+async function taskDetail(id) {
+  const t = TK.tasks.find(x => x.id === id); if (!t) return;
+  let log = [];
+  try { log = await api("GET", `/api/tasks/${id}/log`); } catch (x) { return fail(x); }
+  const up = mayUpdate(t), v = t.vendor;
+  const row = (k, val) => val ? `<tr><td class="muted" style="width:110px;padding:6px 0;vertical-align:top">${k}</td><td style="padding:6px 0">${val}</td></tr>` : "";
+  const when = s => new Date(s * 1000).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  const line = h => h.kind === "comment"
+    ? `<div><b>${esc(h.actor)}</b> <span class="muted small">${when(h.created_at)}</span><div style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(h.text)}</div></div>`
+    : `<div class="small"><span class="muted">${esc(TK_LOG[h.kind] || h.kind)}</span> ${esc(h.text)}<div class="muted">${when(h.created_at)} · ${esc(h.actor)}</div></div>`;
+  modal(`<div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap"><h2 style="margin:0;overflow-wrap:anywhere">${t.starred ? `<span style="color:#e9a400">★</span> ` : ""}${esc(t.title)}</h2>
+      <span class="badge" style="white-space:nowrap"><span class="dot" style="background:${TK_ST[t.status]}"></span>${esc(t.status_label)}</span></div>
+    <table class="small" style="margin-top:10px"><tbody>
+      ${row("Stage", up ? `<select id="td-stage" style="width:auto;padding:5px 8px" aria-label="Stage">${TK.stages.map(s => `<option value="${s.key}" ${s.key === t.stage ? "selected" : ""}>${esc(s.label)}</option>`).join("")}</select>` : esc(stageLabel(t.stage)))}
+      ${row("Deadline", t.deadline ? `${esc(fmtDay(t.deadline))} · ${dueText(t)}` : "")}
+      ${row("Client", t.client ? `<a href="#/clients/${t.client.id}">${esc(t.client.name)}</a>` : "")}
+      ${row("Event", t.event ? `<a href="#/events/${t.event.id}">${esc(t.event.name)}</a>` : "")}
+      ${row("People", t.assignees.map(a => `<span style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 4px 0">${avatar(a)}${esc(a.name)}</span>`).join(""))}
+      ${row("Tags", t.tags.length ? `<div class="chips">${t.tags.map(tagChip).join("")}</div>` : "")}
+      ${row("Description", t.description && `<div style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(t.description)}</div>`)}
+    </tbody></table>
+    ${v ? `<div class="tk-vendor box"><div class="row" style="justify-content:space-between"><b>Given to ${esc(v.name)}</b>${v.phone ? `<a class="small" href="tel:${esc(v.phone.replace(/[^\d+]/g, ""))}">${esc(v.phone)}</a>` : ""}</div>
+        ${v.work ? `<div class="small" style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:6px">${esc(v.work)}</div>` : ""}
+        ${"amount" in v ? `<div class="row small" style="margin-top:8px;gap:16px"><span>Agreed <b>${esc(fmtMoney(v.amount))}</b></span><span>Paid <b>${esc(fmtMoney(v.paid))}</b></span>
+          ${v.amount ? (v.balance ? `<span>Balance <b style="color:var(--danger)">${esc(fmtMoney(v.balance))}</b></span>` : `<span class="badge pub">Paid in full</span>`) : `<span class="muted">No amount yet</span>`}</div>` : ""}
+        <div class="row" style="margin-top:10px"><a class="btn sm" href="${waVendor(t)}" target="_blank" rel="noopener">Send on WhatsApp</a></div></div>` : ""}
+    ${t.checklist.length ? `<h3 class="tk-h">Checklist <span class="muted small" id="td-cn">${t.checked}/${t.checklist.length}</span></h3><div class="tk-check">${t.checklist.map((c, i) =>
+      `<label class="check" style="margin:0;font-weight:400"><input type="checkbox" data-ci="${i}" ${c.done ? "checked" : ""} ${up ? "" : "disabled"}><span style="${c.done ? "text-decoration:line-through;color:var(--muted)" : ""}">${esc(c.text)}</span></label>`).join("")}</div>` : ""}
+    <h3 class="tk-h">Comments and activity</h3>
+    ${TK.can_work ? `<form id="td-cm" class="row" style="flex-wrap:nowrap;margin-bottom:12px"><input name="text" maxlength="2000" placeholder="Write a comment" aria-label="Comment" required><button class="btn primary">Send</button></form>` : ""}
+    <div class="inv-hist">${log.map(line).join("") || `<div class="muted">Nothing yet.</div>`}</div>
+    <div class="row" style="justify-content:space-between;margin-top:16px"><div class="row">${TK.can_manage ? `<button class="btn sm" id="td-edit">Edit</button><button class="btn sm danger" id="td-del">Delete</button>` : ""}</div>
+      <button class="btn" data-close>Close</button></div>`,
+  { cls: "edit", onMount: (ov, close) => {
+    const reopen = async () => { close(); await refreshTasks(); taskDetail(id); };
+    const st = ov.querySelector("#td-stage"); if (st) st.onchange = async () => {
+      try { await api("POST", `/api/tasks/${id}/move`, { stage: st.value, order: [...columnOf(st.value, id), id] }); toast(`Moved to ${stageLabel(st.value)}.`); await reopen(); } catch (x) { fail(x); } };
+    ov.querySelectorAll("[data-ci]").forEach(x => x.onchange = async () => {
+      const list = t.checklist.map((c, i) => ({ ...c, done: i === +x.dataset.ci ? x.checked : c.done }));
+      try { const r = await api("POST", `/api/tasks/${id}/quick`, { checklist: list }); putTask(r); Object.assign(t, r); paintBoard();
+        x.nextElementSibling.style.cssText = x.checked ? "text-decoration:line-through;color:var(--muted)" : ""; ov.querySelector("#td-cn").textContent = `${r.checked}/${r.checklist.length}`; }
+      catch (e) { x.checked = !x.checked; fail(e); } });
+    const cm = ov.querySelector("#td-cm"); if (cm) cm.onsubmit = async e => { e.preventDefault();
+      try { await api("POST", `/api/tasks/${id}/comments`, { text: cm.text.value }); await reopen(); } catch (x) { fail(x); } };
+    const ed = ov.querySelector("#td-edit"); if (ed) ed.onclick = () => { close(); taskModal(t); };
+    const del = ov.querySelector("#td-del"); if (del) del.onclick = async () => { close();
+      if (!await confirmBox(`Delete "${t.title}"?`, "The task, its checklist and its comments are removed for good. To keep them, move it to Done or Cancelled instead.", "Delete", true)) return;
+      try { await api("DELETE", "/api/tasks/" + id); toast("Task deleted."); await refreshTasks(); } catch (x) { fail(x); } };
+  } });
+}
+
 /* ------------------------------------------------------------------ calendar: bookings by date */
 const PAY = { paid: ["pub", "Paid"], part: ["busy", "Part paid"], unpaid: ["bad", "Unpaid"], not_finalised: ["", "Not finalised"] };
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -1878,6 +2221,7 @@ async function route() {
     if (parts[0] === "settings") return await viewSettings();
     if (parts[0] === "team") return parts[1] === "inventory" ? await viewInventory() : await viewTeam();
     if (parts[0] === "calendar") return await viewCalendar(parts[1]);
+    if (parts[0] === "tasks") return await viewTasks();
     if (parts[0] === "billing" || parts[0] === "estimates") return parts[1] ? await viewEstimate(parts[1], query) : await viewEstimates();
     location.hash = "#/";
   } catch (e) {

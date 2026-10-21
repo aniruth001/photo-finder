@@ -40,6 +40,7 @@ from .team import mount_team, seats_used
 from .videos import mount_videos
 from .inventory import mount_inventory
 from .bookings import mount_bookings
+from .tasks import mount_tasks
 from .album import mount_album
 from .vendors import mount_vendors
 
@@ -1071,6 +1072,7 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
     mount_camera(app, SimpleNamespace(can=can, err=err, get_event=get_event))
     mount_inventory(app, SimpleNamespace(user_dep=user_dep, can=can, err=err))
     mount_bookings(app, SimpleNamespace(user_dep=user_dep, can=can, err=err))
+    mount_tasks(app, SimpleNamespace(user_dep=user_dep, can=can, err=err))
     mount_album(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, get_event=get_event, client_open=app.state.client_open,
                                      client_ip=client_ip, limiter=limiter))
     mount_vendors(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, get_event=get_event, plan_of=plan_of,

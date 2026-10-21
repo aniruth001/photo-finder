@@ -345,6 +345,48 @@ MIGRATIONS = {
         ALTER TABLE videos ADD COLUMN vendor_id INTEGER REFERENCES vendor_links(id) ON DELETE SET NULL;
         CREATE INDEX photos_vendor ON photos(vendor_id);
     """,
+    21: """
+        CREATE TABLE tasks (                            -- the project board (studio/tasks.py)
+            id INTEGER PRIMARY KEY,
+            account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL DEFAULT '',
+            stage TEXT NOT NULL DEFAULT 'new',          -- new | planned | progress | feedback | done | cancelled
+            position REAL NOT NULL DEFAULT 0,           -- order inside the stage's column
+            status TEXT NOT NULL DEFAULT 'on_track',    -- on_track | ready | changes | blocked
+            starred INTEGER NOT NULL DEFAULT 0,
+            deadline TEXT,                              -- YYYY-MM-DD
+            tags TEXT NOT NULL DEFAULT '[]',            -- JSON ["Post-prod", "Onsite"]
+            client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+            event_id INTEGER REFERENCES events(id) ON DELETE SET NULL,
+            checklist TEXT NOT NULL DEFAULT '[]',       -- JSON [{text, done}]
+            vendor_name TEXT NOT NULL DEFAULT '',       -- '' = done in-house
+            vendor_phone TEXT NOT NULL DEFAULT '',
+            vendor_work TEXT NOT NULL DEFAULT '',       -- the work given to the vendor
+            vendor_amount INTEGER NOT NULL DEFAULT 0,   -- agreed, paise
+            vendor_paid INTEGER NOT NULL DEFAULT 0,     -- paid so far, paise
+            created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX tasks_account ON tasks(account_id, stage, position);
+        CREATE TABLE task_assignees (
+            task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            PRIMARY KEY (task_id, user_id)
+        );
+        CREATE INDEX task_assignees_user ON task_assignees(user_id);
+        CREATE TABLE task_log (                         -- comments and what happened; names copied in, like inventory_log
+            id INTEGER PRIMARY KEY,
+            task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+            account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+            kind TEXT NOT NULL,                         -- comment | created | moved | status | vendor | vendor_off | edited
+            actor TEXT NOT NULL DEFAULT '',
+            text TEXT NOT NULL DEFAULT '',
+            created_at INTEGER NOT NULL
+        );
+        CREATE INDEX task_log_task ON task_log(task_id);
+    """,
 }
 
 _local = threading.local()

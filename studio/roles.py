@@ -9,6 +9,7 @@ PERMS = {
     "upload": "upload photos",
     "delete_photos": "delete photos",
     "inventory": "manage the equipment inventory",
+    "tasks": "add, edit or delete tasks",
     "delete_account": "delete the company account",
 }
 
@@ -18,10 +19,10 @@ ROLES = {
               "about": "Everything, including deleting the company. One per company."},
     "admin": {"label": "Admin", "rank": 3, "perms": set(PERMS) - {"delete_account"},
               "about": "Everything except deleting the company. Manages the team."},
-    "manager": {"label": "Manager", "rank": 2, "perms": {"clients", "events", "upload", "delete_photos", "inventory"},
-                "about": "Clients and events: create, publish, delete. Uploads and deletes photos. Manages the equipment."},
+    "manager": {"label": "Manager", "rank": 2, "perms": {"clients", "events", "upload", "delete_photos", "inventory", "tasks"},
+                "about": "Clients and events: create, publish, delete. Uploads and deletes photos. Manages the equipment and tasks."},
     "photographer": {"label": "Photographer", "rank": 1, "perms": {"upload"},
-                     "about": "Uploads photos to existing events, checks equipment out and back in. Sees everything, changes nothing else."},
+                     "about": "Uploads photos to existing events, checks equipment out and back in, works on the tasks given to them. Sees everything, changes nothing else."},
     "viewer": {"label": "Viewer", "rank": 0, "perms": set(),
                "about": "Read-only: events, photos, guest stats and share links."},
 }

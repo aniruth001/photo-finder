@@ -302,6 +302,29 @@ still to collect. Below the calendar, "This month" lists the bookings with their
 shows dots and a tap opens that day's list. Owners, admins and managers add and change bookings; everyone in the
 company sees them.
 
+## Tasks (project board)
+
+**Tasks** is the studio's board: every job, from planning to delivery, is a card that moves through **New,
+Planned, In progress, Feedback, Done** and **Cancelled** (the last two are folded at the side; click to open them).
+Drag a card to another column, or up and down within one, to reorder it; on a phone, change the stage in the task.
+Each column has a bar showing how its tasks are doing and a **+** to add a task by typing its title.
+
+A task has a title, a stage, a status (**On track**, **Ready**, **Changes requested**, **Blocked**: the coloured dot
+on the card, click it to change), an optional deadline ("In 16 days", "Tomorrow", "2 days late" in red), the client
+and event it's for, the team members on it, tags (Post-prod, Onsite, Prep...), a description, a checklist, and a star
+for high priority. Opening a task shows everything plus **Comments and activity**: comments from the team and what
+happened (created, moved, status changes, vendor changes, edits), with who and when.
+
+**Given to a vendor:** tick it to record the vendor's name and number, the **work given** to them, the **agreed
+amount** and what's been **paid so far**; the balance follows. The card shows "Vendor · name", the task has **Send
+on WhatsApp** (a message with the work and the deadline) and a tap-to-call number, and vendor names you've used before
+are suggested, with their number. At the top of the board: open tasks, overdue, your own, how many are with vendors,
+and **what is still owed to vendors** (done tasks count until paid; cancelled ones don't).
+
+Filter by **Mine, Starred, Overdue, Blocked, With vendors**, by client, or search titles, people, tags and vendors.
+Owners, admins and managers add, edit, move and delete any task and see the vendor amounts. Photographers move the
+tasks they're on, change their status and star, tick their checklist, and comment on any task. Viewers only look.
+
 ## Equipment inventory (Team > Inventory)
 
 **Team > Inventory** keeps the studio's equipment: camera bodies, lenses, lights, drones, audio, gimbals, cards,
@@ -342,8 +365,8 @@ is created.
 | --- | --- |
 | Owner | Everything, including deleting the company. One per company |
 | Admin | Everything except deleting the company; manages the team |
-| Manager | Clients and events (create, edit, publish, delete), uploads and deleting photos |
-| Photographer | Upload photos to existing events; sees everything else read-only |
+| Manager | Clients and events (create, edit, publish, delete), uploads and deleting photos, equipment, tasks |
+| Photographer | Upload photos to existing events; works on the tasks they're on; sees everything else read-only |
 | Viewer | Read-only: events, photos, guest stats, share links and QR codes |
 
 The server checks the role on every request (`studio/roles.py`); the dashboard also hides what a role can't use.
