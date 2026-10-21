@@ -216,6 +216,34 @@
   details.card > summary::after { content: "▾"; float: right; color: var(--muted); }
   details[open].card > summary { margin-bottom: 14px; }
 
+  /* overview */
+  .ov-tiles { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 22px; }
+  a.ov-tile { text-decoration: none; display: block; }
+  a.ov-tile:hover { border-color: #cfc9b8; box-shadow: 0 2px 10px rgba(40,30,0,.06); }
+  .ov-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .ov-grid { grid-template-columns: 1fr; } }
+  .ov-grid .card { margin: 0; }
+  .ov-col { display: grid; gap: 18px; }
+  .ov-card h2 { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .ov-card h2 a { font-size: .85rem; font-weight: 600; color: var(--muted); text-decoration: none; }
+  .ov-card h2 a:hover { color: var(--ink); text-decoration: underline; }
+  .ov-list { display: grid; }
+  .ov-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 4px; border-top: 1px solid var(--soft);
+            text-decoration: none; color: inherit; border-radius: 6px; }
+  .ov-row:first-child { border-top: 0; }
+  a.ov-row:hover { background: #faf9f5; }
+  .ov-row b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .93rem; }
+  .ov-row .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ov-when { text-align: right; font-size: .82rem; white-space: nowrap; }
+  .ov-day { width: 42px; display: grid; text-align: center; line-height: 1.15; border-radius: 8px; background: var(--soft); padding: 4px 0; }
+  .ov-day b { font-size: 1.05rem; } .ov-day span { font-size: .66rem; font-weight: 700; text-transform: uppercase; color: var(--muted); letter-spacing: .04em; }
+  .ov-pipe { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+  @media (max-width: 640px) { .ov-pipe { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .ov-pipe a { text-decoration: none; color: inherit; display: grid; gap: 4px; padding: 8px; border-radius: 10px; background: var(--soft); }
+  .ov-pipe a:hover { background: #e8e4da; }
+  .ov-pipe b { font-size: 1.3rem; } .ov-pipe span { font-size: .78rem; color: var(--muted); font-weight: 600; }
+  .ov-none { padding: 14px 4px; }
+
   /* tasks board */
   main.wide, body:has(main.wide) .bar { max-width: 1440px; }
   .kb { display: flex; gap: 14px; overflow-x: auto; align-items: flex-start; padding-bottom: 12px; scroll-snap-type: x proximity; }
@@ -592,14 +620,80 @@ const statusBadge = e => e.processing ? `<span class="badge busy">Processing ${e
 
 async function viewHome() {
   stopPoll(); document.title = "Overview · Photo Finder Studio";
-  ME = await api("GET", "/api/auth/me"); const [events, clients] = await Promise.all([api("GET", "/api/events"), api("GET", "/api/clients")]);
-  const u = ME.usage, l = ME.limits;
-  shell(`<div class="head"><div><h1>Welcome, ${esc(ME.account.company)}</h1><div class="muted">${clients.length} client${clients.length === 1 ? "" : "s"} · ${events.length} event${events.length === 1 ? "" : "s"}</div></div>
-      <div class="row"><button class="btn" data-act="new-client" data-need="clients">New client</button><button class="btn primary" data-act="new-event" data-need="events">New event</button></div></div>
-    <div class="stats" style="margin-bottom:24px">${meter("Events", u.events, l.events)}${meter("Photos", u.photos, l.photos)}${meter("Storage", u.storage, l.storage, fmtBytes)}</div>
-    <h2>Recent events</h2>${events.length ? eventTable(events.slice(0, 8)) : emptyState("No events yet", "Add a client, then create an event for them and upload the photos.",
-      `<button class="btn primary" data-act="new-event" data-need="events">Create your first event</button>`)}`, "home");
+  ME = await api("GET", "/api/auth/me");
+  const now = new Date(), in30 = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30);
+  const soft = p => p.catch(e => { if (e.code === "auth") throw e; return null; });  // one section failing shouldn't blank the page
+  const [events, clients, tasks, cal, inv] = await Promise.all([api("GET", "/api/events"), api("GET", "/api/clients"),
+    soft(api("GET", "/api/tasks")), soft(api("GET", `/api/calendar?start=${ymd(now)}&end=${ymd(in30)}`)), soft(api("GET", "/api/inventory"))]);
+  if (tasks) TK = tasks;  // the task helpers (due dates, stages) read it
+  const today = (tasks && tasks.today) || (inv && inv.today) || ymd(now);
+  const u = ME.usage, l = ME.limits, me = ME.user.name ? ME.user.name.split(" ")[0] : ME.account.company;
+  const days = d => Math.round((new Date(d + "T00:00:00") - new Date(today + "T00:00:00")) / 86400000);
+  const hour = now.getHours(), hello = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  // tasks: late or due within a week, and the ones on my plate
+  const open = tasks ? tasks.tasks.filter(t => t.stage !== "done" && t.stage !== "cancelled") : [];
+  const byDue = (a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999") || b.starred - a.starred;
+  const urgent = open.filter(t => t.overdue || t.status === "blocked" || (t.deadline && days(t.deadline) <= 7)).sort(byDue);
+  const mine = open.filter(t => t.assignees.some(a => a.id === tasks.me)).sort(byDue);
+  const week = open.filter(t => t.deadline && !t.overdue && days(t.deadline) <= 7).length;
+  // what's coming: bookings and dated events in the next 30 days
+  const evSoon = events.filter(e => e.event_date && e.event_date >= today && days(e.event_date) <= 30);
+  const coming = [...(cal ? cal.bookings.filter(b => (b.end_date || b.date) >= today).map(b => ({ kind: "booking", date: b.date < today ? today : b.date, b })) : []),
+    ...evSoon.map(e => ({ kind: "event", date: e.event_date, e }))]
+    .sort((a, b) => a.date.localeCompare(b.date)).slice(0, 7);
+  const lateKit = inv ? inv.items.filter(i => i.overdue) : [];
+  const busy = events.filter(e => e.processing);
+
+  const tile = (href, k, v, sub = "", cls = "") => `<a class="card inv-tile ov-tile ${cls}" style="margin:0" href="${href}"><div class="muted small">${k}</div><div class="inv-v">${v}</div>${sub ? `<div class="muted small">${sub}</div>` : ""}</a>`;
+  const red = n => `<span style="color:var(--danger);font-weight:700">${n}</span>`;
+  const tiles = [
+    tasks && tile("#/tasks", "Open tasks", num(tasks.summary.open), tasks.summary.overdue ? red(`${num(tasks.summary.overdue)} overdue`) : week ? `${num(week)} due this week` : "nothing late", tasks.summary.overdue ? "hot" : ""),
+    tasks && tile("#/tasks", "On my plate", num(tasks.summary.mine), mine.filter(t => t.overdue).length ? red(`${mine.filter(t => t.overdue).length} late`) : ""),
+    cal && tile("#/calendar", "Next 30 days", num(cal.totals.bookings), `booking${cal.totals.bookings === 1 ? "" : "s"}${evSoon.length ? ` · ${num(evSoon.length)} event${evSoon.length === 1 ? "" : "s"}` : ""}`),
+    cal && cal.totals.amount ? tile("#/calendar", "To collect", esc(fmtMoney(cal.totals.balance)), `of ${esc(fmtMoney(cal.totals.amount))} booked`) : "",
+    tasks && tasks.summary.vendor_balance !== null && tasks.summary.vendors ? tile("#/tasks", "Owed to vendors", esc(fmtMoney(tasks.summary.vendor_balance)), `${num(tasks.summary.vendors)} job${tasks.summary.vendors === 1 ? "" : "s"} with vendors`) : "",
+    inv && inv.summary.items ? tile("#/team/inventory", "Equipment out", num(inv.summary.out), inv.summary.overdue ? red(`${num(inv.summary.overdue)} overdue`) : `${num(inv.summary.available)} available`, inv.summary.overdue ? "hot" : "") : "",
+  ].filter(Boolean).join("");
+
+  const taskRow = t => `<a class="ov-row" href="#/tasks" data-open-task="${t.id}"><span class="dot" style="background:${TK_ST[t.status]};margin:0" title="${esc(t.status_label)}"></span>
+    <span style="min-width:0"><b>${t.starred ? `<span style="color:#e9a400">★</span> ` : ""}${esc(t.title)}</b><span class="muted small">${esc([stageLabel(t.stage), t.client && t.client.name, t.vendor && "Vendor · " + t.vendor.name].filter(Boolean).join(" · "))}</span></span>
+    <span class="ov-when">${t.deadline ? dueText(t) : t.status === "blocked" ? `<span class="kb-due late">Blocked</span>` : ""}</span></a>`;
+  const kitRow = i => `<a class="ov-row" href="#/team/inventory"><span class="dot" style="background:var(--danger);margin:0"></span>
+    <span style="min-width:0"><b>${esc(i.name)}</b><span class="muted small">with ${esc(i.holder ? i.holder.name : "a removed member")}${i.event ? " · " + esc(i.event.name) : ""}</span></span>
+    <span class="ov-when"><span class="kb-due late">due ${esc(fmtDay(i.due_back))}</span></span></a>`;
+  const busyRow = e => `<a class="ov-row" href="#/events/${e.id}"><span class="dot" style="background:var(--warn);margin:0"></span>
+    <span style="min-width:0"><b>${esc(e.name)}</b><span class="muted small">${esc(e.client_name)}</span></span><span class="ov-when"><span class="badge busy">Processing ${num(e.processing)}</span></span></a>`;
+  const comingRow = x => {
+    const d = new Date(x.date + "T00:00:00"), dd = `<span class="ov-day"><b>${d.getDate()}</b><span>${d.toLocaleDateString(undefined, { month: "short" })}</span></span>`;
+    const rel = days(x.date) === 0 ? "Today" : days(x.date) === 1 ? "Tomorrow" : d.toLocaleDateString(undefined, { weekday: "short" });
+    if (x.kind === "event") return `<a class="ov-row" href="#/events/${x.e.id}">${dd}<span style="min-width:0"><b>${esc(x.e.name)}</b><span class="muted small">Event · ${esc(x.e.client_name)}</span></span><span class="ov-when muted">${rel}</span></a>`;
+    const b = x.b, pay = PAY[b.payment_status] || PAY.not_finalised;
+    return `<a class="ov-row" href="#/calendar/${x.date.slice(0, 7)}">${dd}<span style="min-width:0"><b>${esc(b.title)}</b><span class="muted small">${esc([b.start_time, b.client_name, b.location].filter(Boolean).join(" · ") || b.source_label)}</span></span>
+      <span class="ov-when"><span class="muted">${rel}</span><br><span class="badge ${pay[0]}">${pay[1]}</span></span></a>`;
+  };
+  const card = (title, href, link, body) => `<div class="card ov-card"><h2>${title}${href ? `<a href="${href}">${link} ›</a>` : ""}</h2><div class="ov-list">${body}</div></div>`;
+  const none = t => `<div class="ov-none muted small">${t}</div>`;
+  const attention = [...busy.map(busyRow), ...urgent.slice(0, 6).map(taskRow), ...lateKit.slice(0, 4).map(kitRow)];
+  const pipe = tasks ? `<div class="ov-pipe">${tasks.stages.map(s => { const n = tasks.tasks.filter(t => t.stage === s.key).length;
+    return `<a href="#/tasks" title="${esc(s.label)}"><b>${num(n)}</b><span>${esc(s.label)}</span></a>`; }).join("")}</div>` : "";
+
+  shell(`<div class="head"><div><h1>${hello}, ${esc(me)}</h1><div class="muted">${esc(now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }))} · ${clients.length} client${clients.length === 1 ? "" : "s"} · ${events.length} event${events.length === 1 ? "" : "s"}</div></div>
+      <div class="row"><button class="btn" data-act="new-client" data-need="clients">New client</button>${tasks && tasks.can_manage ? `<button class="btn" id="ov-task">New task</button>` : ""}<button class="btn primary" data-act="new-event" data-need="events">New event</button></div></div>
+    ${tiles ? `<div class="stats ov-tiles">${tiles}</div>` : ""}
+    <div class="ov-grid" style="margin-bottom:22px"><div class="ov-col">
+        ${card("Needs attention", tasks ? "#/tasks" : "", "All tasks", attention.join("") || none(tasks && tasks.tasks.length ? "Nothing late, blocked or due this week. Nice." : "Late or blocked tasks, tasks due this week, overdue equipment and photos still processing show up here."))}
+        ${tasks ? card("My tasks", "#/tasks", "Board", mine.slice(0, 5).map(taskRow).join("") || none("Nothing assigned to you right now.")) : ""}
+      </div><div class="ov-col">
+        ${card("Coming up", "#/calendar", "Calendar", coming.map(comingRow).join("") || none("No bookings or events in the next 30 days."))}
+        ${tasks && tasks.tasks.length ? card("Task board", "#/tasks", "Open", pipe) : ""}
+      </div></div>
+    <h2>Recent events</h2>${events.length ? eventTable(events.slice(0, 6)) : emptyState("No events yet", "Add a client, then create an event for them and upload the photos.",
+      `<button class="btn primary" data-act="new-event" data-need="events">Create your first event</button>`)}
+    <h2 style="margin-top:24px">Your plan</h2><div class="stats">${meter("Events", u.events, l.events)}${meter("Photos", u.photos, l.photos)}${meter("Storage", u.storage, l.storage, fmtBytes)}</div>`, "home");
   wire();
+  const nt = document.getElementById("ov-task"); if (nt) nt.onclick = () => taskModal();
+  $app.querySelectorAll("[data-open-task]").forEach(a => a.onclick = e => { e.preventDefault(); taskDetail(+a.dataset.openTask); });
 }
 
 function eventTable(events, withClient = true) {
@@ -1796,7 +1890,10 @@ const waVendor = t => {
     t.deadline ? `Needed by ${fmtDay(t.deadline)}.` : ""].filter(Boolean).join("\n"));
   return d.length >= 10 ? `https://wa.me/${d}?text=${msg}` : `https://wa.me/?text=${msg}`;
 };
-async function refreshTasks() { TK = await api("GET", "/api/tasks"); paintBoard(); }
+async function refreshTasks() {
+  if (!document.getElementById("kb")) { if ((location.hash || "#/") === "#/") await viewHome(); return; }  // opened from the Overview
+  TK = await api("GET", "/api/tasks"); paintBoard();
+}
 
 async function viewTasks() {
   stopPoll(); document.title = "Tasks · Photo Finder Studio";
