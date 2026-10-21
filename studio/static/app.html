@@ -1,0 +1,1891 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Photo Finder Studio</title>
+<style>
+  :root {
+    --bg: #f7f6f2; --card: #ffffff; --line: #e6e2d8; --ink: #1d1b16; --muted: #6f6a5d; --soft: #efece4;
+    --brand: #f0c52f; --brand-ink: #1b1406; --danger: #b4321f; --ok: #1f7a45; --warn: #96600a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  h1 { font-size: 1.7rem; line-height: 1.2; margin: 0; letter-spacing: -.01em; }
+  h2 { font-size: 1.05rem; margin: 0 0 12px; }
+  .muted { color: var(--muted); }
+  .small { font-size: .85rem; }
+  [hidden] { display: none !important; }
+
+  /* header */
+  header.top { background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+  .bar { max-width: 1080px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; }
+  .logo i { width: 30px; height: 30px; border-radius: 8px; background: var(--brand); color: var(--brand-ink); display: grid;
+            place-items: center; font-style: normal; font-weight: 800; }
+  nav { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; min-width: 0; }
+  @media (max-width: 760px) { nav { order: 3; flex-basis: 100%; } .who { margin-left: auto; } }  /* phones: the links get a row of their own */
+  nav a { text-decoration: none; padding: 6px 12px; border-radius: 8px; color: var(--muted); font-weight: 600; }
+  nav a.on, nav a:hover { background: var(--soft); color: var(--ink); }
+  .who { display: flex; align-items: center; gap: 10px; }
+  main { max-width: 1080px; margin: 0 auto; padding: 28px 20px 80px; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .crumbs { margin-bottom: 6px; font-size: .85rem; }
+  .crumbs a { color: var(--muted); text-decoration: none; }
+  .crumbs a:hover { text-decoration: underline; }
+
+  /* controls */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 15px; border-radius: 9px; border: 1px solid var(--line);
+         background: var(--card); color: var(--ink); font-weight: 600; font-size: .92rem; font-family: inherit; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .btn:hover { background: var(--soft); }
+  .btn.primary { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+  .btn.primary:hover { filter: brightness(.96); }
+  .btn.danger { color: var(--danger); border-color: #e4c3bc; }
+  .btn.danger:hover { background: #fbeeeb; }
+  .btn.sm { padding: 5px 10px; font-size: .82rem; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  input, select, textarea { font: inherit; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: var(--ink); width: 100%; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); outline-offset: 0; border-color: var(--brand); }
+  input[type=checkbox] { width: auto; }
+  input[type=color] { padding: 2px; height: 40px; width: 60px; }
+  label.f { display: block; margin-bottom: 12px; font-weight: 600; font-size: .85rem; }
+  label.f > span { display: block; margin-bottom: 4px; }
+  label.f small { font-weight: 400; color: var(--muted); }
+  .check { display: flex; gap: 8px; align-items: center; font-weight: 600; font-size: .9rem; margin-bottom: 12px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1; min-width: 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .two, .three { grid-template-columns: 1fr; } }
+  .est-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+  .est-side { position: sticky; top: 84px; }
+  @media (max-width: 960px) { .est-grid { grid-template-columns: 1fr; } .est-side { position: static; } }
+  .pkg { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 10px; background: var(--soft); }
+  .pkg-head { display: grid; grid-template-columns: 22px minmax(0, 1fr) 150px auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+  @media (max-width: 640px) { .pkg-head { grid-template-columns: 22px minmax(0, 1fr) auto; } .pkg-head [data-k="amount"] { grid-column: 2 / 4; grid-row: 2; } }
+  .pkg-move { display: flex; gap: 6px; justify-content: flex-end; margin-top: 8px; }
+  .est-line { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: .92rem; }
+  .est-line span { color: var(--muted); }
+  .est-line.grand { border-top: 2px solid var(--brand); margin-top: 6px; padding-top: 12px; font-size: 1.05rem; }
+  .est-line.grand span { color: var(--ink); font-weight: 700; }
+  .est-acts { display: grid; gap: 8px; margin-top: 16px; }
+  .est-acts .btn { justify-content: center; }
+  .kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 640px) { .kinds { grid-template-columns: 1fr; } }
+  .kind { display: flex; gap: 10px; align-items: flex-start; border: 1.5px solid var(--line); border-radius: 12px; padding: 12px 14px; cursor: pointer; }
+  .kind input { width: auto; margin-top: 3px; accent-color: var(--brand); }
+  .kind > span { display: grid; gap: 2px; }
+  .kind:has(input:checked) { border-color: var(--brand); background: var(--soft); }
+  .kind:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+  /* cards, lists */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 18px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+  a.item, div.item { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; text-decoration: none; }
+  a.item:hover { border-color: #cfc9b8; box-shadow: 0 2px 10px rgba(40,30,0,.06); }
+  .item b { display: block; margin-bottom: 2px; overflow-wrap: anywhere; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  td { padding: 12px; border-bottom: 1px solid var(--soft); vertical-align: middle; }
+  tr.click { cursor: pointer; } tr.click:hover td { background: #faf9f5; }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: .75rem; font-weight: 700; background: var(--soft); color: var(--muted); }
+  .badge.pub { background: #dff3e6; color: var(--ok); } .badge.busy { background: #fbefd0; color: var(--warn); }
+  .badge.bad { background: #fbe4df; color: var(--danger); }
+  .empty { text-align: center; padding: 44px 16px; color: var(--muted); }
+  .empty b { display: block; color: var(--ink); font-size: 1.05rem; margin-bottom: 4px; }
+  .meter { height: 8px; background: var(--soft); border-radius: 9px; overflow: hidden; margin: 6px 0 4px; }
+  .meter > div { height: 100%; background: var(--brand); border-radius: 9px; }
+  .meter.hot > div { background: var(--danger); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+
+  /* auth */
+  .auth { max-width: 420px; margin: 7vh auto 0; padding: 0 16px; }
+  .auth h1 { text-align: center; margin-bottom: 6px; } .auth .sub { text-align: center; margin: 0 0 22px; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--soft); border-radius: 10px; padding: 4px; margin-bottom: 18px; }
+  .tabs button { border: 0; background: none; padding: 8px; border-radius: 7px; font-weight: 600; font-size: .9rem; font-family: inherit; cursor: pointer; color: var(--muted); }
+  .tabs button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  .gbtn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 10px 14px; border: 1px solid #dadce0;
+          border-radius: 9px; background: #fff; color: #1f1f1f; font-weight: 600; font-size: .92rem; font-family: inherit; text-decoration: none; }
+  .gbtn:hover { background: #f8f9fa; } .gbtn svg { width: 18px; height: 18px; flex: none; }
+  .or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .8rem; margin: 16px 0; }
+  .or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+  .msg { padding: 10px 12px; border-radius: 9px; margin-bottom: 14px; font-size: .9rem; }
+  .msg.err { background: #fbe4df; color: var(--danger); } .msg.ok { background: #dff3e6; color: var(--ok); }
+
+  /* event page */
+  .share { display: grid; grid-template-columns: 1fr 132px; gap: 20px; align-items: center; }
+  .share img { width: 132px; height: 132px; border-radius: 10px; border: 1px solid var(--line); image-rendering: pixelated; }
+  @media (max-width: 640px) { .share { grid-template-columns: 1fr; } .share img { justify-self: center; } }
+  .drop { border: 2px dashed #d6d0be; border-radius: 14px; padding: 30px 16px; text-align: center; background: #fcfbf8; transition: .15s; }
+  .drop.over { border-color: var(--brand); background: #fff9de; }
+  .drop b { display: block; font-size: 1.02rem; margin-bottom: 4px; }
+  .prog { margin-top: 14px; }
+  .prog .meter { height: 10px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .subnav { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: -8px 0 20px; }
+  .subnav a { padding: 9px 14px; text-decoration: none; color: var(--muted); font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .subnav a.on { color: var(--ink); border-bottom-color: var(--brand); }
+  .subnav a:hover { color: var(--ink); }
+  .inv-tile .inv-v { font-size: 1.4rem; font-weight: 700; }
+  .inv-tile.hot { border-color: #e9b8ad; }
+  table.inv td { vertical-align: top; }
+  .cal-bar { justify-content: space-between; }
+  .cal-title { margin: 0 6px; min-width: 170px; text-align: center; }
+  .cal-card { padding: 0; overflow: hidden; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .cal-wd { padding: 8px 10px; font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border-bottom: 1px solid var(--line); }
+  .cal-day { min-height: 112px; padding: 6px; border-right: 1px solid var(--soft); border-bottom: 1px solid var(--soft); display: flex; flex-direction: column; gap: 3px; cursor: pointer; min-width: 0; }
+  .cal-day:nth-child(7n) { border-right: 0; }
+  .cal-day:hover { background: #fcfbf7; }
+  .cal-day.other { background: #faf9f6; } .cal-day.other .cal-num { color: #b9b3a5; }
+  .cal-num { font-size: .82rem; font-weight: 700; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; }
+  .cal-day.today .cal-num { background: var(--ink); color: #fff; }
+  .cal-chip { display: block; width: 100%; text-align: left; border: 0; border-left: 3px solid; border-radius: 5px; padding: 3px 6px; font-size: .76rem; font-family: inherit;
+              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; text-decoration: none; color: var(--ink); }
+  .cal-chip.own { background: #e6f0ff; border-color: #2f6fd6; }
+  .cal-chip.expost { background: #f1e9ff; border-color: #7a4fd6; }
+  .cal-chip.ev { background: var(--soft); border-color: #a39c8c; }
+  .cal-more { border: 0; background: none; color: var(--muted); font-size: .74rem; text-align: left; padding: 0 4px; cursor: pointer; font-family: inherit; }
+  .cal-dots { display: none; gap: 3px; flex-wrap: wrap; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+  .dot.own { background: #2f6fd6; } .dot.expost { background: #7a4fd6; } .dot.ev { background: #a39c8c; }
+  .src { font-size: .8rem; font-weight: 700; padding: 2px 9px; border-radius: 99px; white-space: nowrap; }
+  .src.own { background: #e6f0ff; color: #1f55ad; } .src.expost { background: #f1e9ff; color: #5b34b0; }
+  .cal-daylist { display: grid; gap: 6px; }
+  .cal-daylist .cal-chip { font-size: .9rem; padding: 8px 10px; white-space: normal; }
+  .bk-pay { background: var(--soft); border-radius: 12px; padding: 12px 12px 2px; margin-bottom: 8px; }
+  .bk-bal { padding: 9px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  table.cal-list td { vertical-align: top; }
+  .cal-nav { font-size: 1.15rem; line-height: 1; padding: 6px 12px; }
+  .cal-src-m { display: none; margin-top: 4px; }
+  @media (max-width: 640px) {   /* phones: dots in the grid, the list below does the talking */
+    .cal-day { min-height: 54px; padding: 4px; } .cal-day .cal-chip, .cal-more { display: none; } .cal-dots { display: flex; }
+    .cal-wd { padding: 6px 2px; text-align: center; font-size: .66rem; } .cal-num { margin: 0 auto; }
+    .cal-title { min-width: 0; font-size: 1.05rem; }
+    .cal-src { display: none; } .cal-src-m { display: block; } table.cal-list td, table.cal-list th { padding: 10px 8px; }
+  }
+  .inv-search { width: 240px; }
+  .inv-cat-m { display: none; }
+  @media (max-width: 640px) {   /* phones: category under the name, actions under the status */
+    .inv-cat { display: none; } .inv-cat-m { display: block; } .inv-search { width: 100%; }
+    table.inv td, table.inv th { padding: 10px 8px; }
+  }
+  .inv-hist { display: grid; gap: 10px; max-height: 280px; overflow: auto; border-left: 2px solid var(--line); padding-left: 12px; font-size: .9rem; }
+  .chip { padding: 4px 11px; border-radius: 99px; border: 1px solid var(--line); background: var(--card); font-weight: 600; font-size: .8rem; font-family: inherit; cursor: pointer; }
+  .chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .chip.on .muted { color: inherit; opacity: .75; }
+  .fold-head { justify-content: space-between; margin-bottom: 4px; }
+  .fold-count { font-weight: 400; margin-left: 4px; }
+  .fold.min .fold-body, .fold.min .fold-tools { display: none; }
+  .fold.min .fold-head { margin-bottom: 0; }
+  .fold:not(.min) .fold-count { display: none; }
+  .drop.slim { padding: 18px 16px; }
+  .vids { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 14px; }
+  .vd { position: relative; border: 1px solid var(--line); border-radius: 11px; overflow: hidden; background: var(--card); cursor: pointer; }
+  .vd-frame { position: relative; aspect-ratio: 16 / 9; background: #111; }
+  .vd-frame video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+  .vd-play { position: absolute; inset: 0; margin: auto; width: 46px; height: 46px; border-radius: 50%; background: rgba(0,0,0,.55);
+             color: #fff; display: grid; place-items: center; font-size: 1.05rem; padding-left: 3px; }
+  .vd:hover .vd-play { background: var(--brand); color: var(--brand-ink); }
+  .vd-meta { display: grid; gap: 2px; padding: 8px 10px; }
+  .vd-meta b { font-size: .86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .vd input[type=checkbox] { position: absolute; top: 8px; left: 8px; width: 20px; height: 20px; accent-color: var(--brand); }
+  video.player { display: block; width: 100%; max-height: 78vh; background: #000; border-radius: 10px; }
+  .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; margin-top: 14px; }
+  .ph { position: relative; aspect-ratio: 1; border-radius: 9px; overflow: hidden; background: var(--soft); cursor: pointer; }
+  .ph img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; display: block; }
+  .ph input { position: absolute; top: 6px; left: 6px; width: 20px; height: 20px; accent-color: var(--brand); }
+  .vn-list { display: grid; gap: 10px; margin-top: 12px; }
+  .vn { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 8px; }
+  .vn.off { background: var(--soft); }
+  .vn-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+  .vn-add { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) auto; gap: 8px; margin-top: 10px; }
+  @media (max-width: 640px) { .vn-add { grid-template-columns: 1fr; } }
+  .alb-note { background: var(--soft); border-radius: 10px; padding: 10px 12px; margin: 10px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .alb-badge { display: inline-block; font-size: .74rem; font-weight: 700; padding: 2px 9px; border-radius: 99px; margin-left: 6px; vertical-align: 2px; }
+  .alb-badge.new { background: #ffe4ea; color: #a3153a; } .alb-badge.lock { background: var(--soft); color: var(--muted); }
+  .ph .pnm { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 6px 4px; font-size: .7rem; color: #fff;
+             background: linear-gradient(transparent, rgba(0,0,0,.65)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ph .st { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 8px; font-size: .78rem; font-weight: 600; color: var(--muted); }
+  .ph.bad .st { color: var(--danger); background: #fbeeeb; }
+  details.card > summary { cursor: pointer; font-weight: 700; font-size: 1.05rem; list-style: none; }
+  details.card > summary::-webkit-details-marker { display: none; }
+  details.card > summary::after { content: "▾"; float: right; color: var(--muted); }
+  details[open].card > summary { margin-bottom: 14px; }
+
+  /* overlays */
+  #modal-root .ov { position: fixed; inset: 0; background: rgba(20,16,0,.5); display: grid; place-items: center; z-index: 20; padding: 16px; }
+  #modal-root .dlg { background: var(--card); border-radius: 16px; padding: 24px; width: 100%; max-width: 460px; max-height: 92vh; overflow: auto; }
+  #modal-root .dlg.wide { max-width: 980px; padding: 12px; background: #000; }
+  #modal-root .dlg.edit { max-width: 700px; }
+  .hdrlogo { height: 32px; max-width: 200px; object-fit: contain; display: block; }
+  .logoprevs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  @media (max-width: 640px) { .logoprevs { grid-template-columns: 1fr; } }
+  .lp { border-radius: 10px; padding: 10px 14px; border: 1px solid var(--line); min-height: 96px; display: grid; gap: 8px; align-content: start; }
+  .lp > div, .lp > canvas { min-height: 48px; display: flex; align-items: center; }
+  .lp.light { background: #fff; } .lp.dark { background: #14100e; color: #ab9d94; border-color: #14100e; justify-items: center; text-align: center; }
+  .lp.dark > div { justify-content: center; }
+  .ed-tabs { display: flex; gap: 4px; background: var(--soft); border-radius: 10px; padding: 4px; margin-bottom: 10px; }
+  .ed-tabs button { flex: 1; border: 0; background: none; padding: 7px; border-radius: 7px; font-weight: 600; font-size: .88rem; font-family: inherit; cursor: pointer; color: var(--muted); }
+  .ed-tabs button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  .ed-stage { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); touch-action: none; display: block;
+              background: repeating-conic-gradient(#ece9e1 0 25%, #fff 0 50%) 0 0 / 18px 18px; }
+  .ed-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  .ed-zoom { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 200px; font-weight: 600; font-size: .85rem; }
+  .ed-zoom input { flex: 1; }
+  .mono { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-weight: 600; letter-spacing: .02em; }
+  #modal-root .dlg.wide img { width: 100%; max-height: 80vh; object-fit: contain; display: block; }
+  #toasts { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 30; display: grid; gap: 8px; width: min(440px, 92vw); }
+  .toast { background: var(--ink); color: #fff; padding: 11px 15px; border-radius: 10px; font-size: .9rem; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+  .toast.err { background: var(--danger); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal-root"></div>
+<div id="toasts"></div>
+
+<script>
+"use strict";
+const $app = document.getElementById("app");
+let ME = null, pollTimer = null, NOTICE = "", PROVIDERS = null;
+const GOOGLE_ERRORS = {
+  cancelled: "Google sign-in was cancelled.", state: "That sign-in expired or was started in another browser. Try again.",
+  exchange: "Couldn't reach Google. Try again in a moment.", token: "Google sign-in failed. Try again.", error: "Google sign-in failed. Try again.",
+  unverified: "Your Google account's email address isn't verified yet.", other_google: "This email is already linked to a different Google account.",
+  suspended: "This studio account is suspended. Contact support to restore access.", closed: "Sign-ups are closed. Ask for an account to be created for you.",
+  rate: "Too many attempts. Wait a few minutes and try again.", expired: "That invitation or sign-up has expired. Ask for a new one.",
+  wrong_email: "Use the Google account of the address that was invited, or set a password below.",
+  exists: "This email already has an account. Sign in instead.",
+};
+const G_LOGO = `<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>`;
+
+/* ------------------------------------------------------------------ helpers */
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtBytes = n => n >= 1073741824 ? (n / 1073741824).toFixed(1) + " GB" : n >= 1048576 ? (n / 1048576).toFixed(0) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
+const fmtDate = d => d ? new Date(d + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "No date";
+const num = n => Number(n).toLocaleString();
+const browserTz = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return ""; } };
+
+const onAuthPage = () => /^#\/(login|signup|google-finish|forgot|reset|join)\b/.test(location.hash);
+const can = p => !!(ME && ME.user.permissions && ME.user.permissions.includes(p));
+// the server refuses these anyway; hiding them saves people a "your role can't" message
+new MutationObserver(() => $app.querySelectorAll("[data-need]").forEach(el => { if (!can(el.dataset.need)) el.remove(); }))
+  .observe($app, { childList: true, subtree: true });  // signed-out pages: no redirect
+class ApiError extends Error { constructor(status, message, code) { super(message); this.status = status; this.code = code; } }
+async function api(method, url, body) {
+  const opt = { method, headers: { "X-PF": "1" }, credentials: "same-origin" };
+  if (body !== undefined) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
+  const r = await fetch(url, opt);
+  let data = null; try { data = await r.json(); } catch (e) {}
+  if (r.status === 401 && !url.startsWith("/api/auth/login") && !url.startsWith("/api/auth/signup")) {
+    ME = null; if (!onAuthPage()) location.hash = "#/login";
+    throw new ApiError(401, "Please sign in.", "auth");
+  }
+  if (r.status === 403 && data && data.error === "suspended" && !url.startsWith("/api/auth/login")) {
+    ME = null; NOTICE = data.message; if (!onAuthPage()) location.hash = "#/login";
+    throw new ApiError(403, data.message, "auth");  // "auth": the login page shows it, not a toast
+  }
+  if (!r.ok) throw new ApiError(r.status, (data && data.message) || "Something went wrong.", data && data.error);
+  return data;
+}
+function toast(msg, bad) {
+  const t = document.createElement("div"); t.className = "toast" + (bad ? " err" : ""); t.textContent = msg;
+  document.getElementById("toasts").appendChild(t); setTimeout(() => t.remove(), bad ? 6000 : 3200);
+}
+const fail = e => { if (e.code !== "auth") toast(e.message || "Something went wrong.", true); };
+
+function applyBrand(color) {
+  const c = /^#[0-9a-f]{6}$/i.test(color) ? color : "#f0c52f";
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+  const dark = (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55;
+  document.documentElement.style.setProperty("--brand", c);
+  document.documentElement.style.setProperty("--brand-ink", dark ? "#1b1406" : "#ffffff");
+}
+
+function modal(html, { wide = false, onMount, cls = "" } = {}) {
+  const root = document.getElementById("modal-root");
+  root.innerHTML = `<div class="ov"><div class="dlg${wide ? " wide" : ""}${cls ? " " + cls : ""}">${html}</div></div>`;
+  const ov = root.firstChild, close = () => { root.innerHTML = ""; document.removeEventListener("keydown", esc_); };
+  const esc_ = e => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", esc_);
+  ov.addEventListener("mousedown", e => { if (e.target === ov) close(); });
+  ov.querySelectorAll("[data-close]").forEach(b => b.onclick = close);
+  if (onMount) onMount(ov, close);
+  const first = ov.querySelector("input:not([type=hidden]), select, textarea"); if (first && !wide) first.focus();
+  return close;
+}
+function confirmBox(title, text, okLabel, danger) {
+  return new Promise(res => {
+    const close = modal(`<h2>${esc(title)}</h2><p class="muted">${esc(text)}</p>
+      <div class="row" style="justify-content:flex-end;margin-top:18px">
+        <button class="btn" data-close>Cancel</button><button class="btn ${danger ? "danger" : "primary"}" id="ok">${esc(okLabel)}</button></div>`,
+      { onMount: ov => { ov.querySelector("#ok").onclick = () => { close(); res(true); }; ov.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => res(false))); } });
+  });
+}
+const stopPoll = () => {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  if (typeof camTimer !== "undefined" && camTimer) { clearInterval(camTimer); camTimer = null; }
+};
+
+/* ------------------------------------------------------------------ shell */
+function shell(inner, active) {
+  const a = ME.account, init = esc((a.company || "?").trim().charAt(0).toUpperCase());
+  const link = (h, t, k) => `<a href="${h}" class="${active === k ? "on" : ""}">${t}</a>`;
+  $app.innerHTML = `<header class="top"><div class="bar">
+      <a class="logo" href="#/" title="${esc(a.company)}">${a.logo_url ? `<img class="hdrlogo" src="${esc(a.logo_url)}" alt="${esc(a.company)}" style="${a.logo_badge_light ? BADGE(26, false) + "height:26px" : ""}">` : `<i>${init}</i><span>${esc(a.company)}</span>`}</a>
+      <nav>${link("#/", "Overview", "home")}${link("#/clients", "Clients", "clients")}${link("#/events", "Events", "events")}${link("#/calendar", "Calendar", "calendar")}${link("#/billing", "Billing", "billing")}${link("#/team", "Team", "team")}${link("#/settings", "Settings", "settings")}${ME.user.platform_admin ? `<a href="/admin">Admin</a>` : ""}</nav>
+      <div class="who">${ME.user.role !== "owner" ? `<span class="badge" title="Your role">${esc(ME.user.role_label)}</span>` : ""}<span class="badge">${esc(a.plan_label)} plan</span><button class="btn sm" id="logout">Sign out</button></div>
+    </div></header><main>${inner}</main>`;
+  document.getElementById("logout").onclick = async () => { try { await api("POST", "/api/auth/logout"); } catch (e) {} ME = null; location.hash = "#/login"; };
+}
+const emptyState = (title, text, btn) => `<div class="card empty"><b>${esc(title)}</b>${esc(text)}${btn ? `<div style="margin-top:14px">${btn}</div>` : ""}</div>`;
+
+/* ------------------------------------------------------------------ login / signup */
+async function viewLogin(mode = "login") {
+  stopPoll(); document.title = "Sign in · Photo Finder Studio"; applyBrand();
+  if (!PROVIDERS) { try { PROVIDERS = await api("GET", "/api/auth/providers"); } catch (e) { PROVIDERS = { google: false }; } }
+  const google = PROVIDERS.google ? `<a class="gbtn" href="/api/auth/google/start">${G_LOGO}<span>${mode === "signup" ? "Sign up with Google" : "Continue with Google"}</span></a>
+      <div class="or">or with email</div>` : "";
+  $app.innerHTML = `<div class="auth"><h1>Photo Finder Studio</h1>
+    <p class="sub muted">Deliver event photos by face search.</p>
+    <div class="card"><div class="tabs"><button data-m="login" class="${mode === "login" ? "on" : ""}">Sign in</button>
+      <button data-m="signup" class="${mode === "signup" ? "on" : ""}">Create account</button></div>
+      <div id="amsg"></div>${google}
+      <form id="aform">
+        ${mode === "signup" ? `<label class="f"><span>Company or studio name</span><input name="company" required maxlength="100" autocomplete="organization"></label>
+          <label class="f"><span>Your name</span><input name="name" maxlength="100" autocomplete="name"></label>` : ""}
+        <label class="f"><span>Email</span><input name="email" type="email" required autocomplete="email"></label>
+        <label class="f"><span>Password ${mode === "signup" ? "<small>(at least 8 characters)</small>" : ""}</span>
+          <input name="password" type="password" required minlength="${mode === "signup" ? 8 : 1}" autocomplete="${mode === "signup" ? "new-password" : "current-password"}"></label>
+        ${mode === "login" ? `<p class="small" style="margin:-4px 0 14px;text-align:right"><a href="#/forgot">Forgot password?</a></p>` : ""}
+        <button class="btn primary" style="width:100%;justify-content:center" id="go">${mode === "signup" ? "Create account" : "Sign in"}</button>
+      </form></div></div>`;
+  if (NOTICE) document.getElementById("amsg").innerHTML = `<div class="msg err">${esc(NOTICE)}</div>`;  // kept until the next sign-in attempt
+  $app.querySelectorAll(".tabs button").forEach(b => b.onclick = () => viewLogin(b.dataset.m));
+  document.getElementById("aform").onsubmit = async e => {
+    e.preventDefault(); NOTICE = "";
+    const f = Object.fromEntries(new FormData(e.target)), btn = document.getElementById("go"); btn.disabled = true;
+    if (mode === "signup") f.timezone = browserTz();  // link expiry dates follow the studio's own calendar
+    try {
+      ME = await api("POST", mode === "signup" ? "/api/auth/signup" : "/api/auth/login", f);
+      if (mode === "login") ME = await api("GET", "/api/auth/me");
+      applyBrand(ME.account.brand_color); location.hash = "#/";
+    } catch (err) { document.getElementById("amsg").innerHTML = `<div class="msg err">${esc(err.message)}</div>`; btn.disabled = false; }
+  };
+}
+
+let RESET_TOKEN = "";
+
+/* ------------------------------------------------------------------ team */
+async function viewTeam() {
+  stopPoll(); document.title = "Team · Photo Finder Studio";
+  const t = await api("GET", "/api/team"), s = t.seats;
+  const roleSel = (name, cur, opts) => `<select name="${name}">${opts.map(r => `<option value="${r}" ${r === cur ? "selected" : ""}>${esc(t.roles.find(x => x.role === r).label)}</option>`).join("")}</select>`;
+  const full = s.limit != null && s.used >= s.limit;
+  shell(`<div class="head"><div><h1>Team</h1><div class="muted">${num(s.used)} of ${s.limit == null ? "unlimited" : num(s.limit)} seats used${s.limit != null ? " (pending invitations count until they expire)" : ""}</div></div></div>
+    ${teamTabs("members")}
+    ${t.can_manage ? `<div class="card"><h2>Invite someone</h2>
+      ${full ? `<div class="msg err">Every seat on your plan is taken. Remove someone or cancel an invitation first, or upgrade.</div>` : ""}
+      <form id="iform"><div class="two"><label class="f"><span>Work email</span><input name="email" type="email" required autocomplete="off" placeholder="name@yourstudio.com"></label>
+        <label class="f"><span>Name <small>(optional)</small></span><input name="name" maxlength="100"></label></div>
+        <label class="f"><span>Role</span>${roleSel("role", "photographer", t.assignable)}</label>
+        <div class="row"><button class="btn primary" ${full ? "disabled" : ""}>Send invitation</button><span class="muted small">They get an email with a link to join. It works for 7 days. The address must not already have a Photo Finder account.</span></div></form></div>` : ""}
+    <div class="card" style="padding:6px 8px"><table><thead><tr><th>Member</th><th>Role</th><th>Last active</th><th></th></tr></thead><tbody>
+      ${t.members.map(m => `<tr><td><b>${esc(m.name || m.email)}</b>${m.me ? ` <span class="badge">You</span>` : ""}<div class="muted small">${esc(m.email)}${m.google ? " · Google" : ""}</div></td>
+        <td>${m.manageable ? `<span data-member="${m.id}">${roleSel("role", m.role, t.assignable)}</span>` : esc(m.role_label)}</td>
+        <td class="small muted">${m.last_seen ? new Date(m.last_seen * 1000).toLocaleDateString() : "Never"}</td>
+        <td style="text-align:right">${m.manageable ? `<button class="btn sm danger" data-remove="${m.id}" data-email="${esc(m.email)}">Remove</button>` : ""}</td></tr>`).join("")}
+    </tbody></table></div>
+    ${t.invites.length ? `<h2>Waiting to join</h2><div class="card" style="padding:6px 8px"><table><thead><tr><th>Email</th><th>Role</th><th>Invited by</th><th>Link</th><th></th></tr></thead><tbody>
+      ${t.invites.map(i => `<tr><td>${esc(i.email)}</td><td>${esc(i.role_label)}</td><td class="small muted">${esc(i.invited_by)}</td>
+        <td class="small">${i.expired ? `<span class="badge bad">Expired</span>` : "Expires " + new Date(i.expires_at * 1000).toLocaleDateString()}</td>
+        <td style="text-align:right">${i.manageable ? `<button class="btn sm" data-resend="${i.id}">Send again</button> <button class="btn sm danger" data-cancel="${i.id}">Cancel</button>` : ""}</td></tr>`).join("")}
+    </tbody></table></div>` : ""}
+    <details class="card"><summary>What each role can do</summary><table><tbody>
+      ${t.roles.map(r => `<tr><td style="width:140px"><b>${esc(r.label)}</b></td><td class="muted">${esc(r.about)}</td></tr>`).join("")}</tbody></table></details>`, "team");
+  const f = document.getElementById("iform");
+  if (f) f.onsubmit = async e => { e.preventDefault();
+    try { const r = await api("POST", "/api/team/invites", Object.fromEntries(new FormData(e.target))); toast(r.message); viewTeam(); } catch (x) { fail(x); } };
+  $app.querySelectorAll("[data-member] select").forEach(sel => sel.onchange = async () => {
+    try { await api("PATCH", "/api/team/members/" + sel.parentElement.dataset.member, { role: sel.value }); toast("Role changed."); } catch (x) { fail(x); viewTeam(); } });
+  $app.querySelectorAll("[data-remove]").forEach(b => b.onclick = async () => {
+    if (!await confirmBox(`Remove ${b.dataset.email}?`, "They lose access straight away and are signed out everywhere. Their uploads stay.", "Remove", true)) return;
+    try { await api("DELETE", "/api/team/members/" + b.dataset.remove); toast("Removed."); viewTeam(); } catch (x) { fail(x); } });
+  $app.querySelectorAll("[data-resend]").forEach(b => b.onclick = async () => {
+    try { const r = await api("POST", `/api/team/invites/${b.dataset.resend}/resend`); toast(r.message); viewTeam(); } catch (x) { fail(x); } });
+  $app.querySelectorAll("[data-cancel]").forEach(b => b.onclick = async () => {
+    try { await api("DELETE", "/api/team/invites/" + b.dataset.cancel); toast("Invitation cancelled."); viewTeam(); } catch (x) { fail(x); } });
+}
+
+/* ------------------------------------------------------------------ joining a team from an invitation */
+let JOIN_TOKEN = "";
+async function viewJoin() {
+  stopPoll(); document.title = "Join · Photo Finder Studio"; applyBrand();
+  if (!JOIN_TOKEN) { try { JOIN_TOKEN = sessionStorage.getItem("pf_join") || ""; } catch (e) {} }
+  if (!PROVIDERS) { try { PROVIDERS = await api("GET", "/api/auth/providers"); } catch (e) { PROVIDERS = { google: false }; } }
+  let inv;
+  try { inv = await api("POST", "/api/invite/check", { token: JOIN_TOKEN }); }
+  catch (e) {
+    authCard(e.code === "suspended" ? "Account suspended" : "Invitation expired", e.code === "suspended" ? esc(e.message) : "Invitation links work once, for 7 days. Ask the person who invited you to send it again.",
+      `<a class="btn primary" style="width:100%;justify-content:center" href="#/login">Go to sign in</a>`);
+    return;
+  }
+  const notice = NOTICE; NOTICE = "";
+  authCard(`Join ${inv.company}`, `${inv.invited_by ? esc(inv.invited_by) + " invited you" : "You're invited"} as <b>${esc(inv.role_label)}</b>. ${esc(inv.about)}`,
+    inv.taken ? `<div class="msg err">${esc(inv.email)} already has an account. Sign in instead.</div><a class="btn primary" style="width:100%;justify-content:center" href="#/login">Sign in</a>`
+    : `${PROVIDERS.google ? `<a class="gbtn" href="/api/auth/google/start?invite=${encodeURIComponent(JOIN_TOKEN)}">${G_LOGO}<span>Join with Google (${esc(inv.email)})</span></a><div class="or">or set a password</div>` : ""}
+      <form id="jform"><label class="f"><span>Email</span><input value="${esc(inv.email)}" readonly></label>
+      <label class="f"><span>Your name</span><input name="name" maxlength="100" autocomplete="name" value="${esc(inv.name)}"></label>
+      <label class="f"><span>Password <small>(at least 8 characters)</small></span><input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+      <button class="btn primary" style="width:100%;justify-content:center" id="go">Join ${esc(inv.company)}</button></form>`);
+  if (notice) authMsg(notice);
+  const f = document.getElementById("jform"); if (!f) return;
+  f.onsubmit = async e => {
+    e.preventDefault(); const d = new FormData(e.target), btn = document.getElementById("go"); btn.disabled = true;
+    try {
+      await api("POST", "/api/invite/accept", { token: JOIN_TOKEN, name: d.get("name"), password: d.get("password") });
+      try { sessionStorage.removeItem("pf_join"); } catch (x) {}
+      JOIN_TOKEN = ""; ME = await api("GET", "/api/auth/me"); applyBrand(ME.account.brand_color);
+      toast(`Welcome to ${ME.account.company}.`); location.hash = "#/";
+    } catch (err) { if (err.code === "expired") return viewJoin(); authMsg(err.message); btn.disabled = false; }
+  };
+}
+function authCard(title, sub, inner) {
+  $app.innerHTML = `<div class="auth"><h1>${esc(title)}</h1><p class="sub muted">${sub}</p><div class="card"><div id="amsg"></div>${inner}</div></div>`;
+}
+const authMsg = (text, ok) => { document.getElementById("amsg").innerHTML = `<div class="msg ${ok ? "ok" : "err"}">${esc(text)}</div>`; };
+
+function viewForgot() {
+  stopPoll(); document.title = "Forgot password · Photo Finder Studio"; applyBrand();
+  authCard("Forgot your password?", "Enter your account email and we'll send you a link to choose a new one.",
+    `<form id="fform"><label class="f"><span>Email</span><input name="email" type="email" required autocomplete="email"></label>
+      <button class="btn primary" style="width:100%;justify-content:center" id="go">Send reset link</button></form>
+      <p class="small muted" style="margin:14px 0 0;text-align:center"><a href="#/login">Back to sign in</a></p>`);
+  document.getElementById("fform").onsubmit = async e => {
+    e.preventDefault(); const btn = document.getElementById("go"); btn.disabled = true;
+    try {
+      const r = await api("POST", "/api/auth/forgot", { email: new FormData(e.target).get("email") });
+      authMsg(r.message, true); btn.textContent = "Send again"; setTimeout(() => btn.disabled = false, 30000);
+    } catch (err) { authMsg(err.message); btn.disabled = false; }
+  };
+}
+
+async function viewReset() {
+  stopPoll(); document.title = "New password · Photo Finder Studio"; applyBrand();
+  let who;
+  try { who = await api("POST", "/api/auth/reset/check", { token: RESET_TOKEN }); }
+  catch (e) {
+    authCard("Link expired", "Reset links work once, for a limited time.",
+      `<a class="btn primary" style="width:100%;justify-content:center" href="#/forgot">Send me a new link</a>
+       <p class="small muted" style="margin:14px 0 0;text-align:center"><a href="#/login">Back to sign in</a></p>`);
+    return;
+  }
+  authCard("Choose a new password", `For <b>${esc(who.email)}</b>. You'll be signed out on all other devices.`,
+    `<form id="rform"><label class="f"><span>New password <small>(at least 8 characters)</small></span><input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+      <label class="f"><span>Repeat it</span><input name="again" type="password" required minlength="8" autocomplete="new-password"></label>
+      <button class="btn primary" style="width:100%;justify-content:center" id="go">Save and sign in</button></form>`);
+  document.getElementById("rform").onsubmit = async e => {
+    e.preventDefault(); const f = new FormData(e.target), btn = document.getElementById("go");
+    if (f.get("password") !== f.get("again")) return authMsg("The two passwords don't match.");
+    btn.disabled = true;
+    try {
+      await api("POST", "/api/auth/reset", { token: RESET_TOKEN, password: f.get("password") });
+      RESET_TOKEN = ""; ME = await api("GET", "/api/auth/me"); applyBrand(ME.account.brand_color);
+      toast("Password changed. You're signed in."); location.hash = "#/";
+    } catch (err) {
+      if (err.code === "expired") return viewReset();
+      authMsg(err.message); btn.disabled = false;
+    }
+  };
+}
+
+async function viewGoogleFinish() {
+  stopPoll(); document.title = "Finish sign-up · Photo Finder Studio"; applyBrand();
+  let g;
+  try { g = await api("GET", "/api/auth/google/pending"); }
+  catch (e) { NOTICE = GOOGLE_ERRORS.expired; location.hash = "#/signup"; return; }
+  $app.innerHTML = `<div class="auth"><h1>Almost there</h1>
+    <p class="sub muted">Signed in with Google as <b>${esc(g.email)}</b>.</p>
+    <div class="card"><div id="amsg"></div><form id="gform">
+      <label class="f"><span>Company or studio name</span><input name="company" required maxlength="100" autocomplete="organization"></label>
+      <button class="btn primary" style="width:100%;justify-content:center" id="go">Create account</button></form>
+      <p class="small muted" style="margin:14px 0 0;text-align:center"><a href="#/login">Use a different account</a></p></div></div>`;
+  document.getElementById("gform").onsubmit = async e => {
+    e.preventDefault(); const btn = document.getElementById("go"); btn.disabled = true;
+    try {
+      ME = await api("POST", "/api/auth/google/complete", { company: new FormData(e.target).get("company"), timezone: browserTz() });
+      applyBrand(ME.account.brand_color); location.hash = "#/";
+    } catch (err) {
+      if (err.code === "expired") { NOTICE = err.message; location.hash = "#/signup"; return; }
+      document.getElementById("amsg").innerHTML = `<div class="msg err">${esc(err.message)}</div>`; btn.disabled = false;
+    }
+  };
+}
+
+/* ------------------------------------------------------------------ overview */
+function meter(label, used, limit, fmt = num) {
+  const pct = limit ? Math.min(100, Math.round(used / limit * 100)) : 0;
+  return `<div class="card" style="margin:0"><div class="muted small">${label}</div>
+    <div style="font-size:1.4rem;font-weight:700">${fmt(used)}<span class="muted small" style="font-weight:400"> / ${limit == null ? "Unlimited" : fmt(limit)}</span></div>
+    <div class="meter ${pct >= 90 ? "hot" : ""}"><div style="width:${limit ? pct : 4}%"></div></div></div>`;
+}
+const statusBadge = e => e.processing ? `<span class="badge busy">Processing ${e.processing}</span>`
+  : e.status === "published" ? `<span class="badge pub">Published</span>` : `<span class="badge">Draft</span>`;
+
+async function viewHome() {
+  stopPoll(); document.title = "Overview · Photo Finder Studio";
+  ME = await api("GET", "/api/auth/me"); const [events, clients] = await Promise.all([api("GET", "/api/events"), api("GET", "/api/clients")]);
+  const u = ME.usage, l = ME.limits;
+  shell(`<div class="head"><div><h1>Welcome, ${esc(ME.account.company)}</h1><div class="muted">${clients.length} client${clients.length === 1 ? "" : "s"} · ${events.length} event${events.length === 1 ? "" : "s"}</div></div>
+      <div class="row"><button class="btn" data-act="new-client" data-need="clients">New client</button><button class="btn primary" data-act="new-event" data-need="events">New event</button></div></div>
+    <div class="stats" style="margin-bottom:24px">${meter("Events", u.events, l.events)}${meter("Photos", u.photos, l.photos)}${meter("Storage", u.storage, l.storage, fmtBytes)}</div>
+    <h2>Recent events</h2>${events.length ? eventTable(events.slice(0, 8)) : emptyState("No events yet", "Add a client, then create an event for them and upload the photos.",
+      `<button class="btn primary" data-act="new-event" data-need="events">Create your first event</button>`)}`, "home");
+  wire();
+}
+
+function eventTable(events, withClient = true) {
+  return `<div class="card" style="padding:6px 8px"><table><thead><tr><th>Event</th>${withClient ? "<th>Client</th>" : ""}<th>Date</th><th>Photos</th><th>Guests</th><th></th></tr></thead><tbody>
+    ${events.map(e => `<tr class="click" data-href="#/events/${e.id}"><td><b>${esc(e.name)}</b></td>${withClient ? `<td>${esc(e.client_name)}</td>` : ""}
+      <td class="muted">${fmtDate(e.event_date)}</td><td>${num(e.ready)}</td><td class="muted">${num(e.found)} found / ${num(e.searches)}</td><td>${statusBadge(e)}</td></tr>`).join("")}
+    </tbody></table></div>`;
+}
+
+/* ------------------------------------------------------------------ clients */
+async function viewClients() {
+  stopPoll(); document.title = "Clients · Photo Finder Studio";
+  const clients = await api("GET", "/api/clients");
+  shell(`<div class="head"><div><h1>Clients</h1><div class="muted">The people and companies you shoot for.</div></div>
+    <button class="btn primary" data-act="new-client" data-need="clients">New client</button></div>
+    ${clients.length ? `<div class="cards">${clients.map(c => `<a class="item" href="#/clients/${c.id}"><b>${esc(c.name)}</b>
+      <span class="muted small">${esc(c.email || c.phone || "No contact details")}</span><div style="margin-top:10px"><span class="badge">${c.event_count} event${c.event_count === 1 ? "" : "s"}</span></div></a>`).join("")}</div>`
+      : emptyState("No clients yet", "Add the couple, company or school you are shooting for.", `<button class="btn primary" data-act="new-client" data-need="clients">Add your first client</button>`)}`, "clients");
+  wire();
+}
+
+async function viewClient(id) {
+  stopPoll();
+  const [clients, events] = await Promise.all([api("GET", "/api/clients"), api("GET", "/api/events?client_id=" + id)]);
+  const c = clients.find(x => x.id == id); if (!c) { toast("Client not found.", true); location.hash = "#/clients"; return; }
+  document.title = c.name + " · Photo Finder Studio";
+  shell(`<div class="crumbs"><a href="#/clients">Clients</a> /</div><div class="head"><div><h1>${esc(c.name)}</h1></div>
+      <button class="btn primary" data-act="new-event" data-need="events" data-client="${c.id}">New event</button></div>
+    <h2>Events</h2>${events.length ? eventTable(events, false) : emptyState("No events for this client", "Create an event, upload the photos, then share the link.", `<button class="btn primary" data-act="new-event" data-need="events" data-client="${c.id}">New event</button>`)}
+    <details class="card" style="margin-top:22px" data-need="clients"><summary>Client details</summary>
+      <form id="cform"><div class="two"><label class="f"><span>Name</span><input name="name" required maxlength="120" value="${esc(c.name)}"></label>
+        <label class="f"><span>Email</span><input name="email" type="email" value="${esc(c.email)}"></label>
+        <label class="f"><span>Phone</span><input name="phone" value="${esc(c.phone)}"></label></div>
+        <label class="f"><span>Notes</span><textarea name="notes" rows="3" maxlength="2000">${esc(c.notes)}</textarea></label>
+        <div class="row"><button class="btn primary">Save</button><button type="button" class="btn danger" id="delc">Delete client</button></div></form></details>`, "clients");
+  wire();
+  document.getElementById("cform").onsubmit = async e => { e.preventDefault(); try { await api("PATCH", "/api/clients/" + id, Object.fromEntries(new FormData(e.target))); toast("Saved."); viewClient(id); } catch (x) { fail(x); } };
+  document.getElementById("delc").onclick = async () => {
+    if (!await confirmBox("Delete this client?", "This can't be undone. A client with events can't be deleted.", "Delete client", true)) return;
+    try { await api("DELETE", "/api/clients/" + id); location.hash = "#/clients"; } catch (x) { fail(x); }
+  };
+}
+
+function clientModal() {
+  modal(`<h2>New client</h2><form id="f"><label class="f"><span>Name</span><input name="name" required maxlength="120" placeholder="Priya &amp; Arjun, Acme Corp, St. Mary's School"></label>
+    <div class="two"><label class="f"><span>Email <small>(optional)</small></span><input name="email" type="email"></label>
+    <label class="f"><span>Phone <small>(optional)</small></span><input name="phone"></label></div>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Add client</button></div></form>`,
+    { onMount: (ov, close) => ov.querySelector("#f").onsubmit = async e => { e.preventDefault();
+      try { const c = await api("POST", "/api/clients", Object.fromEntries(new FormData(e.target))); close(); toast("Client added."); location.hash = "#/clients/" + c.id; } catch (x) { fail(x); } } });
+}
+
+/* ------------------------------------------------------------------ events list + create */
+async function viewEvents() {
+  stopPoll(); document.title = "Events · Photo Finder Studio";
+  const events = await api("GET", "/api/events");
+  shell(`<div class="head"><div><h1>Events</h1><div class="muted">Every shoot, newest first.</div></div><button class="btn primary" data-act="new-event" data-need="events">New event</button></div>
+    ${events.length ? eventTable(events) : emptyState("No events yet", "Create an event to start uploading photos.", `<button class="btn primary" data-act="new-event" data-need="events">New event</button>`)}`, "events");
+  wire();
+}
+
+async function eventModal(clientId) {
+  const clients = await api("GET", "/api/clients");
+  modal(`<h2>New event</h2><form id="f">
+    <label class="f"><span>Client</span><select name="client_id" id="csel">${clients.map(c => `<option value="${c.id}" ${c.id == clientId ? "selected" : ""}>${esc(c.name)}</option>`).join("")}<option value="new">+ New client…</option></select></label>
+    <label class="f" id="newc" ${clients.length ? "hidden" : ""}><span>New client name</span><input name="new_client" maxlength="120"></label>
+    <label class="f"><span>Event name</span><input name="name" required maxlength="120" placeholder="Wedding, Reception, Annual Day"></label>
+    <div class="two"><label class="f"><span>Date <small>(optional)</small></span><input name="event_date" type="date"></label>
+    <label class="f"><span>Subtitle <small>(optional)</small></span><input name="subtitle" maxlength="200" placeholder="Shown to guests"></label></div>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Create event</button></div></form>`,
+    { onMount: (ov, close) => {
+      const sel = ov.querySelector("#csel"), nc = ov.querySelector("#newc");
+      if (!clients.length) sel.value = "new";
+      sel.onchange = () => { nc.hidden = sel.value !== "new"; if (!nc.hidden) nc.querySelector("input").focus(); };
+      ov.querySelector("#f").onsubmit = async e => { e.preventDefault();
+        const f = Object.fromEntries(new FormData(e.target));
+        try {
+          let cid = f.client_id;
+          if (cid === "new") { if (!(f.new_client || "").trim()) return toast("Enter the client's name.", true); cid = (await api("POST", "/api/clients", { name: f.new_client })).id; }
+          const ev = await api("POST", "/api/events", { client_id: +cid, name: f.name, subtitle: f.subtitle, event_date: f.event_date || null });
+          close(); location.hash = "#/events/" + ev.id;
+        } catch (x) { fail(x); } }; } });
+}
+
+/* ------------------------------------------------------------------ event page */
+let EV = null, PH = { items: [], filter: "all", more: true, loading: false }, SEL = new Set(), UP = null;
+
+async function viewEvent(id) {
+  stopPoll(); SEL = new Set(); PH = { items: [], filter: "all", more: true, loading: false };
+  EV = await api("GET", "/api/events/" + id); document.title = EV.name + " · Photo Finder Studio";
+  shell(`<div id="ev-top"></div>
+    <div id="ev-share"></div>
+    <div id="ev-client"></div>
+    <div id="ev-camera" data-need="events"></div>
+    <div class="card" data-need="upload"><h2>Upload photos</h2><div id="ev-upload"></div></div>
+    <div class="card fold" id="vendors-card" data-need="events"><div class="row fold-head"><h2 style="margin:0">Vendor uploads <span class="muted small" style="font-weight:400" id="vn-count"></span></h2>
+        <button class="btn sm" data-min="vendors" aria-controls="vendors-body"></button></div>
+      <div class="fold-body" id="vendors-body"><div id="ev-vendors"></div></div></div>
+    <div class="card fold" id="album-card"><div class="row fold-head"><h2 style="margin:0">Selected for album <span class="muted small" style="font-weight:400" id="al-count"></span></h2>
+        <div class="row"><div class="row fold-tools" id="al-tools"></div><button class="btn sm" data-min="album" aria-controls="album-body"></button></div></div>
+      <div class="fold-body" id="album-body"><div id="ev-album"></div></div></div>
+    <div class="card fold" id="photos-card"><div class="row fold-head"><h2 style="margin:0">Photos <span class="muted small fold-count" id="ph-count"></span></h2>
+        <div class="row"><div class="row fold-tools" id="ev-tools"></div><button class="btn sm" data-min="photos" aria-controls="photos-body"></button></div></div>
+      <div class="fold-body" id="photos-body"><div id="ev-status"></div><div id="ev-photos"></div></div></div>
+    <div class="card fold" id="videos-card"><div class="row fold-head"><h2 style="margin:0">Videos <span class="muted small fold-count" id="vd-count"></span></h2>
+        <div class="row"><div class="row fold-tools" id="vd-tools"></div><button class="btn sm" data-min="videos" aria-controls="videos-body"></button></div></div>
+      <div class="fold-body" id="videos-body"><div id="ev-videos"></div></div></div>
+    <details class="card" id="ev-settings" data-need="events"></details>`, "events");
+  CAM = null; CAM_PW = ""; loadCamera().then(camPoll);
+  VD = { items: [], sel: new Set(), busy: false };
+  AL = { photos: [], count: 0, note: "", locked: false, sent_at: null, sel: new Set(), loaded: false };
+  paintTop(); paintShare(); paintClient(); paintUpload(); paintSettings(); paintStatus(); wireMin("photos"); wireMin("videos"); wireMin("album"); wireMin("vendors"); paintCounts();
+  VN = { items: [], loaded: false };
+  loadVideos(); loadAlbum(); loadVendors(); await loadPhotos(true);
+  startPoll();
+}
+
+function paintTop() {
+  const e = EV, pub = e.status === "published";
+  document.getElementById("ev-top").innerHTML = `<div class="crumbs"><a href="#/clients">Clients</a> / <a href="#/clients/${e.client_id}">${esc(e.client_name)}</a> /</div>
+    <div class="head"><div><h1>${esc(e.name)}</h1><div class="muted" style="margin-top:4px">${fmtDate(e.event_date)} · ${statusBadge(e)}
+      ${e.expires_at ? ` · link expires ${fmtDate(e.expires_at)}` : ""}</div></div>
+      <button class="btn ${pub ? "" : "primary"}" id="pubbtn" data-need="events">${pub ? "Unpublish" : "Publish for guests"}</button></div>`;
+  document.getElementById("pubbtn").onclick = async () => {
+    if (!pub && e.ready === 0 && !await confirmBox("Publish with no photos?", "Guests will see a page saying the photos aren't ready yet.", "Publish anyway")) return;
+    try { EV = await api("PATCH", "/api/events/" + e.id, { status: pub ? "draft" : "published" }); paintTop(); paintShare(); toast(pub ? "Event is now hidden from guests." : "Published. Guests can open the link."); } catch (x) { fail(x); }
+  };
+}
+
+function paintShare() {
+  const e = EV, live = e.status === "published", wa = "https://wa.me/?text=" + encodeURIComponent(`${e.name}: find your photos with a selfie\n${e.url}`);
+  document.getElementById("ev-share").innerHTML = `<div class="card"><h2>Share with guests</h2><div class="share"><div>
+      <div class="row"><input class="grow" readonly id="eurl" value="${esc(e.url)}"><button class="btn" id="copy">Copy link</button></div>
+      <div class="row" style="margin-top:10px"><a class="btn sm" href="${esc(e.url)}" target="_blank" rel="noopener">Open guest page</a>
+        <a class="btn sm" href="${wa}" target="_blank" rel="noopener">Share on WhatsApp</a>
+        <a class="btn sm" href="/api/events/${e.id}/qr.png" download="${esc(e.slug)}-qr.png">Download QR</a></div>
+      <p class="small ${live ? "muted" : ""}" style="margin:12px 0 0;${live ? "" : "color:var(--warn)"}">${live ? "Guests open the link, take a selfie and see only their own photos." : "Not visible to guests until you publish the event."}</p>
+      ${e.url.includes("localhost") || e.url.includes("127.0.0.1") ? `<p class="small" style="color:var(--warn);margin:8px 0 0">This link only works on this computer. Open the dashboard using the computer's network address, or set a public URL, so phones can reach it.</p>` : ""}
+    </div><img alt="QR code for the event link" src="/api/events/${e.id}/qr.png"></div></div>`;
+  document.getElementById("copy").onclick = async () => { try { await navigator.clipboard.writeText(e.url); } catch (x) { document.getElementById("eurl").select(); document.execCommand("copy"); } toast("Link copied."); };
+}
+
+function paintClient() {
+  const e = EV, c = e.client, el = document.getElementById("ev-client"); if (!el) return;
+  setTimeout(() => { if (document.getElementById("ev-videos") && EV === e) paintVideos(); });  // its note depends on the switch
+  const wa = "https://wa.me/?text=" + encodeURIComponent(`${e.name}: all your photos\n${c.url}${c.has_pin ? "\n(PIN sent separately)" : ""}`);
+  el.innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Client gallery <span class="muted small" style="font-weight:400">every photo, for ${esc(e.client_name)}</span></h2>
+      <label class="check" style="margin:0" data-need="events"><input type="checkbox" id="cl-on" ${c.enabled ? "checked" : ""}> Turned on</label></div>
+    ${c.enabled ? `<p class="small muted" style="margin:8px 0 12px">A private link that shows all ${num(e.ready)} photos${e.videos ? ` and ${num(e.videos)} video${e.videos === 1 ? "" : "s"}` : ""}, no selfie needed. It works even while the event is hidden from guests. Opened ${num(c.views)} time${c.views === 1 ? "" : "s"}.</p>
+      <div class="row"><input class="grow" readonly id="cl-url" value="${esc(c.url)}"><button class="btn" id="cl-copy">Copy link</button></div>
+      <div class="row" style="margin-top:10px"><a class="btn sm" href="${esc(c.url)}" target="_blank" rel="noopener">Open client gallery</a>
+        <a class="btn sm" href="${wa}" target="_blank" rel="noopener">Share on WhatsApp</a></div>
+      <div class="row" style="margin-top:14px;gap:16px" data-need="events">
+        <label class="check" style="margin:0"><input type="checkbox" id="cl-dl" ${c.download ? "checked" : ""}> Client can download (single photos and "Download all")</label></div>
+      <div class="row" style="margin-top:10px" data-need="events">
+        <span class="small">${c.has_pin ? "🔒 <b>PIN is on.</b> Send it to the client separately from the link." : "No PIN: anyone with the link can see every photo."}</span>
+        <button class="btn sm" id="cl-pin">${c.has_pin ? "Change PIN" : "Add a PIN"}</button>${c.has_pin ? `<button class="btn sm" id="cl-nopin">Remove PIN</button>` : ""}
+        <button class="btn sm danger" id="cl-reset">New link</button></div>`
+    : `<p class="small muted" style="margin:8px 0 0">Turn on to give your client a private link to <b>all</b> the photos of this event, separate from the guests' selfie search.</p>`}</div>`;
+  const save = async (fields, msg) => { try { EV = await api("PATCH", "/api/events/" + e.id, fields); paintClient(); toast(msg); } catch (x) { fail(x); paintClient(); } };
+  const on = document.getElementById("cl-on"); if (on) on.onchange = () => save({ client_enabled: on.checked }, on.checked ? "Client gallery is on." : "Client gallery is off. The link stops working.");
+  const dl = document.getElementById("cl-dl"); if (dl) dl.onchange = () => save({ client_download: dl.checked }, dl.checked ? "Client can download." : "Downloads turned off for the client.");
+  const cp = document.getElementById("cl-copy"); if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(c.url); } catch (x) { document.getElementById("cl-url").select(); document.execCommand("copy"); } toast("Link copied."); };
+  const setPin = pin => api("POST", `/api/events/${e.id}/client-pin`, { pin }).then(r => { EV = r; paintClient(); toast(pin ? "PIN saved. Send it to the client." : "PIN removed."); }).catch(fail);
+  const pb = document.getElementById("cl-pin"); if (pb) pb.onclick = () => modal(`<h2>${c.has_pin ? "Change" : "Add"} the PIN</h2>
+      <p class="muted">4 to 8 digits. The client enters it once per device. Changing it locks out every device that used the old one.</p>
+      <form id="pf"><label class="f"><span>PIN</span><input name="pin" inputmode="numeric" pattern="\\d{4,8}" maxlength="8" required autocomplete="off"></label>
+      <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Save PIN</button></div></form>`,
+    { onMount: (ov, close) => ov.querySelector("#pf").onsubmit = ev => { ev.preventDefault(); close(); setPin(new FormData(ev.target).get("pin")); } });
+  const nb = document.getElementById("cl-nopin"); if (nb) nb.onclick = async () => { if (await confirmBox("Remove the PIN?", "Anyone with the link will see every photo.", "Remove PIN", true)) setPin(""); };
+  const rb = document.getElementById("cl-reset"); if (rb) rb.onclick = async () => {
+    if (!await confirmBox("Make a new link?", "The current client link stops working straight away. Send the new one to your client.", "New link", true)) return;
+    try { EV = await api("POST", `/api/events/${e.id}/client-link/reset`); paintClient(); toast("New link made."); } catch (x) { fail(x); } };
+}
+
+function paintStatus() {
+  const e = EV, el = document.getElementById("ev-status"); if (!el) return;
+  const bits = [`<span><b>${num(e.ready)}</b> ready</span>`];
+  if (e.processing) bits.push(`<span class="badge busy">${num(e.processing)} processing…</span>`);
+  if (e.failed) bits.push(`<span class="badge bad">${num(e.failed)} failed</span> <button class="btn sm" id="retry" data-need="upload">Retry failed</button>`);
+  const pct = e.photos ? Math.round((e.ready + e.failed) / e.photos * 100) : 100;
+  el.innerHTML = `<div class="row small" style="gap:12px">${bits.join(" ")}<span class="muted">· ${num(e.searches)} guest searches, ${num(e.found)} found photos</span></div>
+    ${e.processing ? `<div class="meter" style="margin-top:8px"><div style="width:${pct}%"></div></div><div class="muted small">Detecting faces. You can keep uploading; guests see photos as they finish.</div>` : ""}
+    ${e.faces_purged ? `<div class="msg err" style="margin-top:10px">Face data was deleted, so guest search is off. Use "Rebuild face index" in Settings to turn it back on.</div>` : ""}`;
+  const rt = document.getElementById("retry"); if (rt) rt.onclick = async () => { try { await api("POST", `/api/events/${e.id}/photos/retry`); toast("Retrying."); refreshEvent(); } catch (x) { fail(x); } };
+}
+
+function startPoll() {
+  stopPoll();
+  pollTimer = setInterval(async () => {
+    if (!EV || (!EV.processing && !(UP && UP.active))) return;
+    const before = EV.ready + "/" + EV.failed + "/" + EV.processing;
+    await refreshEvent(before);
+  }, 2000);
+}
+async function refreshEvent(before) {
+  try {
+    const e = await api("GET", "/api/events/" + EV.id); EV = e; paintStatus(); paintCounts();
+    const after = e.ready + "/" + e.failed + "/" + e.processing;
+    if (before === undefined || before !== after) { paintTop(); paintClient(); loadVendors(); await loadPhotos(true); }
+    if (!e.processing) { paintUpload(); }
+  } catch (x) { /* a transient error: the next poll will try again */ }
+}
+
+/* photos grid */
+async function loadPhotos(reset) {
+  const box = document.getElementById("ev-photos"); if (!box || PH.loading) return;
+  PH.loading = true;
+  if (reset) { PH.items = []; PH.more = true; }
+  try {
+    const q = PH.filter === "all" ? "" : PH.filter[0] === "v" ? "&vendor=" + (PH.filter === "vany" ? "any" : PH.filter.slice(1)) : "&status=" + PH.filter;
+    const rows = await api("GET", `/api/events/${EV.id}/photos?offset=${PH.items.length}&limit=120${q}`);
+    PH.items = PH.items.concat(rows); PH.more = rows.length === 120;
+  } catch (x) { fail(x); }
+  PH.loading = false; paintPhotos();
+}
+function paintPhotos() {
+  const box = document.getElementById("ev-photos"); if (!box) return;
+  const chip = (k, t) => `<button class="chip ${PH.filter === k ? "on" : ""}" data-filter="${k}">${t}</button>`;
+  const tools = document.getElementById("ev-tools");
+  tools.innerHTML = SEL.size ? `<span class="muted small">${SEL.size} selected</span><button class="btn sm danger" id="delsel" data-need="delete_photos">Delete selected</button><button class="btn sm" id="clrsel">Clear</button>` : "";
+  const one = PH.filter[0] === "v" && PH.filter !== "vany" ? VN.items.find(v => "v" + v.id === PH.filter) : null;
+  box.innerHTML = `<div class="chips" style="margin-top:10px">${chip("all", "All")}${chip("ready", "Ready")}${chip("busy", "Processing")}${chip("failed", "Failed")}${VN.items.length ? chip("vany", "From vendors") : ""}${one ? chip(PH.filter, "From " + esc(one.name)) : ""}</div>` +
+    (PH.items.length ? `<div class="photos">${PH.items.map(p => {
+      const ok = p.status === "ready", bad = p.status === "failed";
+      return `<div class="ph ${bad ? "bad" : ""}" data-pid="${esc(p.id)}" title="${esc(p.name)}${p.vendor ? " · from " + esc(p.vendor) : ""}${p.error ? " — " + esc(p.error) : ""}">
+        ${ok ? `<img loading="lazy" alt="" src="/api/events/${EV.id}/photos/${esc(p.id)}/thumb">` : `<div class="st">${bad ? "Failed<br>" + esc(p.error || "") : "Processing…"}</div>`}
+        ${p.vendor ? `<span class="pnm">${esc(p.vendor)}</span>` : ""}
+        <input type="checkbox" data-need="delete_photos" data-sel="${esc(p.id)}" ${SEL.has(p.id) ? "checked" : ""} aria-label="Select ${esc(p.name)}"></div>`; }).join("")}</div>
+      ${PH.more ? `<div style="text-align:center;margin-top:14px"><button class="btn" id="more">Load more</button></div>` : ""}`
+      : `<div class="empty">${PH.filter === "all" ? "<b>No photos yet</b>Drop photos in the box above." : "Nothing here."}</div>`);
+  box.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { PH.filter = b.dataset.filter; loadPhotos(true); });
+  box.querySelectorAll("[data-sel]").forEach(c => c.onclick = ev => { ev.stopPropagation(); c.checked ? SEL.add(c.dataset.sel) : SEL.delete(c.dataset.sel); paintPhotos(); });
+  box.querySelectorAll(".ph").forEach(t => t.onclick = () => { const p = PH.items.find(x => x.id === t.dataset.pid); if (p && p.status === "ready") viewPhoto(p); });
+  const m = document.getElementById("more"); if (m) m.onclick = () => loadPhotos(false);
+  const ds = document.getElementById("delsel"), cs = document.getElementById("clrsel");
+  if (cs) cs.onclick = () => { SEL.clear(); paintPhotos(); };
+  if (ds) ds.onclick = async () => {
+    if (!await confirmBox(`Delete ${SEL.size} photo${SEL.size === 1 ? "" : "s"}?`, "They are removed for good, including from guests' results.", "Delete", true)) return;
+    try { const r = await api("POST", `/api/events/${EV.id}/photos/delete`, { ids: [...SEL] }); SEL.clear(); toast(`Deleted ${r.deleted}.`); refreshEvent(); } catch (x) { fail(x); }
+  };
+}
+function viewPhoto(p) {
+  modal(`<img alt="${esc(p.name)}" src="/api/events/${EV.id}/photos/${esc(p.id)}/web">
+    <div class="row" style="justify-content:space-between;padding:10px 6px 2px;color:#fff"><span class="small">${esc(p.name)} · ${fmtBytes(p.size)}</span>
+    <span class="row"><a class="btn sm" href="/api/events/${EV.id}/photos/${esc(p.id)}/orig">Download original</a><button class="btn sm" data-close>Close</button></span></div>`, { wide: true });
+}
+
+/* upload */
+function paintUpload() {
+  const el = document.getElementById("ev-upload"); if (!el || (UP && UP.active)) return;
+  el.innerHTML = `<div class="drop" id="drop"><b>Drag photos here</b><span class="muted">JPG, PNG, WebP or HEIC · up to ${ME.max_file_mb || 60} MB each</span>
+      <div class="row" style="justify-content:center;margin-top:14px"><button class="btn primary" id="pickf">Choose photos</button><button class="btn" id="pickd">Choose a folder</button></div>
+      <input type="file" id="fin" multiple accept="image/*,.heic,.heif" hidden><input type="file" id="din" webkitdirectory multiple hidden></div>
+    <div class="prog" id="prog"></div>`;
+  const drop = document.getElementById("drop"), fin = document.getElementById("fin"), din = document.getElementById("din");
+  document.getElementById("pickf").onclick = () => fin.click(); document.getElementById("pickd").onclick = () => din.click();
+  fin.onchange = () => { startUpload([...fin.files]); fin.value = ""; }; din.onchange = () => { startUpload([...din.files]); din.value = ""; };
+  ["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", e => startUpload([...e.dataTransfer.files]));
+  if (UP && !UP.active) showUploadSummary();
+}
+function postBatch(eid, batch, onProgress) {
+  return new Promise(resolve => {
+    const x = new XMLHttpRequest(); x.open("POST", `/api/events/${eid}/photos`); x.setRequestHeader("X-PF", "1");
+    x.upload.onprogress = e => onProgress(e.loaded);
+    x.onload = () => { let b = null; try { b = JSON.parse(x.responseText); } catch (e) {} resolve({ status: x.status, body: b }); };
+    x.onerror = () => resolve({ status: 0, body: null });
+    const fd = new FormData(); batch.forEach(f => fd.append("files", f, f.name)); x.send(fd);
+  });
+}
+async function startUpload(all) {
+  if (UP && UP.active) return toast("An upload is already running.", true);
+  const ok = all.filter(f => /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name));
+  if (!ok.length) return toast("No photos found in that selection.", true);
+  const eid = EV.id, BATCH = 6, CONC = 3, total = ok.reduce((s, f) => s + f.size, 0);
+  UP = { active: true, eid, files: ok.length, skipped: all.length - ok.length, done: 0, queued: 0, dup: 0, rejected: [], failedBatches: 0 };
+  const loaded = new Map(); let finishedBytes = 0, next = 0;
+  const batches = []; for (let i = 0; i < ok.length; i += BATCH) batches.push(ok.slice(i, i + BATCH));
+  const draw = () => {
+    const bytes = finishedBytes + [...loaded.values()].reduce((a, b) => a + b, 0), pct = Math.min(100, Math.round(bytes / total * 100));
+    const p = document.getElementById("prog"); if (p) p.innerHTML = `<div class="row small" style="justify-content:space-between"><span><b>Uploading</b> ${UP.done} of ${UP.files} photos</span><span>${pct}%</span></div><div class="meter"><div style="width:${pct}%"></div></div>`;
+  };
+  const drop = document.getElementById("drop"); if (drop) drop.style.opacity = .5;
+  draw();
+  async function worker() {
+    while (next < batches.length) {
+      const idx = next++, b = batches[idx], size = b.reduce((s, f) => s + f.size, 0);
+      const r = await postBatch(eid, b, n => { loaded.set(idx, n); draw(); });
+      loaded.delete(idx); finishedBytes += size; UP.done += b.length;
+      if (r.status === 200 && r.body) r.body.results.forEach(x => { if (x.status === "queued") UP.queued++; else if (x.status === "duplicate") UP.dup++; else UP.rejected.push(x); });
+      else { UP.failedBatches++; b.forEach(f => UP.rejected.push({ name: f.name, error: r.status === 401 ? "Signed out. Sign in again." : (r.body && r.body.message) || "Upload failed (network?)." })); }
+      draw();
+      if (UP.queued && UP.queued % 12 < BATCH && EV && EV.id === eid) refreshEvent();
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(CONC, batches.length) }, worker));
+  UP.active = false;
+  if (EV && EV.id === eid) { await refreshEvent(); paintUpload(); startPoll(); }
+}
+function showUploadSummary() {
+  const p = document.getElementById("prog"); if (!p || !UP) return;
+  const u = UP, parts = [`<b>${u.queued}</b> uploaded`]; if (u.dup) parts.push(`${u.dup} already there`); if (u.rejected.length) parts.push(`<span style="color:var(--danger)">${u.rejected.length} not added</span>`); if (u.skipped) parts.push(`${u.skipped} non-photo files skipped`);
+  p.innerHTML = `<div class="msg ${u.rejected.length ? "err" : "ok"}" style="margin:0">${parts.join(" · ")}${u.rejected.length ? `<details style="margin-top:6px"><summary class="small">See details</summary><ul class="small" style="margin:6px 0 0;padding-left:18px">${u.rejected.slice(0, 50).map(r => `<li>${esc(r.name)}: ${esc(r.error)}</li>`).join("")}${u.rejected.length > 50 ? `<li>…and ${u.rejected.length - 50} more</li>` : ""}</ul></details>` : ""}</div>`;
+}
+
+/* event settings */
+function paintSettings() {
+  const e = EV, el = document.getElementById("ev-settings"); if (!el) return;
+  const open = el.open;
+  const TOL = e.tolerance_presets;  // [value, label] in this event's face-engine scale
+  const tol = TOL.reduce((best, t) => Math.abs(t[0] - e.tolerance) < Math.abs(best[0] - e.tolerance) ? t : best)[0];
+  el.innerHTML = `<summary>Event settings</summary><form id="sform"><div class="two">
+      <label class="f"><span>Event name</span><input name="name" required maxlength="120" value="${esc(e.name)}"></label>
+      <label class="f"><span>Subtitle <small>(shown to guests)</small></span><input name="subtitle" maxlength="200" value="${esc(e.subtitle)}"></label>
+      <label class="f"><span>Event date</span><input type="date" name="event_date" value="${esc(e.event_date || "")}"></label>
+      <label class="f"><span>Link expires on <small>(optional)</small></span><input type="date" name="expires_at" value="${esc(e.expires_at || "")}"></label></div>
+      <label class="f"><span>Match strictness</span><select name="tolerance">${TOL.map(t => `<option value="${t[0]}" ${t[0] === tol ? "selected" : ""}>${t[1]}</option>`).join("")}</select></label>
+      <label class="check"><input type="checkbox" name="allow_download" ${e.allow_download ? "checked" : ""}> Let guests download their photos</label>
+      <button class="btn primary">Save settings</button></form>
+    <hr style="border:0;border-top:1px solid var(--line);margin:22px 0">
+    <h2>Privacy and data</h2>
+    <p class="muted small" style="margin-top:0">Face data is a list of numbers per face, used only to match selfies. Selfies are never stored.</p>
+    <div class="row"><button class="btn" id="reindex">Rebuild face index</button><button class="btn" id="purge">Delete face data</button><button class="btn danger" id="delev">Delete event and photos</button></div>`;
+  el.open = open;
+  document.getElementById("sform").onsubmit = async ev => {
+    ev.preventDefault(); const f = new FormData(ev.target);
+    try { EV = await api("PATCH", "/api/events/" + e.id, { name: f.get("name"), subtitle: f.get("subtitle"), event_date: f.get("event_date"), expires_at: f.get("expires_at"),
+      tolerance: parseFloat(f.get("tolerance")), allow_download: f.get("allow_download") === "on" }); toast("Settings saved."); paintTop(); paintShare(); paintStatus(); document.title = EV.name + " · Photo Finder Studio"; } catch (x) { fail(x); }
+  };
+  document.getElementById("reindex").onclick = async () => { if (!await confirmBox("Rebuild the face index?", "Every photo is processed again. Guest search works as photos finish.", "Rebuild")) return; try { EV = await api("POST", `/api/events/${e.id}/reindex`); toast("Rebuilding."); paintStatus(); startPoll(); refreshEvent(); } catch (x) { fail(x); } };
+  document.getElementById("purge").onclick = async () => { if (!await confirmBox("Delete all face data for this event?", "Guest search stops working until you rebuild the face index. Your photos are kept.", "Delete face data", true)) return; try { EV = await api("POST", `/api/events/${e.id}/purge-faces`); toast("Face data deleted."); paintStatus(); } catch (x) { fail(x); } };
+  document.getElementById("delev").onclick = async () => { if (!await confirmBox("Delete this event?", `"${e.name}" and all ${e.photos} photos will be removed for good, and the guest link stops working.`, "Delete event", true)) return; try { await api("DELETE", "/api/events/" + e.id); toast("Event deleted."); location.hash = "#/clients/" + e.client_id; } catch (x) { fail(x); } };
+}
+
+/* ------------------------------------------------------------------ account settings */
+async function viewSettings() {
+  stopPoll(); document.title = "Settings · Photo Finder Studio"; ME = await api("GET", "/api/auth/me");
+  const a = ME.account, l = ME.limits, u = ME.usage;
+  shell(`<div class="head"><div><h1>Settings</h1></div></div>
+    <div class="card" data-need="company"><h2>Your studio</h2><form id="aform"><div class="two"><label class="f"><span>Company name</span><input name="company" required maxlength="100" value="${esc(a.company)}"></label>
+      <label class="f"><span>Brand colour <small>(guest pages)</small></span><input name="brand_color" type="color" value="${esc(a.brand_color)}"></label>
+      <label class="f"><span>Guest and client pages <small>(how your clients see them)</small></span><select name="theme">
+        ${[["dark", "Dark"], ["light", "Light"], ["auto", "Match each visitor's device"]].map(([v, t]) => `<option value="${v}" ${a.theme === v ? "selected" : ""}>${t}</option>`).join("")}</select>
+        <small style="display:block;margin-top:4px">Visitors can still switch with the sun and moon button; their choice is remembered on their device.</small></label>
+      <label class="f"><span>Time zone <small>(when event links expire)</small></span><input name="timezone" list="tzlist" maxlength="64" placeholder="Asia/Kolkata" value="${esc(a.timezone)}">
+        <datalist id="tzlist">${(Intl.supportedValuesOf ? Intl.supportedValuesOf("timeZone") : []).map(z => `<option value="${esc(z)}">`).join("")}</datalist></label></div>
+      <button class="btn primary">Save</button></form></div>
+    ${logoCard(a)}
+    <div class="card"><h2>Plan: ${esc(a.plan_label)}</h2><div class="stats">${meter("Events", u.events, l.events)}${meter("Photos", u.photos, l.photos)}${meter("Storage", u.storage, l.storage, fmtBytes)}</div>
+      <p class="muted small" style="margin-bottom:0">Need more room? Contact us to change your plan.</p></div>
+    <div class="card"><h2>${ME.user.has_password ? "Change password" : "Set a password"}</h2>
+      ${ME.user.google ? `<p class="small muted" style="margin-top:0">${G_LOGO.replace("<svg", '<svg style="width:14px;height:14px;vertical-align:-2px"')} Google sign-in is connected for ${esc(ME.user.email)}.${ME.user.has_password ? "" : " Set a password to also sign in with your email."}</p>` : ""}
+      <form id="pform"><div class="two">${ME.user.has_password ? `<label class="f"><span>Current password</span><input name="current" type="password" required autocomplete="current-password"></label>` : ""}
+      <label class="f"><span>New password</span><input name="new" type="password" required minlength="8" autocomplete="new-password"></label></div><button class="btn">${ME.user.has_password ? "Change password" : "Set password"}</button> <span class="muted small">Signs out your other devices.</span></form></div>
+    <div class="card" data-need="delete_account"><h2>Delete account</h2><p class="muted small" style="margin-top:0">Removes your studio, every client, event and photo, and all face data. This can't be undone.</p><button class="btn danger" id="dela">Delete my account…</button></div>`, "settings");
+  wireLogoCard();
+  if (can("company")) document.getElementById("aform").onsubmit = async e => { e.preventDefault(); try { ME = await api("PATCH", "/api/account", Object.fromEntries(new FormData(e.target))); applyBrand(ME.account.brand_color); toast("Saved."); viewSettings(); } catch (x) { fail(x); } };
+  document.getElementById("pform").onsubmit = async e => { e.preventDefault(); try { await api("POST", "/api/account/password", Object.fromEntries(new FormData(e.target))); e.target.reset(); toast(ME.user.has_password ? "Password changed." : "Password set."); if (!ME.user.has_password) viewSettings(); } catch (x) { fail(x); } };
+  if (can("delete_account")) document.getElementById("dela").onclick = () => modal(`<h2>Delete your account?</h2><p class="muted">Everything is erased immediately. ${ME.user.has_password ? "Enter your password to confirm." : "Type your company name to confirm."}</p><form id="df">${ME.user.has_password
+      ? `<label class="f"><span>Password</span><input type="password" name="password" required></label>`
+      : `<label class="f"><span>Company name: <b>${esc(a.company)}</b></span><input name="confirm" required autocomplete="off"></label>`}
+    <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-close>Cancel</button><button class="btn danger">Delete everything</button></div></form>`,
+    { onMount: (ov, close) => ov.querySelector("#df").onsubmit = async e => { e.preventDefault(); try { await api("POST", "/api/account/delete", Object.fromEntries(new FormData(e.target))); close(); ME = null; toast("Account deleted."); location.hash = "#/login"; } catch (x) { fail(x); } } });
+}
+
+/* ------------------------------------------------------------------ logo: card in Settings + editor */
+const LOGO_PX = { small: 32, medium: 48, large: 72 };
+// the badge behind a logo: light on the dark pages, dark on the light ones (same as the pages' CSS)
+const BADGE = (h, dark) => `background:${dark ? "#f7f4ef" : "#1d1b16"};padding:${Math.max(3, h >> 3)}px ${Math.max(6, h >> 2)}px;border-radius:${Math.max(4, Math.floor(h / 6))}px;`;
+const DARK_BG = [20, 16, 14], LIGHT_BG = [247, 246, 242];
+// Same rule as the server (studio/branding.needs_badge): if at least 5% of the visible logo has under 2:1
+// contrast with the page background, it gets a badge behind it there.
+function needsBadge(c, bgRGB = DARK_BG) {
+  const k = Math.min(1, 200 / Math.max(c.width, c.height)), t = document.createElement("canvas");
+  t.width = Math.max(1, Math.round(c.width * k)); t.height = Math.max(1, Math.round(c.height * k));
+  const g = t.getContext("2d", { willReadFrequently: true }); g.drawImage(c, 0, 0, t.width, t.height);
+  const p = g.getImageData(0, 0, t.width, t.height).data;
+  const lin = v => (v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  const lum = (r, gg, b) => 0.2126 * lin(r) + 0.7152 * lin(gg) + 0.0722 * lin(b);
+  const bg = lum(...bgRGB);
+  let w = 0, faint = 0;
+  for (let i = 0; i < p.length; i += 4) if (p[i + 3] > 16) {
+    const l = lum(p[i], p[i + 1], p[i + 2]);
+    w += p[i + 3]; if ((Math.max(l, bg) + 0.05) / (Math.min(l, bg) + 0.05) < 2) faint += p[i + 3];
+  }
+  return w > 0 && faint >= 0.05 * w;
+}
+function logoCard(a) {
+  const mark = (h, dark) => a.logo_url ? `<img src="${esc(a.logo_url)}" alt="${esc(a.company)}" style="height:${h}px;max-width:${h * 5}px;object-fit:contain;${(dark ? a.logo_badge : a.logo_badge_light) ? BADGE(h, dark) : ""}">`
+    : `<b style="font-size:${dark ? ".8rem" : "1rem"};${dark ? "letter-spacing:.14em;text-transform:uppercase;color:var(--brand)" : ""}">${esc(a.company)}</b>`;
+  return `<div class="card" data-need="company"><h2>Logo</h2>
+    <p class="muted small" style="margin-top:0">Shown instead of your company name on the dashboard, guest pages, client galleries and emails. Without a logo, the name is shown.</p>
+    <div class="logoprevs"><div class="lp light"><span class="muted small">Light pages and dashboard</span><div>${mark(LOGO_PX[a.logo_size] || 48)}</div></div>
+      <div class="lp dark"><span class="small">Dark pages</span><div>${mark(LOGO_PX[a.logo_size] || 48, true)}</div></div></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary" id="logo-pick">${a.logo_url ? "Replace logo" : "Upload logo"}</button>
+      ${a.logo_url ? `<button class="btn danger" id="logo-del">Remove logo</button>` : ""}
+      <label class="small" style="margin-left:auto">Size on guest pages
+        <select id="logo-size" style="width:auto;margin-left:6px">${["small", "medium", "large"].map(k => `<option value="${k}" ${k === a.logo_size ? "selected" : ""}>${k[0].toUpperCase() + k.slice(1)}</option>`).join("")}</select></label></div>
+    <input type="file" id="logo-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden></div>`;
+}
+function wireLogoCard() {
+  if (!can("company")) return;
+  const f = document.getElementById("logo-file");
+  document.getElementById("logo-pick").onclick = () => f.click();
+  f.onchange = () => { const file = f.files[0]; f.value = ""; if (file) logoEditor(file); };
+  const del = document.getElementById("logo-del");
+  if (del) del.onclick = async () => {
+    if (!await confirmBox("Remove the logo?", "Your company name is shown instead, everywhere.", "Remove logo", true)) return;
+    try { ME = await api("DELETE", "/api/account/logo"); toast("Logo removed."); viewSettings(); } catch (x) { fail(x); } };
+  document.getElementById("logo-size").onchange = async e => {
+    try { ME = await api("PATCH", "/api/account", { logo_size: e.target.value }); toast("Logo size saved."); viewSettings(); } catch (x) { fail(x); } };
+}
+
+function loadImage(file) {
+  return new Promise((res, rej) => { const u = URL.createObjectURL(file), i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; });
+}
+// The image after rotation, "white -> transparent" and trimming. Big photos are scaled down first (speed).
+function logoSource(img, S) {
+  const k = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k)), turned = S.rot % 180 !== 0;
+  let c = document.createElement("canvas"); c.width = turned ? h : w; c.height = turned ? w : h;
+  let g = c.getContext("2d", { willReadFrequently: true });
+  g.translate(c.width / 2, c.height / 2); g.rotate(S.rot * Math.PI / 180); g.drawImage(img, -w / 2, -h / 2, w, h);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  if (!S.white && !S.trim) return c;
+  const d = g.getImageData(0, 0, c.width, c.height), p = d.data, W = c.width, H = c.height;
+  if (S.white) for (let i = 0; i < p.length; i += 4) {  // near-white becomes transparent, with a soft edge
+    const m = Math.min(p[i], p[i + 1], p[i + 2]);
+    if (m > 238) p[i + 3] = 0; else if (m > 205) p[i + 3] = Math.min(p[i + 3], Math.round((238 - m) / 33 * 255));
+  }
+  if (S.white) g.putImageData(d, 0, 0);
+  if (!S.trim) return c;
+  // trim: drop edges that are transparent or the same colour as the top-left corner (a plain background)
+  const bg = [p[0], p[1], p[2], p[3]];
+  const empty = i => p[i + 3] < 10 || (bg[3] > 245 && Math.abs(p[i] - bg[0]) + Math.abs(p[i + 1] - bg[1]) + Math.abs(p[i + 2] - bg[2]) < 30 && p[i + 3] > 245);
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!empty((y * W + x) * 4)) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  if (x1 < 0) return c;  // nothing left: keep it as it is, the server will refuse an empty image
+  const pad = Math.round(Math.max(x1 - x0, y1 - y0) * 0.02);
+  x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(W - 1, x1 + pad); y1 = Math.min(H - 1, y1 + pad);
+  const t = document.createElement("canvas"); t.width = x1 - x0 + 1; t.height = y1 - y0 + 1;
+  t.getContext("2d").drawImage(c, x0, y0, t.width, t.height, 0, 0, t.width, t.height);
+  return t;
+}
+
+async function logoEditor(file) {
+  let img;
+  try { img = await loadImage(file); } catch (e) { return toast("We couldn't open that image. Use a PNG, JPG or WebP.", true); }
+  const S = { rot: 0, shape: "fit", zoom: 1, ox: 0, oy: 0, trim: true, white: false };
+  const SHAPES = { fit: null, wide: 3, square: 1 };
+  const SW = 640, SH = 300;  // stage size in canvas pixels
+  let src = logoSource(img, S), geo = null;
+  modal(`<h2>Your logo</h2>
+    <div class="ed-tabs">${[["fit", "Whole logo"], ["wide", "Wide 3:1"], ["square", "Square"]].map(([k, t]) => `<button type="button" data-shape="${k}" class="${k === "fit" ? "on" : ""}">${t}</button>`).join("")}</div>
+    <canvas id="ed-stage" width="${SW}" height="${SH}" class="ed-stage" aria-label="Logo editor. Drag to move the image when cropping."></canvas>
+    <div class="ed-tools">
+      <label class="ed-zoom">Zoom <input type="range" id="ed-zoom" min="1" max="4" step="0.01" value="1" disabled></label>
+      <button type="button" class="btn sm" id="ed-left" title="Rotate left">⟲ Rotate</button><button type="button" class="btn sm" id="ed-right" title="Rotate right">⟳</button>
+      <button type="button" class="btn sm" id="ed-reset">Reset</button></div>
+    <label class="check"><input type="checkbox" id="ed-trim" checked> Trim empty edges</label>
+    <label class="check"><input type="checkbox" id="ed-white"> Make the white background transparent <small class="muted" style="font-weight:400">(for JPG logos on the dark guest pages)</small></label>
+    <div class="logoprevs"><div class="lp light"><span class="muted small">Light pages and dashboard</span><canvas id="ed-pl" height="96"></canvas></div>
+      <div class="lp dark"><span class="small">Dark pages</span><canvas id="ed-pd" height="96"></canvas></div></div>
+    <p class="small muted" id="ed-size" style="margin:8px 0 0"></p>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn primary" id="ed-save">Save logo</button></div>`,
+  { cls: "edit", onMount: (ov, close) => {
+    const stage = ov.querySelector("#ed-stage"), g = stage.getContext("2d"), zoom = ov.querySelector("#ed-zoom");
+    const layout = () => {  // where the crop frame and the image sit on the stage
+      const A = SHAPES[S.shape];
+      if (!A) { const s = Math.min(SW * 0.9 / src.width, SH * 0.86 / src.height); return { A, s, fw: src.width * s, fh: src.height * s }; }
+      const fw = Math.min(SW * 0.88, SH * 0.86 * A), fh = fw / A, s = Math.max(fw / src.width, fh / src.height) * S.zoom;
+      const mx = Math.max(0, (src.width * s - fw) / 2), my = Math.max(0, (src.height * s - fh) / 2);
+      S.ox = Math.max(-mx, Math.min(mx, S.ox)); S.oy = Math.max(-my, Math.min(my, S.oy));  // the image always covers the frame
+      return { A, s, fw, fh };
+    };
+    const output = () => {  // the final image, at the size it will be saved
+      const L = layout();
+      let ow, oh;
+      if (!L.A) { const k = Math.min(1, 1200 / src.width, 600 / src.height); ow = Math.round(src.width * k); oh = Math.round(src.height * k); }
+      else { ow = L.A >= 2 ? 1200 : 600; oh = Math.round(ow / L.A); }
+      const c = document.createElement("canvas"); c.width = Math.max(1, ow); c.height = Math.max(1, oh);
+      const o = c.getContext("2d"), f = L.A ? ow / L.fw : ow / src.width;
+      o.imageSmoothingQuality = "high";
+      if (!L.A) o.drawImage(src, 0, 0, ow, oh);
+      else { const w = src.width * L.s * f, h = src.height * L.s * f; o.drawImage(src, ow / 2 + S.ox * f - w / 2, oh / 2 + S.oy * f - h / 2, w, h); }
+      return c;
+    };
+    const preview = (id, h, dark) => {
+      const cv = ov.querySelector(id), out = output(), w = Math.min(h * 5, Math.round(out.width * h / out.height));
+      cv.width = w * 2; cv.height = h * 2; cv.style.height = h + "px"; cv.style.width = w + "px";
+      const p = cv.getContext("2d"); p.imageSmoothingQuality = "high"; p.drawImage(out, 0, 0, cv.width, cv.height);
+      const badge = needsBadge(out, dark ? DARK_BG : LIGHT_BG);
+      cv.style.cssText += ";" + (badge ? BADGE(h, dark) : "background:none;padding:0;border-radius:0;");
+      return { out, badge };
+    };
+    let queued = false;
+    const draw = () => {
+      geo = layout(); g.clearRect(0, 0, SW, SH);
+      const cx = SW / 2, cy = SH / 2;
+      if (!geo.A) g.drawImage(src, cx - geo.fw / 2, cy - geo.fh / 2, geo.fw, geo.fh);
+      else {
+        const w = src.width * geo.s, h = src.height * geo.s;
+        g.drawImage(src, cx + S.ox - w / 2, cy + S.oy - h / 2, w, h);
+        g.fillStyle = "rgba(20,16,0,.55)"; g.beginPath(); g.rect(0, 0, SW, SH);
+        g.rect(cx - geo.fw / 2, cy - geo.fh / 2, geo.fw, geo.fh); g.fill("evenodd");
+      }
+      g.strokeStyle = "#f0c52f"; g.lineWidth = 2; g.setLineDash(geo.A ? [] : [6, 5]);
+      g.strokeRect(cx - geo.fw / 2, cy - geo.fh / 2, geo.fw, geo.fh); g.setLineDash([]);
+      if (!queued) { queued = true; requestAnimationFrame(() => {
+        queued = false; const size = LOGO_PX[ME.account.logo_size] || 48;
+        const light = preview("#ed-pl", size, false), { out, badge } = preview("#ed-pd", size, true);
+        ov.querySelector("#ed-size").textContent = `Saved as ${out.width} × ${out.height} px PNG.` +
+          (badge ? " Parts of it are dark, so on dark pages it sits on a light badge to stay readable." : "") +
+          (light.badge ? " Parts of it are light, so on light pages it sits on a dark badge." : ""); }); }
+    };
+    const rebuild = () => { src = logoSource(img, S); draw(); };
+    ov.querySelectorAll("[data-shape]").forEach(b => b.onclick = () => {
+      S.shape = b.dataset.shape; S.zoom = 1; S.ox = S.oy = 0; zoom.value = 1; zoom.disabled = !SHAPES[S.shape];
+      ov.querySelectorAll("[data-shape]").forEach(x => x.classList.toggle("on", x === b)); stage.style.cursor = SHAPES[S.shape] ? "grab" : "default"; draw(); });
+    zoom.oninput = () => { S.zoom = +zoom.value; draw(); };
+    ov.querySelector("#ed-left").onclick = () => { S.rot = (S.rot + 270) % 360; S.ox = S.oy = 0; rebuild(); };
+    ov.querySelector("#ed-right").onclick = () => { S.rot = (S.rot + 90) % 360; S.ox = S.oy = 0; rebuild(); };
+    ov.querySelector("#ed-reset").onclick = () => { Object.assign(S, { rot: 0, zoom: 1, ox: 0, oy: 0 }); zoom.value = 1; rebuild(); };
+    ov.querySelector("#ed-trim").onchange = e => { S.trim = e.target.checked; S.ox = S.oy = 0; rebuild(); };
+    ov.querySelector("#ed-white").onchange = e => { S.white = e.target.checked; rebuild(); };
+    let drag = null;  // move the image inside the crop frame (mouse, pen or finger)
+    stage.addEventListener("pointerdown", e => { if (!SHAPES[S.shape]) return; drag = { x: e.clientX, y: e.clientY, ox: S.ox, oy: S.oy }; stage.setPointerCapture(e.pointerId); stage.style.cursor = "grabbing"; });
+    stage.addEventListener("pointermove", e => { if (!drag) return; const k = SW / stage.getBoundingClientRect().width;
+      S.ox = drag.ox + (e.clientX - drag.x) * k; S.oy = drag.oy + (e.clientY - drag.y) * k; draw(); });
+    const end = () => { drag = null; stage.style.cursor = SHAPES[S.shape] ? "grab" : "default"; };
+    stage.addEventListener("pointerup", end); stage.addEventListener("pointercancel", end);
+    stage.addEventListener("wheel", e => { if (!SHAPES[S.shape]) return; e.preventDefault();
+      S.zoom = Math.max(1, Math.min(4, S.zoom * (e.deltaY < 0 ? 1.08 : 1 / 1.08))); zoom.value = S.zoom; draw(); }, { passive: false });
+    ov.querySelector("#ed-save").onclick = async e => {
+      const btn = e.target; btn.disabled = true; btn.textContent = "Saving…";
+      const blob = await new Promise(r => output().toBlob(r, "image/png"));
+      const fd = new FormData(); fd.append("file", blob, "logo.png");
+      try {
+        const r = await fetch("/api/account/logo", { method: "POST", headers: { "X-PF": "1" }, body: fd, credentials: "same-origin" });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new ApiError(r.status, j.message || "Couldn't save the logo.", j.error);
+        ME = j; close(); toast("Logo saved."); viewSettings();
+      } catch (x) { fail(x); btn.disabled = false; btn.textContent = "Save logo"; }
+    };
+    draw();
+  } });
+}
+
+/* ------------------------------------------------------------------ camera upload (FTP) card */
+let CAM = null, CAM_PW = "", camTimer = null;
+const ago = (t, now) => { const s = Math.max(0, now - t); return s < 60 ? `${s} s ago` : s < 3600 ? `${Math.floor(s / 60)} min ago` : s < 86400 ? `${Math.floor(s / 3600)} h ago` : new Date(t * 1000).toLocaleString(); };
+async function loadCamera() {
+  if (!EV || !can("events")) return;
+  try { CAM = await api("GET", `/api/events/${EV.id}/camera`); } catch (x) { return; }
+  paintCamera();
+}
+function camPoll() {  // while a camera login is on, show new photos within a few seconds
+  if (camTimer) clearInterval(camTimer);
+  camTimer = setInterval(async () => {
+    if (!EV || !CAM || !CAM.allowed || !CAM.login || !CAM.login.enabled || !document.getElementById("ev-camera")) return;
+    const before = CAM.login.uploads;
+    try { CAM = await api("GET", `/api/events/${EV.id}/camera`); } catch (x) { return; }
+    paintCamera(); if (CAM.login && CAM.login.uploads !== before) refreshEvent();
+  }, 5000);
+}
+function paintCamera() {
+  const el = document.getElementById("ev-camera"); if (!el) return;
+  if (!CAM || !CAM.allowed) { el.innerHTML = ""; return; }  // only events the platform admin enabled show this option
+  const sv = CAM.server, L = CAM.login, now = CAM.now;
+  const row = (k, v, copy) => `<tr><td class="muted" style="width:150px">${k}</td><td><b class="mono">${esc(v)}</b>${copy ? ` <button class="btn sm" data-copy="${esc(v)}">Copy</button>` : ""}</td></tr>`;
+  const head = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">Camera upload <span class="muted small" style="font-weight:400">straight from the camera, over FTP</span></h2>
+    ${L ? `<span class="badge ${L.enabled ? "pub" : ""}">${L.enabled ? "On" : "Off"}</span>` : ""}</div>`;
+  if (!sv.available) {
+    el.innerHTML = `<div class="card">${head}<p class="small muted" style="margin:8px 0 0">Not switched on for this server. Whoever runs Studio can turn it on with <code>--ftp-port</code> (see "Camera upload" in STUDIO.md).</p></div>`;
+    return;
+  }
+  if (!L) {
+    el.innerHTML = `<div class="card">${head}<p class="small muted" style="margin:8px 0 12px">Give this event its own FTP login. Enter it once in the camera, and every photo it sends lands here and is processed like a normal upload; guests can find them within seconds. The login can only add photos to this event.</p>
+      <button class="btn primary" id="cam-new">Set up camera upload</button></div>`;
+    document.getElementById("cam-new").onclick = () => camAction("POST");
+    return;
+  }
+  const proto = sv.tls === "required" ? "FTPS (FTP over TLS), required" : sv.tls === "available" ? "FTPS (FTP over TLS) if the camera offers it, else FTP" : "FTP";
+  const live = L.last_upload_at ? `Last photo received <b>${ago(L.last_upload_at, now)}</b> · ${num(L.uploads)} photo${L.uploads === 1 ? "" : "s"} from the camera`
+    : L.last_login_at ? `The camera connected ${ago(L.last_login_at, now)}; waiting for the first photo.` : "Waiting for the camera to connect.";
+  el.innerHTML = `<div class="card">${head}
+    <p class="small" style="margin:8px 0 12px">${L.enabled ? live : "Switched off: the camera can't log in."}${L.last_note && !/^Received /.test(L.last_note) ? `<br><span style="color:var(--warn)">Last file: ${esc(L.last_note)}</span>` : ""}</p>
+    <table class="small"><tbody>
+      ${row("Server", sv.host || location.hostname, true)}${row("Port", String(sv.port), false)}${row("Protocol", proto, false)}
+      ${row("Username", L.username, true)}
+      <tr><td class="muted">Password</td><td>${CAM_PW ? `<b class="mono">${esc(CAM_PW)}</b> <button class="btn sm" data-copy="${esc(CAM_PW)}">Copy</button>
+        <div class="small" style="color:var(--warn);margin-top:4px">Shown only now. Enter it in the camera before leaving this page.</div>` : `<span class="muted">Hidden. Make a new one if you need it again.</span>`}</td></tr>
+      ${row("Folder", "/ (any folder works)", false)}${row("Passive mode", "On (PASV)", false)}
+    </tbody></table>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" id="cam-toggle">${L.enabled ? "Turn off" : "Turn on"}</button>
+      <button class="btn" id="cam-rotate">New password</button>
+      <button class="btn danger" id="cam-del">Remove login</button></div>
+    <details style="margin-top:14px"><summary class="small" style="cursor:pointer"><b>How to set up the camera</b></summary><div class="small" style="margin-top:8px;line-height:1.6">
+      <ol style="padding-left:18px;margin:0">
+        <li>Connect the camera to the internet: the venue Wi-Fi or a phone hotspot.</li>
+        <li>In the camera's network menu, add an FTP server with the server, port, username and password above. Choose FTPS (or "FTP over TLS", "Secure FTP") if it is offered. Turn passive mode on.</li>
+        <li>Turn on automatic transfer after each shot. For live sharing choose JPEG, a medium or small size is enough: 2 to 4 MB uploads quickly, and face search works just as well. Send full originals later from the dashboard.</li>
+        <li>Take a test shot. This card shows "Last photo received" within a few seconds.</li></ol>
+      <p style="margin:10px 0 0"><b>Where the menu is</b> (names differ by model and firmware; check yours before the event):<br>
+        Canon (R series): Network settings, FTP transfer. · Nikon (Z series): Network menu, Connect to FTP server. · Sony (Alpha): Network, FTP Transfer function.</p>
+      <p style="margin:6px 0 0" class="muted">Only cameras with built-in FTP upload work this way. Venue internet decides the speed: a slow connection means photos arrive late, not lost; the camera retries.</p>
+    </div></details></div>`;
+  el.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.copy); toast("Copied."); } catch (x) { toast(b.dataset.copy); } });
+  document.getElementById("cam-toggle").onclick = () => camAction("PATCH", { enabled: !L.enabled });
+  document.getElementById("cam-rotate").onclick = async () => {
+    if (!await confirmBox("Make a new password?", "The camera's current password stops working straight away. Enter the new one in the camera.", "New password")) return;
+    camAction("POST"); };
+  document.getElementById("cam-del").onclick = async () => {
+    if (!await confirmBox("Remove the camera login?", "The camera can't send photos to this event any more. Photos already received stay.", "Remove", true)) return;
+    CAM_PW = ""; camAction("DELETE"); };
+}
+async function camAction(method, body) {
+  try {
+    const r = await api(method, `/api/events/${EV.id}/camera`, body);
+    if (r.password) { CAM_PW = r.password; toast("Camera login ready. Enter it in the camera."); }
+    CAM = r; paintCamera(); camPoll();
+  } catch (x) { fail(x); }
+}
+
+/* ------------------------------------------------------------------ billing: estimates and invoices, with a PDF */
+const CURS = ["₹", "$", "€", "£"];
+const KW = {  // the words that change with the kind (the PDF uses the same ones, studio/estimates.py KINDS)
+  estimate: { noun: "Estimate", date: "Estimate date", until: "Valid until", total: "Total package cost", about: "A quotation before the booking" },
+  invoice: { noun: "Invoice", date: "Invoice date", until: "Due date", total: "Total amount due", about: "A bill for the client to pay" },
+};
+const fmtMoney = (v, cur = "₹") => {
+  const n = Number(v) || 0, frac = Math.round(n * 100) % 100 !== 0;
+  return `${cur} ${n.toLocaleString(cur === "₹" ? "en-IN" : "en-US", { minimumFractionDigits: frac ? 2 : 0, maximumFractionDigits: 2 })}`;
+};
+const paiseOf = v => Math.round((Number(v) || 0) * 100);
+function estTotals(items, discount, taxPct) {  // the same sums the server makes, in paise
+  const sub = items.reduce((t, i) => t + (String(i.name || "").trim() ? paiseOf(i.amount) : 0), 0);
+  const disc = Math.min(paiseOf(discount), sub), tax = Math.round((sub - disc) * (Number(taxPct) || 0) / 100);
+  return { subtotal: sub / 100, discount: disc / 100, tax: tax / 100, total: (sub - disc + tax) / 100 };
+}
+const kindBadge = k => `<span class="badge ${k === "invoice" ? "pub" : ""}">${KW[k].noun}</span>`;
+
+let BILL_FILTER = "all";
+async function viewEstimates() {
+  stopPoll(); document.title = "Billing · Photo Finder Studio";
+  const rows = await api("GET", "/api/estimates");
+  const count = k => rows.filter(r => k === "all" || r.kind === k).length;
+  const chip = (k, t) => `<button class="chip ${BILL_FILTER === k ? "on" : ""}" data-f="${k}">${t} <span class="muted">${count(k)}</span></button>`;
+  const shown = rows.filter(r => BILL_FILTER === "all" || r.kind === BILL_FILTER);
+  const newKind = BILL_FILTER === "invoice" ? "invoice" : "estimate";
+  shell(`<div class="head"><div><h1>Billing</h1><div class="muted">Estimates and invoices for your clients: packages, costs and a PDF to send.</div></div>
+    <a class="btn primary" href="#/billing/new?kind=${newKind}" data-need="clients">New estimate or invoice</a></div>
+    ${rows.length ? `<div class="row" style="margin-bottom:12px">${chip("all", "All")}${chip("estimate", "Estimates")}${chip("invoice", "Invoices")}</div>
+      <div class="card" style="padding:6px 8px"><div style="overflow-x:auto"><table><thead><tr><th>No.</th><th>Type</th><th>Client</th><th>Event</th><th>Date</th><th style="text-align:right">Total</th><th></th></tr></thead><tbody>
+      ${shown.map(r => `<tr class="click" data-href="#/billing/${r.id}"><td style="white-space:nowrap"><b>${esc(r.label)}</b>${r.ref ? `<div class="muted small">from ${esc(r.ref)}</div>` : ""}</td>
+        <td>${kindBadge(r.kind)}</td><td>${esc(r.client_name)}</td>
+        <td class="muted">${esc((r.event_title || "").split("\n")[0] || "—")}</td><td class="muted" style="white-space:nowrap">${fmtDate(r.estimate_date)}</td>
+        <td style="text-align:right;white-space:nowrap"><b>${esc(fmtMoney(r.total, r.currency))}</b><div class="muted small">${r.packages} package${r.packages === 1 ? "" : "s"}</div></td>
+        <td style="text-align:right"><a class="btn sm" href="/api/estimates/${r.id}/pdf?download=1" download>PDF</a></td></tr>`).join("")
+        || `<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No ${BILL_FILTER === "invoice" ? "invoices" : "estimates"} yet.</td></tr>`}
+      </tbody></table></div></div>`
+      : emptyState("Nothing here yet", "Make an estimate (a quotation) or an invoice with your packages and their costs, then download it as a PDF for the client.", `<a class="btn primary" href="#/billing/new" data-need="clients">New estimate or invoice</a>`)}`, "billing");
+  wire();
+  $app.querySelectorAll("a[download]").forEach(a => a.onclick = e => e.stopPropagation());
+  $app.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { BILL_FILTER = b.dataset.f; viewEstimates(); });
+}
+
+let EST = null, EST_DIRTY = false, EST_SAVE = null;
+function leaveDialog() {  // resolves true to leave (after saving, or discarding), false to keep editing
+  const noun = EST && EST.kind === "invoice" ? "invoice" : "estimate";
+  return new Promise(res => {
+    let done = false; const end = v => { if (!done) { done = true; res(v); } };
+    const close = modal(`<h2>Unsaved changes</h2><p class="muted">This ${noun} has changes you haven't saved yet.</p>
+      <div class="row" style="justify-content:flex-end;margin-top:18px">
+        <button class="btn" data-close>Keep editing</button><button class="btn danger" id="lv-discard">Discard changes</button>
+        ${can("clients") && EST_SAVE ? `<button class="btn primary" id="lv-save">Save and leave</button>` : ""}</div>`,
+      { onMount: ov => {
+        ov.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => end(false)));
+        ov.querySelector("#lv-discard").onclick = () => { close(); end(true); };
+        const sv = ov.querySelector("#lv-save");
+        if (sv) sv.onclick = async () => { sv.disabled = true; const r = await EST_SAVE(true); close(); end(!!r); };
+      } });
+    const root = document.getElementById("modal-root"); if (root) new MutationObserver((m, o) => { if (!root.firstChild) { o.disconnect(); end(false); } }).observe(root, { childList: true });
+  });
+}
+async function viewEstimate(id, query) {
+  stopPoll();
+  const isNew = id === "new";
+  if (isNew && !can("clients")) { toast(`Your role (${ME.user.role_label}) can't create estimates or invoices.`, true); location.hash = "#/billing"; return; }
+  const [clients, base] = await Promise.all([api("GET", "/api/clients"), api("GET", isNew ? "/api/estimates/defaults" : "/api/estimates/" + id)]);
+  const startKind = new URLSearchParams(query || "").get("kind") === "invoice" ? "invoice" : "estimate";
+  EST = isNew ? { ...base, id: null, kind: startKind, client_id: null, client_name: "", client_details: "", event_title: "", valid_until: "",
+                  items: [{ name: "", description: "", amount: "" }], discount: 0 } : base;
+  if (!EST.items.length) EST.items.push({ name: "", description: "", amount: "" });
+  EST_DIRTY = false;
+  const edit = can("clients"), K = () => KW[EST.kind], label = () => isNew ? base.labels[EST.kind] : EST.label;
+  const f = (name, lbl, val, attrs = "") => `<label class="f"><span>${lbl}</span><input name="${name}" value="${esc(val ?? "")}" ${attrs}></label>`;
+  const ta = (name, lbl, val, rows, ph) => `<label class="f"><span>${lbl}</span><textarea name="${name}" rows="${rows}" placeholder="${esc(ph)}">${esc(val || "")}</textarea></label>`;
+  const kindPick = isNew && edit ? `<div class="card"><h2>What are you making?</h2><div class="kinds" role="radiogroup" aria-label="Type">
+      ${Object.entries(KW).map(([k, w]) => `<label class="kind"><input type="radio" name="kind" value="${k}" ${k === EST.kind ? "checked" : ""}>
+        <span><b>${w.noun}</b><span class="muted small">${w.about} · will be ${esc(base.labels[k])}</span></span></label>`).join("")}</div></div>` : "";
+  shell(`<div class="crumbs"><a href="#/billing">Billing</a> /</div>
+    <div class="head"><div><h1 id="est-h"></h1><div class="muted" id="est-sub"></div></div></div>
+    ${edit ? "" : `<div class="card small muted">Your role (${esc(ME.user.role_label)}) can view and download estimates and invoices, not change them.</div>`}
+    <form id="estf" class="est-grid" autocomplete="off"><fieldset ${edit ? "" : "disabled"} style="border:0;padding:0;margin:0;min-width:0">
+      ${kindPick}
+      <div class="card"><h2>From</h2>
+        <div class="two">${f("company_name", `Company name <small>(printed on it)</small>`, EST.company_name, 'required maxlength="150"')}
+          <div>${base.has_logo ? `<label class="check" style="margin-top:26px"><input type="checkbox" name="show_logo" ${EST.show_logo ? "checked" : ""}> Show our logo on the PDF</label>` : `<p class="small muted" style="margin-top:26px">Add a logo in Settings to show it on the PDF.</p>`}</div></div>
+        ${ta("company_details", "Address, phone, email, GSTIN <small>(optional)</small>", EST.company_details, 3, "No. 12, MG Road, Chennai 600017\n+91 98400 12345 · hello@yourstudio.in\nGSTIN …")}</div>
+      <div class="card"><h2>For</h2>
+        <div class="two"><label class="f"><span>Client <small>(optional: fills in the details)</small></span><select name="client_id" id="est-client"><option value="">Not one of my clients</option>
+            ${clients.map(c => `<option value="${c.id}" ${c.id === EST.client_id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
+          ${f("client_name", "Name on it", EST.client_name, 'required maxlength="150" placeholder="Arun &amp; Anjali"')}</div>
+        <div class="two">${ta("client_details", "Client contact <small>(optional)</small>", EST.client_details, 2, "Phone, email, address")}
+          ${ta("event_title", "Event <small>(optional)</small>", EST.event_title, 2, "Wedding & Reception\n2-3 Nov 2026, Chennai")}</div>
+        <div class="two"><label class="f"><span id="lbl-date"></span><input name="estimate_date" type="date" required value="${esc(EST.estimate_date)}"></label>
+          <label class="f"><span><span id="lbl-until"></span> <small>(optional)</small></span><input name="valid_until" type="date" value="${esc(EST.valid_until || "")}"></label></div></div>
+      <div class="card"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">Packages</h2>
+          <label class="row small" style="gap:6px">Currency <select name="currency" style="width:auto">${CURS.map(c => `<option ${c === EST.currency ? "selected" : ""}>${c}</option>`).join("")}</select></label></div>
+        <div id="est-items"></div>
+        <button type="button" class="btn" id="est-add">+ Add package</button></div>
+      <div class="card"><h2>Discount and tax</h2>
+        <div class="three">${f("discount", "Discount <small>(amount)</small>", EST.discount || "", 'type="number" min="0" step="0.01" inputmode="decimal" placeholder="0"')}
+          ${f("tax_label", "Tax name", EST.tax_label, 'maxlength="40" placeholder="GST"')}${f("tax_pct", "Tax %", EST.tax_pct || "", 'type="number" min="0" max="100" step="0.01" inputmode="decimal" placeholder="0"')}</div></div>
+      <div class="card"><h2>Notes and terms</h2>${ta("notes", "Printed at the bottom <small>(optional)</small>", EST.notes, 4, "50% advance to confirm the date; balance on the event day.\nBank: … · UPI: …")}</div>
+    </fieldset>
+    <aside class="est-side"><div class="card"><h2>Total</h2><div id="est-tot"></div>
+      <div class="est-acts">${edit ? `<button class="btn primary" id="est-save"></button>` : ""}
+        <button type="button" class="btn ${edit ? "" : "primary"}" id="est-dl">Download PDF</button>
+        <button type="button" class="btn" id="est-open">Open PDF</button>
+        ${!isNew && edit && EST.kind === "estimate" ? `<button type="button" class="btn" id="est-bill" title="A new invoice with these packages, dated today">Make invoice</button>` : ""}
+        ${!isNew && edit ? `<button type="button" class="btn" id="est-copy">Duplicate</button><button type="button" class="btn danger" id="est-del">Delete</button>` : ""}</div>
+      <p class="small muted" id="est-state" style="margin:10px 0 0"></p></div></aside></form>`, "billing");
+
+  const form = document.getElementById("estf"), box = document.getElementById("est-items");
+  const paintKind = () => {  // every word that depends on estimate vs invoice
+    const w = K();
+    document.title = `${isNew ? "New " + w.noun.toLowerCase() : label()} · Photo Finder Studio`;
+    document.getElementById("est-h").innerHTML = isNew ? `New ${w.noun.toLowerCase()}` : `${esc(label())} ${kindBadge(EST.kind)}`;
+    document.getElementById("est-sub").textContent = isNew ? `It will be ${label()}.`
+      : `${EST.ref ? `Made from ${EST.ref} · ` : ""}Last saved ${new Date(EST.updated_at * 1000).toLocaleString()}`;
+    document.getElementById("lbl-date").textContent = w.date;
+    document.getElementById("lbl-until").textContent = w.until;
+    const sv = document.getElementById("est-save"); if (sv) sv.textContent = isNew ? `Save ${w.noun.toLowerCase()}` : "Save changes";
+  };
+  const paintItems = () => {
+    box.innerHTML = EST.items.map((it, i) => `<div class="pkg" data-i="${i}"><div class="pkg-head"><b class="muted">${i + 1}</b>
+        <input data-k="name" value="${esc(it.name)}" maxlength="150" placeholder="Package name, e.g. Candid photography" aria-label="Package ${i + 1} name">
+        <input data-k="amount" value="${esc(it.amount)}" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Cost" aria-label="Package ${i + 1} cost">
+        <button type="button" class="btn sm" data-rm="${i}" title="Remove this package" aria-label="Remove package ${i + 1}" ${EST.items.length === 1 ? "disabled" : ""}>✕</button></div>
+      <textarea data-k="description" rows="${Math.min(10, Math.max(2, String(it.description || "").split("\n").length))}" maxlength="3000" placeholder="What's included: one line per point" aria-label="Package ${i + 1} description">${esc(it.description)}</textarea>
+      ${EST.items.length > 1 ? `<div class="pkg-move"><button type="button" class="btn sm" data-up="${i}" ${i ? "" : "disabled"} aria-label="Move up">↑</button><button type="button" class="btn sm" data-down="${i}" ${i < EST.items.length - 1 ? "" : "disabled"} aria-label="Move down">↓</button></div>` : ""}</div>`).join("");
+    box.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { EST.items.splice(+b.dataset.rm, 1); changed(); paintItems(); });
+    box.querySelectorAll("[data-up],[data-down]").forEach(b => b.onclick = () => {
+      const i = +(b.dataset.up ?? b.dataset.down), j = b.dataset.up != null ? i - 1 : i + 1;
+      [EST.items[i], EST.items[j]] = [EST.items[j], EST.items[i]]; changed(); paintItems(); });
+  };
+  const read = () => {
+    const d = Object.fromEntries(new FormData(form));
+    return { kind: EST.kind, company_name: d.company_name || "", company_details: d.company_details || "", show_logo: base.has_logo ? !!form.show_logo?.checked : EST.show_logo,
+      client_id: d.client_id ? +d.client_id : null, client_name: d.client_name || "", client_details: d.client_details || "", event_title: d.event_title || "",
+      estimate_date: d.estimate_date, valid_until: d.valid_until || null, currency: d.currency,
+      items: EST.items.map(i => ({ name: i.name || "", description: i.description || "", amount: Number(i.amount) || 0 })),
+      discount: Number(d.discount) || 0, tax_label: d.tax_label || "", tax_pct: Number(d.tax_pct) || 0, notes: d.notes || "" };
+  };
+  const paintTotals = () => {
+    const b = read(), t = estTotals(b.items, b.discount, b.tax_pct), cur = b.currency;
+    const line = (k, v, cls = "") => `<div class="est-line ${cls}"><span>${k}</span><b>${esc(v)}</b></div>`;
+    document.getElementById("est-tot").innerHTML = line("Subtotal", fmtMoney(t.subtotal, cur))
+      + (t.discount ? line("Discount", "- " + fmtMoney(t.discount, cur)) : "")
+      + (b.tax_pct ? line(`${esc(b.tax_label || "Tax")} (${b.tax_pct}%)`, fmtMoney(t.tax, cur)) : "")
+      + line(K().total, fmtMoney(t.total, cur), "grand");
+    document.getElementById("est-state").textContent = EST_DIRTY ? "Unsaved changes." : (isNew ? "" : "All changes saved.");
+  };
+  const changed = () => { EST_DIRTY = true; paintTotals(); };
+  box.addEventListener("input", e => {
+    const p = e.target.closest(".pkg"); if (p && e.target.dataset.k) EST.items[+p.dataset.i][e.target.dataset.k] = e.target.value;
+    if (e.target.tagName === "TEXTAREA") e.target.rows = Math.min(10, Math.max(2, e.target.value.split("\n").length));  // grows with the lines
+    changed(); });
+  form.addEventListener("input", e => { if (!e.target.closest("#est-items")) changed(); });
+  form.addEventListener("change", e => {
+    if (e.target.name === "kind") { EST.kind = e.target.value; paintKind(); }
+    if (!e.target.closest("#est-items")) changed(); });
+  document.getElementById("est-add").onclick = () => { EST.items.push({ name: "", description: "", amount: "" }); changed(); paintItems(); box.querySelector(".pkg:last-child input").focus(); };
+  document.getElementById("est-client").onchange = e => {  // fill in from the client record; never overwrite what was typed
+    const c = clients.find(x => x.id === +e.target.value); if (!c) return;
+    if (!form.client_name.value.trim() || clients.some(x => x.name === form.client_name.value)) form.client_name.value = c.name;
+    if (!form.client_details.value.trim()) form.client_details.value = [c.phone, c.email].filter(Boolean).join("\n");
+    changed(); };
+  paintKind(); paintItems(); paintTotals();
+
+  const save = async (leaving) => {
+    const b = read();
+    if (!b.items.some(i => i.name.trim())) { toast("Add at least one package with a name.", true); return null; }
+    try {
+      const r = await api(EST.id ? "PATCH" : "POST", EST.id ? "/api/estimates/" + EST.id : "/api/estimates", b);
+      EST_DIRTY = false;
+      if (!EST.id) { toast(`${r.label} saved.`); if (!leaving) location.hash = "#/billing/" + r.id; return r; }
+      EST = { ...EST, ...r }; paintKind(); paintTotals(); toast("Saved."); return r;
+    } catch (x) { fail(x); return null; }
+  };
+  const pdf = async download => {  // always the saved version: save first if something changed
+    let eid = EST.id;
+    if (edit && (EST_DIRTY || !eid)) { const r = await save(); if (!r) return; eid = r.id; }
+    const url = `/api/estimates/${eid}/pdf${download ? "?download=1" : ""}`;
+    if (download) { const a = document.createElement("a"); a.href = url; a.download = ""; document.body.appendChild(a); a.click(); a.remove(); }
+    else window.open(url, "_blank", "noopener");
+  };
+  const copyTo = async (kind, done) => {
+    if (EST_DIRTY && !await save()) return;
+    try { const r = await api("POST", `/api/estimates/${EST.id}/copy${kind ? "?kind=" + kind : ""}`); toast(done(r)); location.hash = "#/billing/" + r.id; } catch (x) { fail(x); }
+  };
+  EST_SAVE = save;
+  form.onsubmit = e => { e.preventDefault(); save(); };
+  document.getElementById("est-dl").onclick = () => pdf(true);
+  document.getElementById("est-open").onclick = () => pdf(false);
+  const bill = document.getElementById("est-bill"), cp = document.getElementById("est-copy"), del = document.getElementById("est-del");
+  if (bill) bill.onclick = async () => {
+    if (!await confirmBox(`Make an invoice from ${EST.label}?`, "A new invoice with the same client, packages, discount and tax, dated today. Add a due date, check it, then send it. The estimate stays as it is.", "Make invoice")) return;
+    copyTo("invoice", r => `${r.label} made from ${EST.label}.`); };
+  if (cp) cp.onclick = () => copyTo("", r => `Copied to ${r.label}.`);
+  if (del) del.onclick = async () => {
+    if (!await confirmBox(`Delete ${EST.label}?`, "This can't be undone. Its number isn't used again.", `Delete ${K().noun.toLowerCase()}`, true)) return;
+    try { await api("DELETE", "/api/estimates/" + EST.id); EST_DIRTY = false; toast(`${EST.label} deleted.`); location.hash = "#/billing"; } catch (x) { fail(x); } };
+}
+
+/* ------------------------------------------------------------------ cards that minimise (remembered per browser) */
+const isMin = k => { try { return localStorage.getItem("pf_min_" + k) === "1"; } catch (e) { return false; } };
+function wireMin(k) {
+  const card = document.getElementById(k + "-card"), b = card && card.querySelector("[data-min]"); if (!b) return;
+  const set = min => {
+    card.classList.toggle("min", min);
+    b.textContent = min ? "Maximize" : "Minimize";
+    b.setAttribute("aria-expanded", String(!min));
+    b.title = min ? "Show this card again" : "Fold this card away";
+  };
+  set(isMin(k));
+  b.onclick = () => { const min = !card.classList.contains("min"); try { localStorage.setItem("pf_min_" + k, min ? "1" : "0"); } catch (e) {} set(min); };
+}
+function paintCounts() {
+  const p = document.getElementById("ph-count"), v = document.getElementById("vd-count");
+  if (p) p.textContent = `${num(EV.photos)} photo${EV.photos === 1 ? "" : "s"}`;
+  if (v) v.textContent = `${num(VD.items.length)} video${VD.items.length === 1 ? "" : "s"}`;
+}
+
+/* ------------------------------------------------------------------ vendor uploads: an upload link per vendor */
+let VN = { items: [], loaded: false };
+async function loadVendors() {
+  if (!EV || !can("events")) return;
+  const eid = EV.id;
+  try { const items = await api("GET", `/api/events/${eid}/vendors`); if (!EV || EV.id !== eid) return; VN.items = items; VN.loaded = true; } catch (x) { return; }
+  paintVendors(); paintPhotos();   // the photos card's "From vendors" chips follow the list
+}
+function paintVendors() {
+  const el = document.getElementById("ev-vendors"); if (!el || !EV) return;
+  const cnt = document.getElementById("vn-count");
+  if (cnt) cnt.textContent = VN.items.length ? `${VN.items.length} vendor${VN.items.length === 1 ? "" : "s"}` : "";
+  const when = t => t ? new Date(t * 1000).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+  const wa = v => { const d = (v.phone || "").replace(/\D/g, ""), msg = encodeURIComponent(`Hi ${v.name}, please upload your photos and videos for ${EV.name} here:\n${v.url}`);
+    return d.length >= 10 ? `https://wa.me/${d}?text=${msg}` : `https://wa.me/?text=${msg}`; };
+  el.innerHTML = `<p class="small muted" style="margin:6px 0 0">Give a second shooter, the drone team or the video editor their own upload link. They open it, no account needed,
+      and send photos and videos straight into this event, tagged with their name. They can't see any other photos.</p>
+    <form class="vn-add" id="vn-form"><input name="name" maxlength="120" placeholder="Vendor name, e.g. Ravi (second shooter)" required aria-label="Vendor name">
+      <input name="phone" maxlength="40" placeholder="WhatsApp number (optional)" aria-label="Phone"><button class="btn primary">Create upload link</button></form>
+    ${VN.items.length ? `<div class="vn-list">${VN.items.map(v => `<div class="vn ${v.enabled ? "" : "off"}" data-vn="${v.id}">
+        <div class="vn-head"><div><b>${esc(v.name)}</b>${v.enabled ? "" : ` <span class="badge">Off</span>`}${v.phone ? `<span class="muted small"> · ${esc(v.phone)}</span>` : ""}
+          <div class="small muted" style="margin-top:2px">${v.photos || v.videos ? `${num(v.photos)} photo${v.photos === 1 ? "" : "s"}${v.photos - v.ready - v.failed > 0 ? ` (${num(v.photos - v.ready - v.failed)} processing)` : ""}${v.failed ? ` · ${num(v.failed)} failed` : ""} · ${num(v.videos)} video${v.videos === 1 ? "" : "s"} · ${fmtBytes(v.size)} · last sent ${esc(when(v.last_upload_at))}` : "Nothing sent yet"}</div></div>
+          <div class="row">${v.photos ? `<button class="btn sm" data-vn-view>View photos</button>` : ""}<button class="btn sm" data-vn-toggle>${v.enabled ? "Turn off" : "Turn on"}</button>
+            <button class="btn sm" data-vn-reset title="Make a new address; the old one stops working">New link</button><button class="btn sm danger" data-vn-del>Delete</button></div></div>
+        ${v.enabled ? `<div class="row"><input class="grow" readonly value="${esc(v.url)}" aria-label="Upload link for ${esc(v.name)}"><button class="btn sm" data-vn-copy>Copy link</button>
+          <a class="btn sm" href="${wa(v)}" target="_blank" rel="noopener">Send on WhatsApp</a></div>` : `<p class="small muted" style="margin:0">The link is off: it doesn't open and nothing can be sent. What they sent stays in the event.</p>`}
+      </div>`).join("")}</div>` : VN.loaded ? `<div class="empty" style="padding:18px"><b>No vendor links yet</b>Add a vendor above and send them the link.</div>` : ""}`;
+  document.getElementById("vn-form").onsubmit = async ev => {
+    ev.preventDefault(); const f = ev.target;
+    try { const v = await api("POST", `/api/events/${EV.id}/vendors`, { name: f.name.value, phone: f.phone.value }); VN.items.push(v); paintVendors(); paintPhotos(); toast(`Upload link ready for ${v.name}. Copy it or send it on WhatsApp.`); } catch (x) { fail(x); }
+  };
+  el.querySelectorAll("[data-vn]").forEach(row => {
+    const v = VN.items.find(x => x.id === +row.dataset.vn), on = (sel, fn) => { const b = row.querySelector(sel); if (b) b.onclick = fn; };
+    const put = nv => { VN.items = VN.items.map(x => x.id === nv.id ? nv : x); paintVendors(); };
+    on("[data-vn-copy]", async () => { try { await navigator.clipboard.writeText(v.url); } catch (x) { row.querySelector("input").select(); document.execCommand("copy"); } toast("Link copied."); });
+    on("[data-vn-view]", () => { PH.filter = "v" + v.id; loadPhotos(true); const c = document.getElementById("photos-card"); if (c) { if (c.classList.contains("min")) c.querySelector("[data-min]").click(); c.scrollIntoView({ behavior: "smooth" }); } });
+    on("[data-vn-toggle]", async () => {
+      if (v.enabled && !await confirmBox(`Turn off ${v.name}'s link?`, "It stops working at once. What they already sent stays in the event. You can turn it on again.", "Turn off")) return;
+      try { put(await api("PATCH", `/api/events/${EV.id}/vendors/${v.id}`, { enabled: !v.enabled })); } catch (x) { fail(x); }
+    });
+    on("[data-vn-reset]", async () => {
+      if (!await confirmBox("Make a new link?", `The link you sent ${v.name} stops working. Send them the new one.`, "New link")) return;
+      try { put(await api("POST", `/api/events/${EV.id}/vendors/${v.id}/reset`)); toast("New link made. Send it to " + v.name + "."); } catch (x) { fail(x); }
+    });
+    on("[data-vn-del]", async () => {
+      if (!await confirmBox(`Delete ${v.name}'s link?`, `The link stops working. The ${num(v.photos)} photo${v.photos === 1 ? "" : "s"} and ${num(v.videos)} video${v.videos === 1 ? "" : "s"} they sent stay in the event, but are no longer marked as theirs.`, "Delete link", true)) return;
+      try { await api("DELETE", `/api/events/${EV.id}/vendors/${v.id}`); VN.items = VN.items.filter(x => x.id !== v.id); if (PH.filter === "v" + v.id || (PH.filter === "vany" && !VN.items.length)) PH.filter = "all"; paintVendors(); loadPhotos(true); loadVideos(); } catch (x) { fail(x); }
+    });
+  });
+}
+
+/* ------------------------------------------------------------------ the photos the client chose for the album */
+let AL = { photos: [], count: 0, note: "", locked: false, sent_at: null, sel: new Set(), loaded: false };
+async function loadAlbum() {
+  if (!EV) return;
+  const eid = EV.id;
+  try { const j = await api("GET", `/api/events/${eid}/album`); if (!EV || EV.id !== eid) return; Object.assign(AL, j, { loaded: true }); } catch (x) { return; }
+  AL.sel = new Set([...AL.sel].filter(id => AL.photos.some(p => p.id === id)));
+  paintAlbum();
+}
+function paintAlbum() {
+  const el = document.getElementById("ev-album"); if (!el || !EV) return;
+  const n = AL.photos.length, when = AL.sent_at ? new Date(AL.sent_at * 1000).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+  document.getElementById("al-count").innerHTML = (n ? `${num(n)} photo${n === 1 ? "" : "s"}` : "") +
+    (AL.locked ? `<span class="alb-badge lock">Finalised</span>` : n ? `<span class="alb-badge new">From ${esc(EV.client_name)}</span>` : "");
+  const tools = document.getElementById("al-tools");
+  tools.innerHTML = AL.sel.size ? `<span class="muted small">${AL.sel.size} selected</span><button class="btn sm danger" id="al-rm" data-need="events">Remove from album</button><button class="btn sm" id="al-clr">Clear</button>`
+    : `<button class="btn sm" id="al-ref" title="Check for new picks from the client">Refresh</button>` + (n ? `<button class="btn sm" id="al-names">Copy file names</button>
+       <a class="btn sm" href="/api/events/${EV.id}/album.zip" download>Download originals</a>
+       <button class="btn sm" id="al-lock" data-need="events">${AL.locked ? "Unlock" : "Finalise"}</button>` : "");
+  const how = !EV.client.enabled ? `Your client chooses album photos in the client gallery. <b>Turn on the client gallery above</b> and send them the link.`
+    : AL.locked ? `Finalised: the client can see these but can't change them. Unlock to let them change the selection.`
+    : `Your client chooses these in the client gallery (Select, then Proceed for album). Finalise when you start designing, so the selection stops changing.`;
+  el.innerHTML = `<p class="small muted" style="margin:6px 0 0">${how}${when ? ` Last sent ${esc(when)}.` : ""}</p>
+    ${AL.note ? `<div class="alb-note small"><b>Note from ${esc(EV.client_name)}:</b> ${esc(AL.note)}</div>` : ""}
+    ${n ? `<div class="photos">${AL.photos.map(p => `<div class="ph" data-apid="${esc(p.id)}" title="${esc(p.name)}">
+        <img loading="lazy" alt="" src="/api/events/${EV.id}/photos/${esc(p.id)}/thumb"><span class="pnm">${esc(p.name)}</span>
+        <input type="checkbox" data-need="events" data-asel="${esc(p.id)}" ${AL.sel.has(p.id) ? "checked" : ""} aria-label="Select ${esc(p.name)}"></div>`).join("")}</div>`
+      : `<div class="empty" style="padding:22px"><b>${AL.loaded ? "Nothing chosen yet" : "Loading…"}</b>${AL.loaded ? "The photos your client picks for the album appear here, apart from the rest." : ""}</div>`}`;
+  el.querySelectorAll("[data-asel]").forEach(c => c.onclick = ev => { ev.stopPropagation(); c.checked ? AL.sel.add(c.dataset.asel) : AL.sel.delete(c.dataset.asel); paintAlbum(); });
+  el.querySelectorAll("[data-apid]").forEach(t => t.onclick = () => { const p = AL.photos.find(x => x.id === t.dataset.apid); if (p) viewPhoto(p); });
+  const $$ = id => document.getElementById(id);
+  if ($$("al-ref")) $$("al-ref").onclick = async () => { await loadAlbum(); toast("Up to date."); };
+  if ($$("al-clr")) $$("al-clr").onclick = () => { AL.sel.clear(); paintAlbum(); };
+  if ($$("al-names")) $$("al-names").onclick = async () => {
+    const text = AL.photos.map(p => p.name).join("\n");
+    try { await navigator.clipboard.writeText(text); toast(`Copied ${n} file name${n === 1 ? "" : "s"}. Paste them into Lightroom or your album software.`); }
+    catch (x) { modal(`<h3>File names</h3><textarea class="grow" style="width:100%;min-height:220px" readonly>${esc(text)}</textarea><div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn" data-close>Close</button></div>`); }
+  };
+  if ($$("al-lock")) $$("al-lock").onclick = async () => {
+    const lock = !AL.locked;
+    if (lock && !await confirmBox("Finalise the album selection?", `${EV.client_name} can still see the ${n} photo${n === 1 ? "" : "s"} but can't add or remove any. You can unlock it later.`, "Finalise")) return;
+    try { Object.assign(AL, await api("POST", `/api/events/${EV.id}/album/lock`, { locked: lock })); paintAlbum(); toast(lock ? "Finalised. The client can't change it now." : "Unlocked. The client can change the selection again."); } catch (x) { fail(x); }
+  };
+  if ($$("al-rm")) $$("al-rm").onclick = async () => {
+    const k = AL.sel.size;
+    if (!await confirmBox(`Remove ${k} photo${k === 1 ? "" : "s"} from the album?`, "They stay in the event and the gallery; they are only taken out of the album selection.", "Remove")) return;
+    try { Object.assign(AL, await api("POST", `/api/events/${EV.id}/album/remove`, { ids: [...AL.sel] })); AL.sel.clear(); paintAlbum(); toast(`Removed ${k}.`); } catch (x) { fail(x); }
+  };
+
+}
+
+/* ------------------------------------------------------------------ videos: shown in the client gallery only */
+let VD = { items: [], sel: new Set(), busy: false };
+const VIDEO_RE = /\.(mp4|m4v|mov|webm)$/i;
+async function loadVideos() {
+  if (!EV) return;
+  try { VD.items = await api("GET", `/api/events/${EV.id}/videos`); } catch (x) { return; }
+  VD.sel = new Set([...VD.sel].filter(id => VD.items.some(v => v.id === id)));
+  paintVideos();
+}
+function paintVideos() {
+  const el = document.getElementById("ev-videos"); if (!el || !EV) return;
+  paintCounts();
+  const src = v => `/api/events/${EV.id}/videos/${encodeURIComponent(v.id)}`;
+  const note = EV.client.enabled ? `Only your client sees these, in the client gallery. Never on the guests' page.`
+    : `Videos are only shown in the client gallery. <b>Turn on the client gallery above</b> to share them with ${esc(EV.client_name)}.`;
+  const tools = document.getElementById("vd-tools");
+  if (tools) tools.innerHTML = VD.sel.size ? `<span class="muted small">${VD.sel.size} selected</span><button class="btn sm danger" id="vd-del" data-need="delete_photos">Delete selected</button><button class="btn sm" id="vd-clr">Clear</button>` : "";
+  el.innerHTML = `<p class="small muted" style="margin:6px 0 12px">${note}</p>
+    ${can("upload") ? `<div class="drop slim" id="vdrop"><b>Drag videos here</b><span class="muted">MP4, MOV or WebM · up to ${fmtBytes((ME.max_video_mb || 4096) * 1048576)} each · MP4 (H.264) plays on every device</span>
+      <div class="row" style="justify-content:center;margin-top:12px"><button class="btn primary" id="vpick" ${VD.busy ? "disabled" : ""}>Choose videos</button></div>
+      <input type="file" id="vin" multiple accept="video/mp4,video/quicktime,video/webm,.mp4,.m4v,.mov,.webm" hidden></div><div class="prog" id="vprog"></div>` : ""}
+    ${VD.items.length ? `<div class="vids">${VD.items.map(v => `<div class="vd" data-vid="${esc(v.id)}" title="${esc(v.name)}">
+        <div class="vd-frame"><video preload="metadata" muted playsinline src="${src(v)}#t=0.5"></video><span class="vd-play" aria-hidden="true">▶</span></div>
+        <div class="vd-meta"><b>${esc(v.name)}</b><span class="muted small">${fmtBytes(v.size)}${v.vendor ? ` · from ${esc(v.vendor)}` : ""}</span></div>
+        <input type="checkbox" data-need="delete_photos" data-vsel="${esc(v.id)}" ${VD.sel.has(v.id) ? "checked" : ""} aria-label="Select ${esc(v.name)}"></div>`).join("")}</div>`
+      : `<div class="empty" style="padding:22px"><b>No videos yet</b>Add the highlight film, the first dance, the speeches.</div>`}`;
+  el.querySelectorAll("[data-vsel]").forEach(c => c.onclick = ev => { ev.stopPropagation(); c.checked ? VD.sel.add(c.dataset.vsel) : VD.sel.delete(c.dataset.vsel); paintVideos(); });
+  el.querySelectorAll(".vd").forEach(t => t.onclick = () => { const v = VD.items.find(x => x.id === t.dataset.vid); if (v) playVideo(v); });
+  const pick = document.getElementById("vpick"), vin = document.getElementById("vin"), drop = document.getElementById("vdrop");
+  if (pick) {
+    pick.onclick = () => vin.click();
+    vin.onchange = () => { uploadVideos([...vin.files]); vin.value = ""; };
+    ["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+    ["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+    drop.addEventListener("drop", e => uploadVideos([...e.dataTransfer.files]));
+  }
+  const del = document.getElementById("vd-del"), clr = document.getElementById("vd-clr");
+  if (clr) clr.onclick = () => { VD.sel.clear(); paintVideos(); };
+  if (del) del.onclick = async () => {
+    if (!await confirmBox(`Delete ${VD.sel.size} video${VD.sel.size === 1 ? "" : "s"}?`, "They are removed for good, also from the client gallery.", "Delete", true)) return;
+    try { const r = await api("POST", `/api/events/${EV.id}/videos/delete`, { ids: [...VD.sel] }); VD.sel.clear(); toast(`Deleted ${r.deleted}.`); loadVideos(); } catch (x) { fail(x); }
+  };
+}
+function playVideo(v) {
+  const src = `/api/events/${EV.id}/videos/${encodeURIComponent(v.id)}`;
+  modal(`<video class="player" controls autoplay playsinline src="${src}"></video>
+    <div class="row" style="justify-content:space-between;padding:10px 6px 2px;color:#fff"><span class="small">${esc(v.name)} · ${fmtBytes(v.size)}</span>
+    <span class="row"><a class="btn sm" href="${src}?download=1">Download</a><button class="btn sm" data-close>Close</button></span></div>`,
+    { wide: true, onMount: ov => ov.querySelector("video").addEventListener("error", () => toast("This browser can't play that video format. Download it, or upload an MP4 (H.264).", true)) });
+}
+function sendVideo(eid, file, onProgress) {
+  return new Promise(resolve => {
+    const x = new XMLHttpRequest(); x.open("POST", `/api/events/${eid}/videos`); x.setRequestHeader("X-PF", "1");
+    x.upload.onprogress = e => onProgress(e.loaded);
+    x.onload = () => { let b = null; try { b = JSON.parse(x.responseText); } catch (e) {} resolve({ status: x.status, body: b }); };
+    x.onerror = () => resolve({ status: 0, body: null });
+    const fd = new FormData(); fd.append("files", file, file.name); x.send(fd);
+  });
+}
+async function uploadVideos(all) {
+  if (VD.busy) return toast("Videos are already uploading.", true);
+  const files = all.filter(f => VIDEO_RE.test(f.name));
+  if (!files.length) return toast("No videos in that selection. Use MP4, MOV or WebM.", true);
+  const max = (ME.max_video_mb || 4096) * 1048576, big = files.filter(f => f.size > max), ok = files.filter(f => f.size <= max);
+  if (big.length) toast(`${big.length} video${big.length === 1 ? " is" : "s are"} over ${fmtBytes(max)} and skipped.`, true);
+  if (!ok.length) return;
+  const eid = EV.id, total = ok.reduce((s, f) => s + f.size, 0);
+  let done = 0, added = 0; const problems = [];
+  VD.busy = true; paintVideos();
+  const draw = (i, loaded) => {
+    const p = document.getElementById("vprog"), pct = Math.min(100, Math.round((done + loaded) / total * 100));
+    if (p) p.innerHTML = `<div class="row small" style="justify-content:space-between"><span><b>Uploading</b> video ${i + 1} of ${ok.length}: ${esc(ok[i].name)}</span><span>${pct}%</span></div><div class="meter"><div style="width:${pct}%"></div></div>`;
+  };
+  for (let i = 0; i < ok.length; i++) {  // one at a time: videos are big, and the bar stays honest
+    draw(i, 0);
+    const r = await sendVideo(eid, ok[i], loaded => draw(i, loaded));
+    done += ok[i].size;
+    const res = r.body && r.body.results && r.body.results[0];
+    if (res && res.status === "queued") added++;
+    else problems.push(`${ok[i].name}: ${res ? res.error : (r.body && r.body.message) || (r.status === 413 ? "too large for the server" : "upload failed")}`);
+  }
+  VD.busy = false;
+  const p = document.getElementById("vprog"); if (p) p.innerHTML = "";
+  if (added) toast(`Added ${added} video${added === 1 ? "" : "s"}.`);
+  if (problems.length) toast(problems.slice(0, 3).join(" · ") + (problems.length > 3 ? ` (+${problems.length - 3} more)` : ""), true);
+  if (EV && EV.id === eid) { await loadVideos(); refreshEvent(); }
+}
+
+/* ------------------------------------------------------------------ team > inventory (equipment) */
+const teamTabs = on => `<nav class="subnav" aria-label="Team"><a href="#/team" class="${on === "members" ? "on" : ""}">Members</a><a href="#/team/inventory" class="${on === "inventory" ? "on" : ""}">Inventory</a></nav>`;
+let INV = null, INV_F = { status: "all", cat: "", q: "" };
+const INV_BADGE = { available: "pub", out: "busy", maintenance: "", retired: "" };
+const fmtDay = d => d ? new Date(d + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
+async function viewInventory() {
+  stopPoll(); document.title = "Inventory · Photo Finder Studio";
+  INV = await api("GET", "/api/inventory");
+  const s = INV.summary, tile = (k, v, sub, cls = "") => `<div class="card inv-tile ${cls}" style="margin:0"><div class="muted small">${k}</div><div class="inv-v">${v}</div>${sub ? `<div class="muted small">${sub}</div>` : ""}</div>`;
+  shell(`<div class="head"><div><h1>Team</h1><div class="muted">The studio's equipment: who has what, for which event, and when it comes back.</div></div>
+      <div class="row">${INV.can_manage ? `<button class="btn primary" id="inv-add">Add item</button>` : ""}<a class="btn" href="/api/inventory.csv" download>Export CSV</a></div></div>
+    ${teamTabs("inventory")}
+    <div class="stats" style="margin-bottom:18px">${tile("Items", num(s.items), s.units !== s.items ? `${num(s.units)} units in all` : "")}${tile("Available", num(s.available))}
+      ${tile("Checked out", num(s.out), s.overdue ? `<span style="color:var(--danger);font-weight:700">${num(s.overdue)} overdue</span>` : "", s.overdue ? "hot" : "")}
+      ${tile("In maintenance", num(s.maintenance))}${INV.can_manage ? tile("Value", esc(fmtMoney(s.value)), "what it cost") : ""}</div>
+    <div class="row" style="margin-bottom:12px;justify-content:space-between"><div class="chips" id="inv-chips"></div>
+      <div class="row"><select id="inv-cat" style="width:auto" aria-label="Category"><option value="">All categories</option>${INV.categories.map(c => `<option ${c === INV_F.cat ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
+        <input id="inv-q" type="search" placeholder="Search items or people" value="${esc(INV_F.q)}" class="inv-search" aria-label="Search"></div></div>
+    <div id="inv-list"></div>`, "team");
+  const paint = () => {
+    const q = INV_F.q.trim().toLowerCase(), match = i =>
+      (INV_F.status === "all" ? i.status !== "retired" : INV_F.status === "overdue" ? i.overdue : i.status === INV_F.status)
+      && (!INV_F.cat || i.category === INV_F.cat)
+      && (!q || [i.name, i.brand, i.serial, i.holder && i.holder.name, i.event && i.event.name].some(x => (x || "").toLowerCase().includes(q)));
+    const n = k => INV.items.filter(i => k === "all" ? i.status !== "retired" : k === "overdue" ? i.overdue : i.status === k).length;
+    document.getElementById("inv-chips").innerHTML = [["all", "All"], ["available", "Available"], ["out", "Checked out"], ["overdue", "Overdue"], ["maintenance", "Maintenance"], ["retired", "Retired"]]
+      .filter(([k]) => k === "all" || n(k)).map(([k, t]) => `<button class="chip ${INV_F.status === k ? "on" : ""}" data-f="${k}">${t} <span class="muted">${n(k)}</span></button>`).join("");
+    document.querySelectorAll("#inv-chips [data-f]").forEach(b => b.onclick = () => { INV_F.status = b.dataset.f; paint(); });
+    const rows = INV.items.filter(match);
+    document.getElementById("inv-list").innerHTML = !INV.items.length
+      ? emptyState("No equipment yet", INV.can_manage ? "Add your cameras, lenses, lights and drones. Then check them out to the team for each event and see what's where." : "A manager adds the studio's equipment here.",
+          INV.can_manage ? `<button class="btn primary" id="inv-add2">Add the first item</button>` : "")
+      : `<div class="card" style="padding:6px 8px"><div style="overflow-x:auto"><table class="inv"><thead><tr><th>Item</th><th class="inv-cat">Category</th><th>Status</th><th>With</th><th></th></tr></thead><tbody>
+        ${rows.map(i => {
+          const mine = i.holder && i.holder.id === INV.me, canIn = i.status === "out" && (INV.can_manage || (INV.can_use && mine));
+          const act = i.status === "available" && INV.can_use ? `<button class="btn sm primary" data-out="${i.id}">Check out</button>` : canIn ? `<button class="btn sm" data-in="${i.id}">Check in</button>` : "";
+          return `<tr class="click" data-item="${i.id}"><td><b>${esc(i.name)}</b>${i.quantity > 1 ? ` <span class="muted">× ${num(i.quantity)}</span>` : ""}<div class="muted small">${esc([i.brand, i.serial && "SN " + i.serial].filter(Boolean).join(" · ") || "—")}</div><div class="muted small inv-cat-m">${esc(i.category)}</div></td>
+            <td class="small inv-cat">${esc(i.category)}</td>
+            <td><span class="badge ${i.overdue ? "bad" : INV_BADGE[i.status]}">${i.overdue ? "Overdue" : esc(i.status_label)}</span></td>
+            <td class="small">${i.status === "out" ? `${i.holder ? `<b>${esc(i.holder.name)}</b>${mine ? " (you)" : ""}` : `<span class="muted">A removed member</span>`}${i.event ? `<div class="muted">${esc(i.event.name)}</div>` : ""}${i.due_back ? `<div class="${i.overdue ? "" : "muted"}" style="${i.overdue ? "color:var(--danger);font-weight:600" : ""}">due ${esc(fmtDay(i.due_back))}</div>` : ""}` : `<span class="muted">—</span>`}</td>
+            <td style="text-align:right;white-space:nowrap">${act}</td></tr>`; }).join("") || `<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">Nothing matches.</td></tr>`}
+        </tbody></table></div></div>`;
+    document.querySelectorAll("[data-item]").forEach(r => r.onclick = e => { if (!e.target.closest("button")) itemDetail(+r.dataset.item); });
+    document.querySelectorAll("[data-out]").forEach(b => b.onclick = () => checkoutModal(INV.items.find(i => i.id === +b.dataset.out)));
+    document.querySelectorAll("[data-in]").forEach(b => b.onclick = () => checkinModal(INV.items.find(i => i.id === +b.dataset.in)));
+    const a2 = document.getElementById("inv-add2"); if (a2) a2.onclick = () => itemModal();
+  };
+  paint();
+  const add = document.getElementById("inv-add"); if (add) add.onclick = () => itemModal();
+  document.getElementById("inv-cat").onchange = e => { INV_F.cat = e.target.value; paint(); };
+  document.getElementById("inv-q").oninput = e => { INV_F.q = e.target.value; paint(); };
+}
+function itemModal(it) {
+  const v = it || { name: "", category: "Camera body", brand: "", serial: "", quantity: 1, purchase_date: "", purchase_cost: "", notes: "" };
+  modal(`<h2>${it ? "Edit " + esc(it.name) : "Add equipment"}</h2><form id="itf">
+    <label class="f"><span>Name</span><input name="name" required maxlength="150" value="${esc(v.name)}" placeholder="Sony A7 IV, 24-70 mm f/2.8, Godox AD200"></label>
+    <div class="two"><label class="f"><span>Category</span><select name="category">${INV.categories.map(c => `<option ${c === v.category ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></label>
+      <label class="f"><span>Quantity</span><input name="quantity" type="number" min="1" max="100000" required value="${esc(v.quantity)}"></label></div>
+    <div class="two"><label class="f"><span>Brand / model <small>(optional)</small></span><input name="brand" maxlength="80" value="${esc(v.brand)}"></label>
+      <label class="f"><span>Serial number <small>(optional)</small></span><input name="serial" maxlength="80" value="${esc(v.serial)}"></label></div>
+    <div class="two"><label class="f"><span>Bought on <small>(optional)</small></span><input name="purchase_date" type="date" value="${esc(v.purchase_date || "")}"></label>
+      <label class="f"><span>Cost per unit <small>(optional)</small></span><input name="purchase_cost" type="number" min="0" step="0.01" inputmode="decimal" value="${esc(v.purchase_cost || "")}" placeholder="0"></label></div>
+    <label class="f"><span>Notes <small>(optional)</small></span><textarea name="notes" rows="2" maxlength="2000" placeholder="Kit contents, insurance, where it's stored">${esc(v.notes)}</textarea></label>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">${it ? "Save" : "Add item"}</button></div></form>`,
+    { onMount: (ov, close) => ov.querySelector("#itf").onsubmit = async e => { e.preventDefault();
+      const d = Object.fromEntries(new FormData(e.target));
+      const body = { ...d, quantity: +d.quantity || 1, purchase_cost: Number(d.purchase_cost) || 0, purchase_date: d.purchase_date || null };
+      try { const r = await api(it ? "PATCH" : "POST", it ? "/api/inventory/" + it.id : "/api/inventory", body); close(); toast(it ? "Saved." : `${r.name} added.`); viewInventory(); } catch (x) { fail(x); } } });
+}
+function checkoutModal(it) {
+  const people = INV.can_manage ? INV.members : INV.members.filter(m => m.me);
+  modal(`<h2>Check out ${esc(it.name)}</h2><form id="cof">
+    <label class="f"><span>Who takes it</span><select name="user_id" ${INV.can_manage ? "" : "disabled"}>${people.map(m => `<option value="${m.id}" ${m.me ? "selected" : ""}>${esc(m.name)}${m.me ? " (you)" : ""}</option>`).join("")}</select></label>
+    <label class="f"><span>For which event <small>(optional)</small></span><select name="event_id"><option value="">No particular event</option>${INV.events.map(e => `<option value="${e.id}">${esc(e.name)}${e.date ? " · " + esc(fmtDay(e.date)) : ""}</option>`).join("")}</select></label>
+    <label class="f"><span>Due back <small>(optional)</small></span><input name="due_back" type="date" min="${esc(INV.today)}"></label>
+    <label class="f"><span>Note <small>(optional)</small></span><input name="note" maxlength="500" placeholder="With 2 batteries and the charger"></label>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Check out</button></div></form>`,
+    { onMount: (ov, close) => ov.querySelector("#cof").onsubmit = async e => { e.preventDefault();
+      const d = Object.fromEntries(new FormData(e.target));
+      try { await api("POST", `/api/inventory/${it.id}/checkout`, { user_id: d.user_id ? +d.user_id : null, event_id: d.event_id ? +d.event_id : null, due_back: d.due_back || null, note: d.note || "" });
+        close(); toast(`${it.name} checked out.`); viewInventory(); } catch (x) { fail(x); } } });
+}
+function checkinModal(it) {
+  modal(`<h2>Check in ${esc(it.name)}</h2><p class="muted">${it.holder ? `From ${esc(it.holder.name)}` : "From a removed team member"}${it.event ? `, used for ${esc(it.event.name)}` : ""}.</p>
+    <form id="cif"><label class="f"><span>Condition or note <small>(optional)</small></span><input name="note" maxlength="500" placeholder="All fine / small scratch on the hood"></label>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Check in</button></div></form>`,
+    { onMount: (ov, close) => ov.querySelector("#cif").onsubmit = async e => { e.preventDefault();
+      try { await api("POST", `/api/inventory/${it.id}/return`, { note: new FormData(e.target).get("note") || "" }); close(); toast(`${it.name} is back.`); viewInventory(); } catch (x) { fail(x); } } });
+}
+const INV_ACT = { added: "Added", edited: "Edited", checked_out: "Checked out", returned: "Checked in", maintenance: "Sent to maintenance", available: "Back in service", retired: "Retired" };
+async function itemDetail(id) {
+  const it = INV.items.find(i => i.id === id); if (!it) return;
+  let hist = [];
+  try { hist = await api("GET", `/api/inventory/${id}/history`); } catch (x) { return fail(x); }
+  const row = (k, v) => v ? `<tr><td class="muted" style="width:130px;padding:6px 0">${k}</td><td style="padding:6px 0">${v}</td></tr>` : "";
+  const m = INV.can_manage, mine = it.holder && it.holder.id === INV.me;
+  const take = it.status === "available" && INV.can_use, back = it.status === "out" && (m || (INV.can_use && mine));
+  modal(`<h2>${esc(it.name)} <span class="badge ${it.overdue ? "bad" : INV_BADGE[it.status]}">${it.overdue ? "Overdue" : esc(it.status_label)}</span></h2>
+    <table class="small"><tbody>${row("Category", esc(it.category))}${row("Brand / model", esc(it.brand))}${row("Serial", esc(it.serial))}${row("Quantity", it.quantity > 1 ? num(it.quantity) : "")}
+      ${row("With", it.status === "out" ? (it.holder ? esc(it.holder.name) : "A removed member") + (it.event ? " · " + esc(it.event.name) : "") + (it.due_back ? " · due " + esc(fmtDay(it.due_back)) : "") : "")}
+      ${row("Bought", [it.purchase_date && esc(fmtDay(it.purchase_date)), m && it.purchase_cost && esc(fmtMoney(it.purchase_cost))].filter(Boolean).join(" · "))}${row("Notes", esc(it.notes).replace(/\n/g, "<br>"))}</tbody></table>
+    ${take || back ? `<div class="row" style="margin:14px 0 0">${take ? `<button class="btn primary" id="it-take">Check out</button>` : `<button class="btn primary" id="it-back">Check in</button>`}</div>` : ""}
+    ${m ? `<div class="row" style="margin:14px 0 4px"><button class="btn sm" id="it-edit">Edit</button>
+      ${it.status === "available" ? `<button class="btn sm" data-st="maintenance">Send to maintenance</button><button class="btn sm" data-st="retired">Retire</button>` : ""}
+      ${it.status === "maintenance" || it.status === "retired" ? `<button class="btn sm" data-st="available">Back in service</button>` : ""}
+      <button class="btn sm danger" id="it-del">Delete</button></div>` : ""}
+    <h3 style="margin:16px 0 6px;font-size:.95rem">History</h3>
+    <div class="inv-hist">${hist.map(h => `<div><b>${esc(INV_ACT[h.action] || h.action)}</b>${h.person ? (h.action === "returned" ? " from " : " to ") + esc(h.person) : ""}${h.event ? " · " + esc(h.event) : ""}
+        ${h.detail ? `<div class="muted">${esc(h.detail)}</div>` : ""}<div class="muted small">${new Date(h.created_at * 1000).toLocaleString()} · ${esc(h.actor)}</div></div>`).join("") || `<div class="muted">Nothing yet.</div>`}</div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-close>Close</button></div>`,
+    { onMount: (ov, close) => {
+      const ed = ov.querySelector("#it-edit"); if (ed) ed.onclick = () => { close(); itemModal(it); };
+      const tk = ov.querySelector("#it-take"); if (tk) tk.onclick = () => { close(); checkoutModal(it); };
+      const bk = ov.querySelector("#it-back"); if (bk) bk.onclick = () => { close(); checkinModal(it); };
+      ov.querySelectorAll("[data-st]").forEach(b => b.onclick = async () => {
+        try { await api("POST", `/api/inventory/${id}/status`, { status: b.dataset.st }); close(); toast("Updated."); viewInventory(); } catch (x) { fail(x); } });
+      const del = ov.querySelector("#it-del"); if (del) del.onclick = async () => {
+        close();
+        if (!await confirmBox(`Delete ${it.name}?`, "It and its history are removed for good. To keep the history, use Retire instead.", "Delete", true)) return;
+        try { await api("DELETE", "/api/inventory/" + id); toast("Deleted."); viewInventory(); } catch (x) { fail(x); } };
+    } });
+}
+
+/* ------------------------------------------------------------------ calendar: bookings by date */
+const PAY = { paid: ["pub", "Paid"], part: ["busy", "Part paid"], unpaid: ["bad", "Unpaid"], not_finalised: ["", "Not finalised"] };
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+let CAL = { ym: null, filter: "all", data: null, clients: [] };
+async function viewCalendar(ym) {
+  stopPoll();
+  const now = new Date(), m = /^(\d{4})-(\d{2})$/.exec(ym || "") || /^(\d{4})-(\d{2})$/.exec(CAL.ym || "");
+  const y = m ? +m[1] : now.getFullYear(), mo = m ? +m[2] - 1 : now.getMonth();
+  CAL.ym = `${y}-${String(mo + 1).padStart(2, "0")}`;
+  const first = new Date(y, mo, 1), last = new Date(y, mo + 1, 0);
+  const gridStart = new Date(y, mo, 1 - ((first.getDay() + 6) % 7));             // the Monday on or before the 1st
+  const gridEnd = new Date(gridStart); gridEnd.setDate(gridStart.getDate() + 41);  // six weeks
+  const [data, clients] = await Promise.all([api("GET", `/api/calendar?start=${ymd(gridStart)}&end=${ymd(gridEnd)}`), CAL.clients.length ? CAL.clients : api("GET", "/api/clients")]);
+  CAL.data = data; CAL.clients = clients;
+  const title = first.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  document.title = `Calendar · ${title} · Photo Finder Studio`;
+  const shift = n => { const d = new Date(y, mo + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
+  // totals for this month only (the grid also shows the edges of the months around it)
+  const inMonth = b => b.date <= ymd(last) && (b.end_date || b.date) >= ymd(first);
+  const mb = data.bookings.filter(inMonth), t = { n: mb.length, own: mb.filter(b => b.source === "own").length, ex: mb.filter(b => b.source === "expost").length,
+    amount: mb.reduce((a, b) => a + b.amount, 0), paid: mb.reduce((a, b) => a + b.paid, 0), balance: mb.reduce((a, b) => a + b.balance, 0) };
+  const tile = (k, v, sub) => `<div class="card inv-tile" style="margin:0"><div class="muted small">${k}</div><div class="inv-v">${v}</div>${sub ? `<div class="muted small">${sub}</div>` : ""}</div>`;
+  shell(`<div class="head"><div><h1>Calendar</h1><div class="muted">Your bookings by date: the event, who it's for, where it came from and what's been paid.</div></div>
+      ${can("events") ? `<button class="btn primary" id="cal-add">Add booking</button>` : ""}</div>
+    <div class="row cal-bar"><div class="row"><a class="btn sm cal-nav" href="#/calendar/${shift(-1)}" aria-label="Previous month">‹</a><h2 class="cal-title">${esc(title)}</h2><a class="btn sm cal-nav" href="#/calendar/${shift(1)}" aria-label="Next month">›</a>
+        <a class="btn sm" href="#/calendar/${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}">Today</a></div>
+      <div class="chips" id="cal-chips"></div></div>
+    <div class="stats" style="margin:14px 0 16px">${tile("Bookings", num(t.n), `${num(t.own)} own client · ${num(t.ex)} Expost`)}${tile("Finalised", esc(fmtMoney(t.amount)))}
+      ${tile("Received", esc(fmtMoney(t.paid)))}${tile("Balance due", esc(fmtMoney(t.balance)), t.balance ? "still to collect" : "")}</div>
+    <div class="card cal-card"><div class="cal-grid" id="cal-grid"></div></div>
+    <h2 style="margin-top:22px">This month</h2><div id="cal-agenda"></div>`, "calendar");
+  const paint = () => {
+    const show = b => CAL.filter === "all" || b.source === CAL.filter;
+    const chip = (k, txt) => `<button class="chip ${CAL.filter === k ? "on" : ""}" data-f="${k}">${txt}</button>`;
+    document.getElementById("cal-chips").innerHTML = chip("all", "All") + chip("own", `<i class="dot own"></i>Own client`) + chip("expost", `<i class="dot expost"></i>Expost`);
+    document.querySelectorAll("#cal-chips [data-f]").forEach(b => b.onclick = () => { CAL.filter = b.dataset.f; paint(); });
+    const today = ymd(now);
+    let cells = WEEKDAYS.map(d => `<div class="cal-wd">${d}</div>`).join("");
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(gridStart); d.setDate(gridStart.getDate() + i);
+      const ds = ymd(d), bs = data.bookings.filter(b => show(b) && b.date <= ds && (b.end_date || b.date) >= ds), es = data.events.filter(e => e.event_date === ds);
+      const items = [...bs.map(b => `<button class="cal-chip ${b.source}" data-b="${b.id}" title="${esc(b.title)}">${b.start_time && b.date === ds ? `<b>${esc(b.start_time)}</b> ` : ""}${esc(b.title)}</button>`),
+                     ...es.map(e => `<a class="cal-chip ev" href="#/events/${e.id}" title="Event: ${esc(e.name)}">${esc(e.name)}</a>`)];
+      cells += `<div class="cal-day ${d.getMonth() !== mo ? "other" : ""} ${ds === today ? "today" : ""}" data-d="${ds}">
+        <div class="cal-num">${d.getDate()}</div>${items.slice(0, 3).join("")}${items.length > 3 ? `<button class="cal-more" data-day="${ds}">+${items.length - 3} more</button>` : ""}
+        <div class="cal-dots">${bs.map(b => `<i class="dot ${b.source}"></i>`).join("")}${es.length ? `<i class="dot ev"></i>` : ""}</div></div>`;
+    }
+    const grid = document.getElementById("cal-grid"); grid.innerHTML = cells;
+    grid.querySelectorAll("[data-b]").forEach(b => b.onclick = e => { e.stopPropagation(); bookingModal(data.bookings.find(x => x.id === +b.dataset.b)); });
+    grid.querySelectorAll(".cal-chip.ev").forEach(a => a.onclick = e => e.stopPropagation());
+    grid.querySelectorAll("[data-day]").forEach(b => b.onclick = e => { e.stopPropagation(); dayModal(b.dataset.day, show); });
+    grid.querySelectorAll(".cal-day").forEach(c => c.onclick = () => {
+      if (matchMedia("(max-width: 640px)").matches) return dayModal(c.dataset.d, show);   // phones: the day's list first
+      if (can("events")) bookingModal(null, c.dataset.d);
+    });
+    const list = mb.filter(show);
+    document.getElementById("cal-agenda").innerHTML = list.length ? `<div class="card" style="padding:6px 8px"><div style="overflow-x:auto"><table class="cal-list"><thead><tr><th>When</th><th>Event</th><th class="cal-src">From</th><th style="text-align:right">Payment</th></tr></thead><tbody>
+      ${list.map(b => { const [cls, lbl] = PAY[b.payment_status];
+        return `<tr class="click" data-b="${b.id}"><td style="white-space:nowrap"><b>${esc(fmtDay(b.date))}</b>${b.end_date ? ` – ${esc(fmtDay(b.end_date))}` : ""}<div class="muted small">${esc([b.start_time, b.end_time].filter(Boolean).join(" – "))}</div></td>
+          <td><b>${esc(b.title)}</b><div class="muted small">${esc([b.client_name, b.location].filter(Boolean).join(" · "))}</div><div class="cal-src-m"><span class="src ${b.source}">${esc(b.source_label)}</span></div></td>
+          <td class="cal-src"><span class="src ${b.source}">${esc(b.source_label)}</span></td>
+          <td style="text-align:right;white-space:nowrap"><span class="badge ${cls}">${lbl}</span>${b.amount ? `<div class="small">${esc(fmtMoney(b.paid))} of ${esc(fmtMoney(b.amount))}</div>${b.balance ? `<div class="small muted">${esc(fmtMoney(b.balance))} due</div>` : ""}` : ""}</td></tr>`; }).join("")}
+      </tbody></table></div></div>` : emptyState("Nothing booked this month", can("events") ? "Click a date on the calendar to add a booking." : "Bookings the studio adds show up here.", "");
+    document.querySelectorAll("#cal-agenda [data-b]").forEach(r => r.onclick = () => bookingModal(data.bookings.find(x => x.id === +r.dataset.b)));
+  };
+  paint();
+  const add = document.getElementById("cal-add");
+  if (add) add.onclick = () => bookingModal(null, now.getFullYear() === y && now.getMonth() === mo ? ymd(now) : ymd(first));
+}
+function dayModal(ds, show) {
+  const bs = CAL.data.bookings.filter(b => show(b) && b.date <= ds && (b.end_date || b.date) >= ds), es = CAL.data.events.filter(e => e.event_date === ds);
+  modal(`<h2>${esc(new Date(ds + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" }))}</h2>
+    <div class="cal-daylist">${bs.map(b => `<button class="cal-chip ${b.source}" data-b="${b.id}">${b.start_time ? `<b>${esc(b.start_time)}</b> ` : ""}${esc(b.title)} <span class="muted small">· ${esc(b.source_label)}</span></button>`).join("")}
+      ${es.map(e => `<a class="cal-chip ev" href="#/events/${e.id}">Event: ${esc(e.name)}</a>`).join("")}${bs.length || es.length ? "" : `<p class="muted">Nothing booked.</p>`}</div>
+    <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" data-close>Close</button>${can("events") ? `<button class="btn primary" id="day-add">Add booking</button>` : ""}</div>`,
+    { onMount: (ov, close) => {
+      ov.querySelectorAll("[data-b]").forEach(b => b.onclick = () => { close(); bookingModal(CAL.data.bookings.find(x => x.id === +b.dataset.b)); });
+      ov.querySelectorAll("a.cal-chip").forEach(a => a.addEventListener("click", close));
+      const a = ov.querySelector("#day-add"); if (a) a.onclick = () => { close(); bookingModal(null, ds); };
+    } });
+}
+function bookingModal(b, day) {
+  const edit = can("events"), v = b || { title: "", date: day, end_date: "", start_time: "", end_time: "", source: "own", client_id: null, client_name: "", phone: "",
+    location: "", description: "", amount: "", paid: "", payment_note: "" };
+  const f = (name, lbl, val, attrs = "") => `<label class="f"><span>${lbl}</span><input name="${name}" value="${esc(val ?? "")}" ${attrs}></label>`;
+  modal(`<h2>${b ? (edit ? "Edit booking" : esc(b.title)) : "New booking"}</h2>
+    <form id="bkf" autocomplete="off"><fieldset ${edit ? "" : "disabled"} style="border:0;padding:0;margin:0;min-width:0">
+      <label class="f"><span>Event details</span><input name="title" required maxlength="150" value="${esc(v.title)}" placeholder="Wedding: Arun &amp; Anjali, Reception, Baby shoot"></label>
+      <div class="two">${f("date", "Date", v.date, 'type="date" required')}${f("end_date", "Last day <small>(if more than one day)</small>", v.end_date, 'type="date"')}</div>
+      <div class="two">${f("start_time", "From <small>(optional)</small>", v.start_time, 'type="time"')}${f("end_time", "To <small>(optional)</small>", v.end_time, 'type="time"')}</div>
+      <div class="two"><label class="f"><span>Client type</span><select name="source"><option value="own" ${v.source === "own" ? "selected" : ""}>Own client</option><option value="expost" ${v.source === "expost" ? "selected" : ""}>Expost</option></select></label>
+        <label class="f"><span>Client <small>(optional: pick to fill in)</small></span><select name="client_id" id="bk-client"><option value="">Not one of my clients</option>
+          ${CAL.clients.map(c => `<option value="${c.id}" ${c.id === v.client_id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label></div>
+      <div class="two">${f("client_name", "Client or contact name", v.client_name, 'maxlength="150"')}${f("phone", "Phone <small>(optional)</small>", v.phone, 'maxlength="40" inputmode="tel"')}</div>
+      ${f("location", "Venue <small>(optional)</small>", v.location, 'maxlength="200"')}
+      <label class="f"><span>Description</span><textarea name="description" rows="3" maxlength="4000" placeholder="What's included: 2 candid photographers, drone, album…">${esc(v.description)}</textarea></label>
+      <div class="bk-pay"><div class="three">${f("amount", "Finalised amount", v.amount || "", 'type="number" min="0" step="0.01" inputmode="decimal" placeholder="0"')}
+        ${f("paid", "Received so far", v.paid || "", 'type="number" min="0" step="0.01" inputmode="decimal" placeholder="0"')}
+        <div class="f"><span>Balance</span><div id="bk-bal" class="bk-bal"></div></div></div>
+        ${f("payment_note", "Payment note <small>(optional)</small>", v.payment_note, 'maxlength="300" placeholder="Advance by UPI on 2 Oct; balance on the day"')}</div>
+    </fieldset>
+    ${b ? `<p class="muted small" style="margin:4px 0 0">Added by ${esc(b.created_by || "—")} · last changed ${new Date(b.updated_at * 1000).toLocaleString()}</p>` : ""}
+    <div class="row" style="justify-content:space-between;margin-top:14px"><span>${b && edit ? `<button type="button" class="btn danger" id="bk-del">Delete</button>` : ""}</span>
+      <span class="row"><button type="button" class="btn" data-close>${edit ? "Cancel" : "Close"}</button>${edit ? `<button class="btn primary">${b ? "Save" : "Add booking"}</button>` : ""}</span></div></form>`,
+    { onMount: (ov, close) => {
+      const form = ov.querySelector("#bkf");
+      const bal = () => { const a = Number(form.amount.value) || 0, p = Number(form.paid.value) || 0, st = !a ? "not_finalised" : p >= a ? "paid" : p ? "part" : "unpaid";
+        ov.querySelector("#bk-bal").innerHTML = `<b>${esc(fmtMoney(Math.max(0, a - p)))}</b> <span class="badge ${PAY[st][0]}">${PAY[st][1]}</span>`; };
+      form.addEventListener("input", bal); bal();
+      ov.querySelector("#bk-client").onchange = e => { const c = CAL.clients.find(x => x.id === +e.target.value); if (!c) return;
+        if (!form.client_name.value.trim()) form.client_name.value = c.name; if (!form.phone.value.trim()) form.phone.value = c.phone || ""; };
+      form.onsubmit = async e => { e.preventDefault(); if (!edit) return;
+        const d = Object.fromEntries(new FormData(form));
+        const body = { ...d, client_id: d.client_id ? +d.client_id : null, end_date: d.end_date || null, start_time: d.start_time || null, end_time: d.end_time || null,
+          amount: Number(d.amount) || 0, paid: Number(d.paid) || 0 };
+        try { await api(b ? "PATCH" : "POST", b ? "/api/calendar/" + b.id : "/api/calendar", body); close(); toast(b ? "Saved." : "Booking added.");
+          const m = body.date.slice(0, 7); viewCalendar(m); if (location.hash !== "#/calendar/" + m) history.replaceState(null, "", "#/calendar/" + m); } catch (x) { fail(x); } };
+      const del = ov.querySelector("#bk-del"); if (del) del.onclick = async () => { close();
+        if (!await confirmBox("Delete this booking?", `${b.title} on ${fmtDay(b.date)}. This can't be undone.`, "Delete", true)) return;
+        try { await api("DELETE", "/api/calendar/" + b.id); toast("Deleted."); viewCalendar(CAL.ym); } catch (x) { fail(x); } };
+    } });
+}
+
+/* ------------------------------------------------------------------ routing */
+function wire() {
+  $app.querySelectorAll("[data-href]").forEach(r => r.onclick = () => location.hash = r.dataset.href);
+  $app.querySelectorAll('[data-act="new-client"]').forEach(b => b.onclick = clientModal);
+  $app.querySelectorAll('[data-act="new-event"]').forEach(b => b.onclick = () => eventModal(b.dataset.client).catch(fail));
+}
+let LAST_HASH = location.hash;
+window.addEventListener("beforeunload", e => { if (EST_DIRTY) { e.preventDefault(); e.returnValue = ""; } });
+async function route() {
+  if (EST_DIRTY) {  // leaving an estimate or invoice with unsaved changes: stay put and ask in the app's own dialog
+    const target = location.hash;
+    history.replaceState(null, "", LAST_HASH);
+    const go = await leaveDialog();
+    if (go) { EST_DIRTY = false; location.hash = target; }
+    return;
+  }
+  LAST_HASH = location.hash;
+  const h = (location.hash || "#/").slice(1), [path, query] = h.split("?"), parts = path.split("/").filter(Boolean);
+  const gerr = new URLSearchParams(query || "").get("google");
+  if (parts[0] === "join") {  // the token stays in this tab only, out of the address bar and history
+    const t = new URLSearchParams(query || "").get("token");
+    if (t) { JOIN_TOKEN = t; try { sessionStorage.setItem("pf_join", t); } catch (e) {} history.replaceState(null, "", "#/join"); }
+    return viewJoin();
+  }
+  if (parts[0] === "reset") {  // keep the token in memory and out of the address bar and history
+    const t = new URLSearchParams(query || "").get("token"); if (t) { RESET_TOKEN = t; history.replaceState(null, "", "#/reset"); }
+    return viewReset();
+  }
+  if (parts[0] === "forgot" && !ME) return viewForgot();
+  if (gerr) { NOTICE = GOOGLE_ERRORS[gerr] || GOOGLE_ERRORS.error; if (parts[0] !== "join") history.replaceState(null, "", "#/login"); }
+  try {
+    if (!ME) { try { ME = await api("GET", "/api/auth/me"); } catch (e) { ME = null; } }
+    if (!ME && parts[0] === "google-finish") return await viewGoogleFinish();
+    if (!ME) return viewLogin(parts[0] === "signup" ? "signup" : "login");
+    applyBrand(ME.account.brand_color);
+    if (!ME.account.timezone && browserTz() && can("company")) {  // accounts made before time zones existed: adopt this browser's
+      try { ME = await api("PATCH", "/api/account", { timezone: browserTz() }); } catch (e) {}
+    }
+    if (!parts.length) return await viewHome();
+    if (["login", "signup", "google-finish"].includes(parts[0])) { location.hash = "#/"; return; }
+    if (parts[0] === "clients") return parts[1] ? await viewClient(parts[1]) : await viewClients();
+    if (parts[0] === "events") return parts[1] ? await viewEvent(parts[1]) : await viewEvents();
+    if (parts[0] === "settings") return await viewSettings();
+    if (parts[0] === "team") return parts[1] === "inventory" ? await viewInventory() : await viewTeam();
+    if (parts[0] === "calendar") return await viewCalendar(parts[1]);
+    if (parts[0] === "billing" || parts[0] === "estimates") return parts[1] ? await viewEstimate(parts[1], query) : await viewEstimates();
+    location.hash = "#/";
+  } catch (e) {
+    if (e.code === "not_found") { toast(e.message, true); location.hash = "#/"; } else fail(e);
+  }
+}
+window.addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>

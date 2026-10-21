@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>__TITLE__</title>
+<style>
+  :root {
+    --bg: #150f0d; --card: #1e1512; --line: #35261f; --ink: #f1e6df; --muted: #ac9c93;
+    --accent: #e39b78; --accent-ink: #2b170e;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; min-height: 100vh; }
+  main { max-width: 720px; margin: 0 auto; padding: 40px 16px 56px; }
+  h1 { font: 700 2.1rem/1.15 "Noto Serif", Georgia, "Times New Roman", serif; text-align: center; margin: 8px 0 10px; }
+  .sub { text-align: center; color: var(--muted); margin: 0 0 28px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .card p { margin: 0 0 14px; color: var(--muted); font-size: .92rem; }
+  .card b { color: var(--ink); }
+  label.consent { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; cursor: pointer; }
+  label.consent input { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px 16px;
+         border-radius: 10px; border: 1.5px solid var(--accent); background: var(--accent); color: var(--accent-ink);
+         font: 600 1rem inherit; cursor: pointer; text-decoration: none; }
+  .btn.ghost { background: transparent; color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .link { background: none; border: 0; color: var(--muted); text-decoration: underline; font: inherit; font-size: .9rem;
+          margin-top: 12px; cursor: pointer; width: 100%; }
+  .center { text-align: center; }
+  .status { text-align: center; color: var(--muted); margin: 8px 0 14px; }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+  .tile { padding: 0; border: 0; background: #000; aspect-ratio: 1; overflow: hidden; cursor: pointer; }
+  .tile img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; display: block; }
+  .spinner { width: 34px; height: 34px; margin: 28px auto 12px; border: 3px solid var(--line); border-top-color: var(--accent);
+             border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .err { color: #f3b3a0; }
+  [hidden] { display: none !important; }
+
+  #lb { position: fixed; inset: 0; background: #000; z-index: 10; display: flex; flex-direction: column; touch-action: pan-y; }
+  #lb .top { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; color: var(--muted); }
+  #lb .stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; position: relative; }
+  #lb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  #lb .nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%;
+             border: 0; background: rgba(255,255,255,.14); color: #fff; font-size: 1.4rem; cursor: pointer; }
+  #lb .prev { left: 8px; } #lb .next { right: 8px; }
+  #lb .bar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
+  #lb .x { background: none; border: 0; color: #fff; font-size: 1.6rem; cursor: pointer; padding: 4px 8px; }
+  .btn.dark { background: #000; color: #fff; border-color: #444; }
+  .hint { margin: 0; padding: 0 16px 4px; text-align: center; color: var(--muted); font-size: .82rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>__TITLE__</h1>
+  <p class="sub">__SUBTITLE__</p>
+
+  <section id="start" class="card">
+    <p>Your selfie is used <b>only to find your photos</b>. It is not saved, and nobody else sees it.</p>
+    <label class="consent"><input type="checkbox" id="consent"> <span>I agree to use my face to find my photos</span></label>
+    <button class="btn" id="take" disabled>📷 Take selfie</button>
+    <button class="link" id="pick" disabled>or choose a photo from my gallery</button>
+  </section>
+
+  <section id="busy" class="center" hidden>
+    <div class="spinner"></div>
+    <p class="status">Looking for you in the photos…</p>
+  </section>
+
+  <section id="msg" class="card center" hidden>
+    <p id="msgText" class="err"></p>
+    <button class="btn ghost" id="retry">New selfie</button>
+  </section>
+
+  <section id="results" hidden>
+    <p class="status" id="count"></p>
+    <div class="actions">
+      <button class="btn" id="all">↓ Download all</button>
+      <button class="btn ghost" id="again">New selfie</button>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+</main>
+
+<div id="lb" hidden>
+  <div class="top"><span id="pos"></span><button class="x" id="close" aria-label="Close">✕</button></div>
+  <div class="stage">
+    <button class="nav prev" id="prev" aria-label="Previous">‹</button>
+    <img id="big" alt="">
+    <button class="nav next" id="next" aria-label="Next">›</button>
+  </div>
+  <p class="hint" id="hint" hidden>Tip: touch and hold the photo, then tap Add to Photos.</p>
+  <div class="bar">
+    <a class="btn" id="dl" href="#" download>↓ Download</a>
+    <button class="btn dark" id="notme">Not me</button>
+  </div>
+</div>
+
+<input type="file" id="camera" accept="image/*" capture="user" hidden>
+<input type="file" id="gallery" accept="image/*" hidden>
+
+<script>
+const $ = id => document.getElementById(id);
+let photos = [], cur = 0;
+if (/iPhone|iPad|iPod/.test(navigator.userAgent)) $("hint").hidden = false;  // iOS saves downloads to Files, not Photos
+
+const show = name => ["start", "busy", "msg", "results"].forEach(s => $(s).hidden = s !== name);
+const consentOk = () => $("consent").checked;
+try { $("consent").checked = sessionStorage.getItem("consent") === "1"; } catch (e) {}
+function syncConsent() {
+  $("take").disabled = $("pick").disabled = !consentOk();
+  try { sessionStorage.setItem("consent", consentOk() ? "1" : "0"); } catch (e) {}
+}
+$("consent").onchange = syncConsent; syncConsent();
+
+$("take").onclick = () => $("camera").click();
+$("pick").onclick = () => $("gallery").click();
+$("retry").onclick = $("again").onclick = () => consentOk() ? $("camera").click() : show("start");
+$("camera").onchange = $("gallery").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) search(f); };
+
+async function search(file) {
+  show("busy");
+  const fd = new FormData(); fd.append("file", file, "selfie.jpg");
+  try {
+    const r = await fetch("/api/search", { method: "POST", body: fd });
+    if (r.status === 422) return fail("We couldn't see a face in that photo. Face the camera in good light and try again.");
+    if (!r.ok) return fail("Something went wrong. Please try again.");
+    const j = await r.json();
+    photos = j.photos;
+    if (!photos.length) return fail("We couldn't find you in these photos yet. Try a clearer selfie, without sunglasses or a mask.");
+    render();
+  } catch (err) { fail("Can't reach the server. Check your Wi-Fi and try again."); }
+}
+function fail(t) { $("msgText").textContent = t; show("msg"); }
+
+function render() {
+  $("count").textContent = `We found ${photos.length} photo${photos.length === 1 ? "" : "s"} of you`;
+  $("grid").innerHTML = "";
+  photos.forEach((p, i) => {
+    const b = document.createElement("button"); b.className = "tile";
+    b.innerHTML = `<img loading="lazy" alt="" src="/thumb/${p.id}.jpg">`;
+    b.onclick = () => openLb(i); $("grid").appendChild(b);
+  });
+  show(photos.length ? "results" : "msg");
+  if (!photos.length) fail("No photos left. Take a new selfie to search again.");
+}
+
+$("all").onclick = () => {
+  const f = document.createElement("form"); f.method = "POST"; f.action = "/api/zip";
+  f.innerHTML = `<input type="hidden" name="ids" value="${photos.map(p => p.id).join(",")}">`;
+  document.body.appendChild(f); f.submit(); f.remove();
+  const b = $("all"); b.disabled = true; b.textContent = "Preparing…";
+  setTimeout(() => { b.disabled = false; b.textContent = "↓ Download all"; }, 5000);
+};
+
+function openLb(i) { cur = i; $("lb").hidden = false; document.body.style.overflow = "hidden"; paint(); }
+function closeLb() { $("lb").hidden = true; document.body.style.overflow = ""; }
+function paint() {
+  const p = photos[cur];
+  $("big").src = `/web/${p.id}.jpg`; $("dl").href = `/download/${p.id}`; $("dl").setAttribute("download", p.name);
+  $("pos").textContent = `${cur + 1} / ${photos.length}`;
+}
+const step = d => { cur = (cur + d + photos.length) % photos.length; paint(); };
+$("prev").onclick = () => step(-1); $("next").onclick = () => step(1); $("close").onclick = closeLb;
+$("notme").onclick = () => {  // hides the wrong match for this visitor
+  photos.splice(cur, 1); closeLb(); render(); if (photos.length) { /* keep scroll position simple */ }
+};
+document.addEventListener("keydown", e => {
+  if ($("lb").hidden) return;
+  if (e.key === "Escape") closeLb(); if (e.key === "ArrowLeft") step(-1); if (e.key === "ArrowRight") step(1);
+});
+let x0 = null;
+$("lb").addEventListener("touchstart", e => x0 = e.touches[0].clientX, { passive: true });
+$("lb").addEventListener("touchend", e => {
+  if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null;
+  if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1);
+});
+</script>
+</body>
+</html>

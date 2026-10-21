@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en" data-studio-theme="__THEME__" data-theme="__THEME_INITIAL__">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="robots" content="noindex">
+<title>__TITLE__ · __COMPANY__</title>
+__THEME_HEAD__
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; min-height: 100vh; }
+  header { max-width: 1200px; margin: 0 auto; padding: 34px 16px 18px; text-align: center; }
+  .by { color: var(--accent-text); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; margin: 0; }
+  h1 { font: 700 2.1rem/1.15 "Noto Serif", Georgia, "Times New Roman", serif; margin: 10px 0 6px; overflow-wrap: anywhere; }
+  .sub { color: var(--muted); margin: 0; }
+  main { max-width: 1200px; margin: 0 auto; padding: 0 12px 60px; }
+  .bar { position: sticky; top: 0; z-index: 4; background: var(--bar); backdrop-filter: blur(8px);
+         display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 4px; margin-bottom: 8px; }
+  .bar .count { flex: 1; color: var(--muted); font-size: .92rem; min-width: 140px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px; border-radius: 10px;
+         border: 1.5px solid var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: .95rem; font-family: inherit;
+         cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .btn.ghost { background: transparent; color: var(--accent-text); }
+  .btn.dark { background: #000; color: #fff; border-color: #444; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px; }
+  @media (max-width: 520px) { .grid { grid-template-columns: repeat(3, 1fr); gap: 3px; } h1 { font-size: 1.7rem; } }
+  .tile { position: relative; padding: 0; border: 0; background: var(--tile); aspect-ratio: 1; overflow: hidden; cursor: pointer; }
+  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .tile .tick { position: absolute; top: 6px; left: 6px; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff;
+                background: rgba(0,0,0,.35); display: none; place-items: center; color: var(--accent-ink); font-size: .8rem; font-weight: 800; }
+  .selecting .tile .tick { display: grid; }
+  .tile.on .tick { background: var(--accent); border-color: var(--accent); }
+  .tile.on img { opacity: .75; }
+  .tile .heart { position: absolute; right: 6px; bottom: 6px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,.5);
+                 color: #ff5a7a; display: none; place-items: center; font-size: .85rem; line-height: 1; pointer-events: none; }
+  .tile.alb .heart { display: grid; }
+  #asheet { position: fixed; inset: 0; z-index: 9; background: rgba(0,0,0,.7); display: grid; place-items: center; padding: 16px; }
+  #asheet .card { margin: 0; text-align: left; width: 100%; max-width: 440px; }
+  #asheet h2 { margin: 0 0 6px; }
+  #asheet textarea { width: 100%; min-height: 84px; font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+                     background: var(--field); color: var(--ink); margin: 6px 0 4px; resize: vertical; }
+  #asheet .col { display: grid; gap: 10px; margin-top: 12px; }
+  #asheet .strip { display: flex; gap: 4px; overflow: hidden; margin: 10px 0 6px; }
+  #asheet .strip img { width: 54px; height: 54px; object-fit: cover; border-radius: 6px; flex: none; }
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 20; background: #111; color: #fff; padding: 11px 16px;
+           border-radius: 10px; font-size: .92rem; box-shadow: 0 6px 24px rgba(0,0,0,.3); max-width: calc(100% - 32px); text-align: center; }
+  .toast.bad { background: #8a1f1f; }
+  #lb .inalb { background: #000; color: #fff; border-color: #444; }
+  #lb .inalb.on { color: #ff5a7a; border-color: #ff5a7a; }
+  .card { max-width: 420px; margin: 30px auto; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; text-align: center; }
+  .card p { color: var(--muted); }
+  .card input { width: 100%; font-weight: 600; font-size: 1.4rem; font-family: inherit; letter-spacing: .4em; text-align: center; padding: 12px; border-radius: 10px;
+                border: 1px solid var(--line); background: var(--field); color: var(--ink); margin: 6px 0 12px; }
+  .err { color: var(--err); min-height: 1.4em; margin: 0 0 8px; }
+  .note { text-align: center; color: var(--muted); padding: 30px 0; }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 0 16px 24px; }
+  [hidden] { display: none !important; }
+
+  #lb { position: fixed; inset: 0; background: #000; z-index: 10; display: flex; flex-direction: column; touch-action: pan-y; }
+  #lb .top { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; color: var(--muted); gap: 10px; }
+  #lb .top span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #lb .stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; position: relative; }
+  #lb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  #lb .nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%;
+             border: 0; background: rgba(255,255,255,.14); color: #fff; font-size: 1.4rem; cursor: pointer; }
+  #lb .prev { left: 8px; } #lb .next { right: 8px; }
+  #lb .actions { display: flex; gap: 12px; justify-content: center; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
+  #lb .x { background: none; border: 0; color: #fff; font-size: 1.6rem; cursor: pointer; padding: 4px 8px; }
+  .hint { margin: 0; padding: 0 16px 4px; text-align: center; color: var(--muted); font-size: .82rem; }
+  .filter { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; background: var(--card);
+            border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 0 4px 10px; color: var(--ink); font-size: .92rem; }
+  .linkbtn { background: none; border: 0; color: var(--accent-text); text-decoration: underline; font: inherit; cursor: pointer; padding: 0; }
+  #sheet { position: fixed; inset: 0; z-index: 8; background: rgba(0,0,0,.7); display: grid; place-items: center; padding: 16px; }
+  #sheet .card { margin: 0; text-align: left; width: 100%; max-width: 420px; }
+  #sheet h2 { margin: 0 0 6px; }
+  #sheet label { display: flex; gap: 10px; align-items: center; margin: 12px 0 16px; cursor: pointer; }
+  #sheet label input { width: 22px; height: 22px; accent-color: var(--accent); flex: none; margin: 0; }
+  #sheet .col { display: grid; gap: 10px; }
+  .spinner { width: 30px; height: 30px; margin: 10px auto; border: 3px solid var(--line); border-top-color: var(--accent);
+             border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .sec { font: 700 1.05rem/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 18px 4px 10px; color: var(--ink); }
+  .vgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin: 0 0 8px; }
+  @media (max-width: 520px) { .vgrid { grid-template-columns: 1fr; } }
+  .vtile { position: relative; display: flex; flex-direction: column; padding: 0; border: 1px solid var(--line); background: var(--card);
+           border-radius: 10px; overflow: hidden; cursor: pointer; text-align: left; color: var(--ink); font: inherit; }
+  .vtile .fr { position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+  .vtile video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+  .vtile .pl { position: absolute; inset: 0; margin: auto; width: 54px; height: 54px; border-radius: 50%; background: rgba(0,0,0,.55);
+               color: #fff; display: grid; place-items: center; font-size: 1.2rem; padding-left: 4px; }
+  .vtile:hover .pl, .vtile:focus-visible .pl { background: var(--accent); color: var(--accent-ink); }
+  .vtile .nm { display: block; padding: 9px 12px; font-size: .92rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+  #vp { position: fixed; inset: 0; background: #000; z-index: 11; display: flex; flex-direction: column; }
+  #vp .top { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; color: var(--muted); gap: 10px; }
+  #vp .top span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #vp .x { background: none; border: 0; color: #fff; font-size: 1.6rem; cursor: pointer; padding: 4px 8px; }
+  #vp video { flex: 1; min-height: 0; width: 100%; background: #000; }
+  #vp .actions { display: flex; justify-content: center; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
+</style>
+</head>
+<body>
+__THEME_TOGGLE__
+<header>
+  <p class="by">__MARK__</p>
+  <h1>__TITLE__</h1>
+  <p class="sub" id="sub">__SUBTITLE__</p>
+</header>
+
+<main>
+  <section id="lock" class="card" hidden>
+    <h2 style="margin-top:0">Enter your PIN</h2>
+    <p>The photographer gave you a PIN with this link.</p>
+    <form id="pform"><input id="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="8" pattern="\d{4,8}" required aria-label="PIN">
+      <p class="err" id="perr"></p><button class="btn" style="width:100%">Open gallery</button></form>
+  </section>
+
+  <section id="gallery" hidden>
+    <div class="bar">
+      <span class="count" id="count"></span>
+      <button class="btn ghost" id="find" hidden>Find a person</button>
+      <button class="btn ghost" id="albview" hidden>♥ My album</button>
+      <button class="btn ghost" id="sel" hidden>Select</button>
+      <button class="btn" id="alb" hidden>Proceed for album</button>
+      <button class="btn" id="all" hidden>↓ Download all</button>
+    </div>
+    <div class="filter" id="filter" hidden><span id="ftext"></span><button class="linkbtn" id="clear">Show all photos</button></div>
+    <div id="vids" hidden><h2 class="sec" id="vhead">Videos</h2><div class="vgrid" id="vgrid"></div><h2 class="sec" id="phead">Photos</h2></div>
+    <div class="grid" id="grid"></div>
+    <p class="note" id="more" hidden>Loading more…</p>
+    <p class="note" id="empty" hidden>The photos aren't ready yet. Please check back soon.</p>
+  </section>
+</main>
+<footer>Photos by __FOOTER_MARK__</footer>
+
+<div id="sheet" hidden><div class="card">
+  <h2>Find a person</h2>
+  <p style="margin:0">Take a selfie, or choose a photo of anyone (a parent, a friend), to see only the photos they are in.
+    The photo is used only for this search. It is not saved.</p>
+  <div id="ask"><label><input type="checkbox" id="consent"> <span>I have permission to use this face to search</span></label>
+    <div class="col"><button class="btn" id="take" disabled>Take a selfie</button><button class="btn ghost" id="pick" disabled>Choose a photo</button>
+      <button class="linkbtn" id="cancel" style="justify-self:center;margin-top:4px">Cancel</button></div></div>
+  <div id="working" hidden><div class="spinner"></div><p style="text-align:center;margin:0">Looking through the photos…</p></div>
+  <p class="err" id="ferr" style="margin:12px 0 0"></p>
+</div></div>
+<div id="asheet" hidden role="dialog" aria-labelledby="ahead"><div class="card">
+  <h2 id="ahead">Send for your album</h2>
+  <p style="margin:0;color:var(--muted)" id="atext"></p>
+  <div class="strip" id="astrip"></div>
+  <label for="anote" style="font-weight:600;font-size:.92rem">A note for the studio <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+  <textarea id="anote" maxlength="1000" placeholder="For example: use the first photo on the cover, 40 sheets, matte finish"></textarea>
+  <p class="err" id="aerr" style="margin:0"></p>
+  <div class="col"><button class="btn" id="asend">Send to the studio</button><button class="linkbtn" id="acancel" style="justify-self:center">Not yet</button></div>
+</div></div>
+<div id="vp" hidden role="dialog" aria-label="Video">
+  <div class="top"><span id="vname"></span><button class="x" id="vclose" aria-label="Close">✕</button></div>
+  <video id="vplayer" controls playsinline></video>
+  <div class="actions"><a class="btn" id="vdl" href="#" download>↓ Download video</a></div>
+</div>
+<input type="file" id="camera" accept="image/*" capture="user" hidden>
+<input type="file" id="gallery" accept="image/*" hidden>
+
+<div id="lb" hidden>
+  <div class="top"><span id="pos"></span><button class="x" id="close" aria-label="Close">✕</button></div>
+  <div class="stage">
+    <button class="nav prev" id="prev" aria-label="Previous">‹</button>
+    <img id="big" alt="">
+    <button class="nav next" id="next" aria-label="Next">›</button>
+  </div>
+  <p class="hint" id="hint" hidden>Tip: touch and hold the photo, then tap Add to Photos.</p>
+  <div class="actions"><button class="btn inalb" id="lbalb" hidden>♡ Add to album</button><a class="btn" id="dl" href="#" download>↓ Download</a><button class="btn dark" id="notme" hidden>Not this person</button></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const BASE = location.pathname.replace(/\/+$/, "");   // /c/<link>
+// photos = what the grid shows: every photo (loaded page by page), or a filter loaded all at once: one person's photos
+// (person.kind "face") or the photos chosen for the album (person.kind "album")
+let photos = [], done = false, loading = false, cur = 0, canDownload = true, total = 0, selecting = false, person = null, videos = [];
+const picked = new Set();
+const album = { ids: new Set(), locked: false, note: "", photos: [] };   // what this client has sent for the album
+const inAlbumView = () => !!person && person.kind === "album";
+let toastTimer = null;
+function say(msg, bad) {
+  let t = document.querySelector(".toast"); if (!t) { t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
+  t.textContent = msg; t.classList.toggle("bad", !!bad); t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 4000);
+}
+if (/iPhone|iPad|iPod/.test(navigator.userAgent)) $("hint").hidden = false;
+const plural = (n, w) => `${n.toLocaleString()} ${w}${n === 1 ? "" : "s"}`;
+const viewCount = () => person ? photos.length : total;
+
+async function start() {
+  let j;
+  try { j = await (await fetch(BASE + "/info")).json(); } catch (e) { $("sub").textContent = "Can't reach the server. Check your connection."; return; }
+  if (j.has_pin && !j.unlocked) { $("lock").hidden = false; $("pin").focus(); return; }
+  $("lock").hidden = true; $("gallery").hidden = false;
+  canDownload = j.allow_download; total = j.photos;
+  $("all").hidden = !canDownload || !total; $("sel").hidden = !total; $("dl").hidden = !canDownload;
+  $("find").hidden = !j.searchable || !total;
+  $("count").dataset.more = j.processing ? ` · ${j.processing} more being added` : "";
+  if (j.videos) loadVideos();
+  if (!total) {
+    if (!j.videos) $("empty").hidden = false;
+    document.querySelector(".bar").hidden = true;
+    return;
+  }
+  paintBar(); load(); loadAlbum();
+}
+
+$("pform").onsubmit = async e => {
+  e.preventDefault(); $("perr").textContent = "";
+  const r = await fetch(BASE + "/unlock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: $("pin").value }) });
+  if (r.ok) return start();
+  const j = await r.json().catch(() => ({}));
+  $("perr").textContent = j.message || "That PIN isn't right."; $("pin").select();
+};
+
+async function load() {  // the next page of "every photo"
+  if (person || loading || done) return;
+  loading = true; $("more").hidden = false;
+  try {
+    const r = await fetch(`${BASE}/photos?offset=${photos.length}&limit=120`);
+    if (r.status === 401) { location.reload(); return; }
+    const rows = await r.json();
+    if (!person) { rows.forEach(p => addTile(p, photos.push(p) - 1)); done = rows.length < 120; }
+  } catch (e) {}
+  loading = false; $("more").hidden = done || !!person;
+  if (!done && !person && document.body.scrollHeight < innerHeight * 2) load();  // fill tall screens
+}
+new IntersectionObserver(es => { if (es.some(x => x.isIntersecting)) load(); }, { rootMargin: "800px" }).observe($("more"));
+
+async function loadVideos() {  // the studio's videos: only on this page, never on the guests' one
+  try {
+    const r = await fetch(BASE + "/videos");
+    if (!r.ok) return;
+    videos = await r.json();
+  } catch (e) { return; }
+  $("vgrid").innerHTML = "";
+  videos.forEach(v => {
+    const b = document.createElement("button"); b.className = "vtile"; b.type = "button";
+    const fr = document.createElement("span"); fr.className = "fr";
+    const vid = document.createElement("video"); vid.preload = "metadata"; vid.muted = true; vid.playsInline = true;
+    vid.src = `${BASE}/video/${encodeURIComponent(v.id)}#t=0.5`;
+    const pl = document.createElement("span"); pl.className = "pl"; pl.textContent = "▶"; pl.setAttribute("aria-hidden", "true");
+    const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = v.name.replace(/\.[^.]+$/, "");
+    fr.append(vid, pl); b.append(fr, nm); b.setAttribute("aria-label", "Play " + v.name);
+    b.onclick = () => playVideo(v);
+    $("vgrid").appendChild(b);
+  });
+  $("vhead").textContent = videos.length === 1 ? "Video" : `Videos (${videos.length})`;
+  $("phead").hidden = !total;
+  $("vids").hidden = !!person || !videos.length;
+}
+function playVideo(v) {
+  $("vname").textContent = v.name;
+  $("vplayer").src = `${BASE}/video/${encodeURIComponent(v.id)}`;
+  $("vdl").hidden = !canDownload; $("vdl").href = `${BASE}/video/${encodeURIComponent(v.id)}/download`;
+  $("vp").hidden = false; document.body.style.overflow = "hidden";
+  $("vplayer").play().catch(() => {});
+}
+function closeVideo() { $("vplayer").pause(); $("vplayer").removeAttribute("src"); $("vplayer").load(); $("vp").hidden = true; document.body.style.overflow = ""; }
+$("vclose").onclick = closeVideo;
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("vp").hidden) closeVideo(); });
+$("vplayer").addEventListener("error", () => { if ($("vplayer").getAttribute("src")) $("vname").textContent = "This browser can't play this video." + (canDownload ? " Download it to watch." : ""); });
+
+function addTile(p, i) {
+  const b = document.createElement("button"); b.className = "tile" + (picked.has(p.id) ? " on" : ""); b.dataset.i = i;
+  const im = document.createElement("img"); im.loading = "lazy"; im.alt = p.name; im.src = `${BASE}/thumb/${encodeURIComponent(p.id)}.jpg`;
+  const t = document.createElement("span"); t.className = "tick"; t.textContent = "✓";
+  const hr = document.createElement("span"); hr.className = "heart"; hr.textContent = "♥"; hr.title = "In your album";
+  b.dataset.id = p.id; b.classList.toggle("alb", album.ids.has(p.id));
+  b.append(im, t, hr);
+  b.onclick = () => selecting ? toggle(b, p) : openLb(i);
+  $("grid").appendChild(b);
+}
+function redraw() { $("grid").innerHTML = ""; photos.forEach((p, i) => addTile(p, i)); paintBar(); }
+function toggle(b, p) {
+  picked.has(p.id) ? picked.delete(p.id) : picked.add(p.id);
+  b.classList.toggle("on", picked.has(p.id)); paintBar();
+}
+function paintBar() {
+  const av = inAlbumView();
+  $("count").textContent = (av ? plural(photos.length, "photo") + " in your album" : person ? plural(photos.length, "photo") + " of this person" : plural(total, "photo"))
+    + (person ? "" : $("count").dataset.more || "");
+  $("sel").textContent = selecting ? "Cancel" : "Select";
+  $("sel").hidden = !total || (av && (album.locked || !photos.length));
+  $("albview").hidden = !album.ids.size || av;
+  $("albview").textContent = `♥ My album (${album.ids.size.toLocaleString()})`;
+  $("alb").hidden = !selecting || album.locked;
+  $("alb").textContent = av ? (picked.size ? `Remove ${plural(picked.size, "photo")} from album` : "Tap photos to remove")
+    : picked.size ? `Proceed for album (${picked.size.toLocaleString()})` : "Tap photos for your album";
+  $("alb").disabled = !picked.size;
+  $("all").hidden = !canDownload || !total || (selecting && !picked.size && !$("alb").hidden);   // one prompt is enough
+  $("all").textContent = selecting ? (picked.size ? `↓ Download ${plural(picked.size, "photo")}` : "Tap photos to choose")
+    : person ? `↓ Download these ${photos.length.toLocaleString()}` : "↓ Download all";
+  $("all").disabled = (selecting && !picked.size) || (person && !photos.length);
+  $("filter").hidden = !person;
+  $("vids").hidden = !!person || !videos.length;  // a filter: the videos step aside
+  if (av) $("ftext").textContent = album.locked ? `The studio has finalised your album with these ${plural(photos.length, "photo")}.`
+    : photos.length ? `These are the photos you sent for your album.${album.note ? " Your note: “" + album.note + "”" : ""}`
+    : "Your album is empty. Select photos and tap Proceed for album.";
+  else if (person) $("ftext").textContent = person.multiple
+    ? `Showing ${plural(photos.length, "photo")} of the biggest face in your photo.`
+    : `Showing ${plural(photos.length, "photo")} of the person in your photo.`;
+}
+function stopSelecting() {
+  selecting = false; picked.clear(); $("grid").classList.remove("selecting");
+  document.querySelectorAll(".tile.on").forEach(t => t.classList.remove("on"));
+}
+$("sel").onclick = () => {
+  const was = selecting; stopSelecting();
+  if (!was) { selecting = true; $("grid").classList.add("selecting"); }
+  paintBar();
+};
+$("all").onclick = () => {  // the server streams one zip; the browser saves it like any download
+  const ids = selecting ? [...picked] : person ? photos.map(p => p.id) : [];   // empty = every photo
+  const f = document.createElement("form"); f.method = "POST"; f.action = BASE + "/zip";
+  const i = document.createElement("input"); i.type = "hidden"; i.name = "ids"; i.value = ids.join(",");
+  f.appendChild(i); document.body.appendChild(f); f.submit(); f.remove();
+  const b = $("all"); b.disabled = true; b.textContent = "Starting download…";
+  setTimeout(() => { b.disabled = false; paintBar(); }, 6000);
+};
+
+/* ---- album: the client chooses photos for the album; the studio sees them on its event page */
+function setAlbum(j) {
+  album.ids = new Set(j.photos.map(p => p.id)); album.locked = j.locked; album.note = j.note || ""; album.photos = j.photos;
+  document.querySelectorAll(".tile[data-id]").forEach(t => t.classList.toggle("alb", album.ids.has(t.dataset.id)));
+  if (!$("lb").hidden) paint();
+}
+async function loadAlbum() {
+  try { const r = await fetch(BASE + "/album"); if (r.ok) { setAlbum(await r.json()); paintBar(); } } catch (e) {}
+}
+async function albumCall(path, body) {  // -> the new album, or null after saying what went wrong
+  let r;
+  try { r = await fetch(BASE + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); }
+  catch (e) { say("Can't reach the server. Check your connection and try again.", true); return null; }
+  if (r.status === 401) { location.reload(); return null; }
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 409) { album.locked = true; paintBar(); say(j.message || "The studio has finalised your album.", true); return null; }
+  if (!r.ok) { say(j.message || "Something went wrong. Please try again.", true); return null; }
+  setAlbum(j); return j;
+}
+function albumSheet(on) {
+  $("asheet").hidden = !on; $("aerr").textContent = "";
+  if (!on) return;
+  const ids = [...picked], fresh = ids.filter(id => !album.ids.has(id)).length;
+  $("atext").textContent = `${plural(ids.length, "photo")} will be sent to the studio for your album` +
+    (album.ids.size ? `, with the ${plural(album.ids.size, "photo")} you sent before${fresh < ids.length ? ` (${ids.length - fresh} of these already are)` : ""}.` : ".") +
+    " You can add more or take some out later, until the studio finalises it.";
+  $("astrip").innerHTML = "";
+  ids.slice(0, 12).forEach(id => { const im = document.createElement("img"); im.alt = ""; im.src = `${BASE}/thumb/${encodeURIComponent(id)}.jpg`; $("astrip").appendChild(im); });
+  $("anote").value = album.note; $("asend").disabled = false; $("asend").textContent = "Send to the studio"; $("asend").focus();
+}
+$("alb").onclick = async () => {
+  if (!picked.size) return;
+  if (!inAlbumView()) return albumSheet(true);
+  const n = picked.size, j = await albumCall("/album/remove", { ids: [...picked] });
+  if (!j) return;
+  say(`Removed ${plural(n, "photo")} from your album.`);
+  stopSelecting(); photos = j.photos; redraw();
+};
+$("asend").onclick = async () => {
+  $("asend").disabled = true; $("asend").textContent = "Sending…";
+  const j = await albumCall("/album", { ids: [...picked], note: $("anote").value });
+  if (!j) { $("asend").disabled = false; $("asend").textContent = "Send to the studio"; return; }
+  albumSheet(false); stopSelecting(); paintBar();
+  say(`Sent. ${plural(j.count, "photo")} in your album. The studio can see them now.`);
+};
+$("acancel").onclick = () => albumSheet(false);
+$("asheet").addEventListener("mousedown", e => { if (e.target === $("asheet")) albumSheet(false); });
+$("albview").onclick = async () => {
+  await loadAlbum();
+  stopSelecting(); person = { kind: "album" }; photos = album.photos.slice(); redraw(); $("more").hidden = true;
+  window.scrollTo({ top: $("gallery").offsetTop - 8, behavior: "smooth" });
+};
+$("lbalb").onclick = async () => {  // one photo, from the full-screen viewer
+  const p = photos[cur], had = album.ids.has(p.id);
+  $("lbalb").disabled = true;
+  const j = await albumCall(had ? "/album/remove" : "/album", { ids: [p.id] });
+  $("lbalb").disabled = false;
+  if (!j) return;
+  say(had ? "Taken out of your album." : `Added to your album (${plural(j.count, "photo")}).`);
+  paintBar();
+  if (had && inAlbumView()) { photos.splice(cur, 1); closeLb(); redraw(); }
+};
+
+/* ---- find a person: filter the gallery with a selfie or any photo of them */
+const sheet = on => { $("sheet").hidden = !on; $("ask").hidden = false; $("working").hidden = true; $("ferr").textContent = ""; };
+try { $("consent").checked = sessionStorage.getItem("pf_consent") === "1"; } catch (e) {}
+const syncConsent = () => { $("take").disabled = $("pick").disabled = !$("consent").checked;
+  try { sessionStorage.setItem("pf_consent", $("consent").checked ? "1" : "0"); } catch (e) {} };
+$("consent").onchange = syncConsent; syncConsent();
+$("find").onclick = () => sheet(true);
+$("cancel").onclick = () => sheet(false);
+$("sheet").addEventListener("mousedown", e => { if (e.target === $("sheet")) sheet(false); });
+$("take").onclick = () => $("camera").click();
+$("pick").onclick = () => $("gallery").click();
+$("camera").onchange = $("gallery").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) find(f); };
+
+async function find(file) {
+  $("ask").hidden = true; $("working").hidden = false; $("ferr").textContent = "";
+  const fd = new FormData(); fd.append("file", file, "selfie.jpg");
+  let r;
+  try { r = await fetch(BASE + "/search", { method: "POST", body: fd }); }
+  catch (e) { return findFailed("Can't reach the server. Check your connection and try again."); }
+  if (r.status === 401) return location.reload();
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 422) return findFailed("We couldn't see a face in that photo. Try one where the face is clear and facing the camera.");
+  if (r.status === 429) return findFailed("Too many searches. Please wait a few minutes.");
+  if (r.status === 410) { $("find").hidden = true; return findFailed("Face search is switched off for this gallery."); }
+  if (!r.ok) return findFailed(j.message || "Something went wrong. Please try again.");
+  if (!j.photos.length) return findFailed("We couldn't find this person in the photos. Try a clearer photo, without sunglasses or a mask.");
+  sheet(false); stopSelecting();
+  person = { kind: "face", multiple: j.multiple_faces }; photos = j.photos; redraw(); $("more").hidden = true;
+  window.scrollTo({ top: $("gallery").offsetTop - 8, behavior: "smooth" });
+}
+function findFailed(msg) { $("working").hidden = true; $("ask").hidden = false; $("ferr").textContent = msg; }
+$("clear").onclick = () => {  // back to every photo
+  stopSelecting(); person = null; photos = []; done = false; $("grid").innerHTML = ""; paintBar(); load();
+};
+
+/* ---- full-screen viewer */
+function openLb(i) { cur = i; $("lb").hidden = false; document.body.style.overflow = "hidden"; $("notme").hidden = !person || person.kind !== "face"; paint(); }
+function closeLb() { $("lb").hidden = true; document.body.style.overflow = ""; }
+function paint() {
+  const p = photos[cur];
+  $("big").src = `${BASE}/web/${encodeURIComponent(p.id)}.jpg`; $("big").alt = p.name;
+  $("dl").href = `${BASE}/download/${encodeURIComponent(p.id)}`; $("dl").setAttribute("download", p.name);
+  $("pos").textContent = `${cur + 1} / ${viewCount()}  ·  ${p.name}`;
+  const ia = album.ids.has(p.id);
+  $("lbalb").hidden = album.locked; $("lbalb").classList.toggle("on", ia); $("lbalb").textContent = ia ? "♥ In your album" : "♡ Add to album";
+  if (!person && cur >= photos.length - 5) load();
+}
+const step = d => { cur = (cur + d + photos.length) % photos.length; paint(); };
+$("prev").onclick = () => step(-1); $("next").onclick = () => step(1); $("close").onclick = closeLb;
+$("notme").onclick = () => {  // a wrong match: hide it from this view only
+  photos.splice(cur, 1); closeLb(); redraw();
+  if (!photos.length) $("clear").onclick();
+};
+document.addEventListener("keydown", e => {
+  if (!$("sheet").hidden && e.key === "Escape") return sheet(false);
+  if (!$("asheet").hidden && e.key === "Escape") return albumSheet(false);
+  if ($("lb").hidden) return;
+  if (e.key === "Escape") closeLb(); if (e.key === "ArrowLeft") step(-1); if (e.key === "ArrowRight") step(1);
+});
+let x0 = null;
+$("lb").addEventListener("touchstart", e => x0 = e.touches[0].clientX, { passive: true });
+$("lb").addEventListener("touchend", e => {
+  if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null;
+  if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1);
+});
+if (!$("sub").textContent.trim()) $("sub").hidden = true;
+start();
+</script>
+</body>
+</html>

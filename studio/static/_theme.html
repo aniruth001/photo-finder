@@ -1,0 +1,37 @@
+<style>
+  /* Guest and client pages: dark (the studio's default unless they chose otherwise) and light. */
+  :root {
+    color-scheme: dark;
+    --bg: #14100e; --card: #1d1613; --line: #342721; --ink: #f2e8e1; --muted: #ab9d94;
+    --field: #0e0b0a; --bar: rgba(20,16,14,.92); --tile: #000; --err: #f3b3a0;
+    --accent: __BRAND__; --accent-ink: __BRAND_INK__;
+    --accent-text: __ACCENT_DARK__;   /* the brand colour, adjusted so text in it stays readable on this background */
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f7f6f2; --card: #ffffff; --line: #e3dfd4; --ink: #1d1b16; --muted: #5f5a4f;
+    --field: #ffffff; --bar: rgba(247,246,242,.92); --tile: #e9e6dd; --err: #b4321f;
+    --accent-text: __ACCENT_LIGHT__;
+  }
+  /* a logo that would vanish on this background sits on a small badge (studio/branding.needs_badge) */
+  .brandlogo { box-sizing: content-box; }
+  :root:not([data-theme="light"]) .brandlogo.bd, :root[data-theme="light"] .brandlogo.bl {
+    padding: calc(var(--h) / 8) calc(var(--h) / 4); border-radius: calc(var(--h) / 6);
+  }
+  :root:not([data-theme="light"]) .brandlogo.bd { background: #f7f4ef; }
+  :root[data-theme="light"] .brandlogo.bl { background: #1d1b16; }
+  .themebtn { position: absolute; top: 12px; right: 12px; z-index: 6; width: 40px; height: 40px; border-radius: 50%;
+              border: 1px solid var(--line); background: var(--card); color: var(--ink); display: grid; place-items: center;
+              cursor: pointer; padding: 0; }
+  .themebtn svg { width: 20px; height: 20px; }
+  :root[data-theme="light"] .themebtn .sun, :root:not([data-theme="light"]) .themebtn .moon { display: none; }
+</style>
+<script>
+  (function () {  // choose the mode before anything is drawn: the visitor's own choice on this device, else the studio's
+    var d = document.documentElement, t = null;
+    try { t = localStorage.getItem("pf_theme"); } catch (e) {}
+    if (t !== "light" && t !== "dark") t = d.getAttribute("data-studio-theme");
+    if (t === "auto") t = window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    d.setAttribute("data-theme", t === "light" ? "light" : "dark");
+  })();
+</script>

@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Platform Admin · Photo Finder Studio</title>
+<style>
+  :root {
+    --bg: #f7f6f2; --card: #ffffff; --line: #e6e2d8; --ink: #1d1b16; --muted: #6f6a5d; --soft: #efece4;
+    --brand: #1d1b16; --danger: #b4321f; --ok: #1f7a45; --warn: #96600a;
+    /* charts: one series each, so one hue (reference palette slot 1) */
+    --series-1: #2a78d6; --grid: #e1e0d9; --axis: #c3c2b7; --tick: #898781;
+    --good: #0ca30c; --critical: #d03b3b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  h1 { font-size: 1.6rem; line-height: 1.2; margin: 0; letter-spacing: -.01em; }
+  h2 { font-size: 1rem; margin: 0 0 12px; }
+  .muted { color: var(--muted); } .small { font-size: .85rem; }
+  [hidden] { display: none !important; }
+
+  header.top { background: var(--ink); color: #fff; position: sticky; top: 0; z-index: 5; }
+  .bar { max-width: 1240px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; }
+  .logo i { width: 30px; height: 30px; border-radius: 8px; background: #fff; color: var(--ink); display: grid; place-items: center; font-style: normal; font-weight: 800; }
+  nav { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
+  nav a { text-decoration: none; padding: 6px 12px; border-radius: 8px; color: #cfcab9; font-weight: 600; }
+  nav a.on, nav a:hover { background: rgba(255,255,255,.12); color: #fff; }
+  .who { display: flex; align-items: center; gap: 10px; font-size: .85rem; color: #cfcab9; }
+  .who a { color: #fff; }
+  main { max-width: 1240px; margin: 0 auto; padding: 26px 20px 80px; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .crumbs { margin-bottom: 6px; font-size: .85rem; } .crumbs a { color: var(--muted); text-decoration: none; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 9px; border: 1px solid var(--line);
+         background: var(--card); color: var(--ink); font-weight: 600; font-size: .9rem; font-family: inherit; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .btn:hover { background: var(--soft); }
+  .btn.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn.danger { color: var(--danger); border-color: #e4c3bc; } .btn.danger:hover { background: #fbeeeb; }
+  .btn.good { color: var(--ok); border-color: #b9dcc6; } .btn.good:hover { background: #ecf7f0; }
+  .btn.sm { padding: 4px 10px; font-size: .8rem; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  input, select, textarea { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: var(--ink); }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--series-1); outline-offset: 0; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1; min-width: 180px; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 16px; min-width: 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  .grid2 > .card, .grid3 > .card { margin-bottom: 0; }
+  .section { margin-bottom: 16px; }
+
+  /* stat tiles */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr)); gap: 12px; margin-bottom: 16px; }
+  @media (max-width: 640px) { main { padding: 20px 16px 60px; } .bar { padding: 10px 16px; } .tile .v { font-size: 1.4rem; } }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .tile .k { color: var(--muted); font-size: .8rem; font-weight: 600; }
+  .tile .v { font-size: 1.7rem; font-weight: 700; line-height: 1.2; margin-top: 2px; }
+  .tile .s { color: var(--muted); font-size: .8rem; margin-top: 2px; }
+  .tile.hero { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .tile.hero .k, .tile.hero .s { color: #cfcab9; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th.n, td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  td { padding: 10px; border-bottom: 1px solid var(--soft); vertical-align: middle; }
+  tr.click { cursor: pointer; } tr.click:hover td { background: #faf9f5; }
+  .tbl { overflow-x: auto; }
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 99px; font-size: .74rem; font-weight: 700; background: var(--soft); color: var(--muted); white-space: nowrap; }
+  .badge.ok { background: #e3f4e8; color: var(--ok); } .badge.bad { background: #fbe4df; color: var(--danger); }
+  .badge.warn { background: #fbefd0; color: var(--warn); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; display: inline-block; }
+  .empty { text-align: center; padding: 30px 12px; color: var(--muted); }
+
+  /* meters */
+  .meter { height: 6px; background: var(--soft); border-radius: 9px; overflow: hidden; margin-top: 4px; min-width: 70px; }
+  .meter > div { height: 100%; background: var(--series-1); border-radius: 9px; }
+  .meter.hot > div { background: var(--critical); }
+  .usage { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 14px; }
+  .usage b { font-size: 1.15rem; }
+
+  /* charts */
+  .chart { position: relative; }
+  .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .chart .gl { stroke: var(--grid); stroke-width: 1; }
+  .chart .base { stroke: var(--axis); stroke-width: 1; }
+  .chart text { fill: var(--tick); font-size: 11px; font-family: inherit; }
+  @media (max-width: 640px) { .chart text { font-size: 18px; } }  /* the SVG scales down on phones; keep ticks ~10px */
+  .chart .col { fill: var(--series-1); }
+  .chart .hit { fill: transparent; cursor: default; }
+  .chart .hit:hover + .col, .chart .col.on { filter: brightness(.85); }
+  .tip { position: absolute; pointer-events: none; background: var(--ink); color: #fff; padding: 6px 10px; border-radius: 8px; font-size: .8rem;
+         white-space: nowrap; transform: translate(-50%, calc(-100% - 8px)); z-index: 3; box-shadow: 0 4px 14px rgba(0,0,0,.2); }
+  .tip b { display: block; }
+  .bars { display: grid; gap: 10px; }
+  .bars .bl { display: grid; grid-template-columns: minmax(90px, 34%) 1fr auto; gap: 10px; align-items: center; font-size: .88rem; }
+  .bars .bl span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bars .tr { height: 12px; background: var(--soft); border-radius: 0 4px 4px 0; position: relative; }
+  .bars .fl { height: 100%; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 2px; }
+  .bars .val { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; text-align: right; }
+  details.tv summary { cursor: pointer; color: var(--muted); font-size: .8rem; margin-top: 8px; }
+  details.tv table { margin-top: 6px; font-size: .82rem; }
+  details.tv td, details.tv th { padding: 4px 8px; }
+
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: .9rem; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
+  .alert { padding: 10px 14px; border-radius: 10px; background: #fbe4df; color: var(--danger); margin-bottom: 16px; font-size: .9rem; }
+  .gate { max-width: 460px; margin: 12vh auto; text-align: center; }
+
+  #modal-root .ov { position: fixed; inset: 0; background: rgba(20,16,0,.5); display: grid; place-items: center; z-index: 20; padding: 16px; }
+  #modal-root .dlg { background: var(--card); border-radius: 16px; padding: 22px; width: 100%; max-width: 460px; }
+  #modal-root textarea { width: 100%; }
+  #toasts { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 30; display: grid; gap: 8px; width: min(440px, 92vw); }
+  .toast { background: var(--ink); color: #fff; padding: 11px 15px; border-radius: 10px; font-size: .9rem; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+  .toast.err { background: var(--danger); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal-root"></div>
+<div id="toasts"></div>
+
+<script>
+"use strict";
+const $app = document.getElementById("app");
+let ME = null, CUR = "INR", LIST = { q: "", status: "", plan: "", sort: "created", order: "desc", offset: 0 };
+
+/* ------------------------------------------------------------------ helpers */
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const num = n => Number(n || 0).toLocaleString();
+const bytes = n => { n = Number(n || 0); return n >= 1099511627776 ? (n / 1099511627776).toFixed(2) + " TB" : n >= 1073741824 ? (n / 1073741824).toFixed(1) + " GB" : n >= 1048576 ? Math.round(n / 1048576) + " MB" : n ? Math.max(1, Math.round(n / 1024)) + " KB" : "0"; };
+const money = n => { try { return new Intl.NumberFormat(undefined, { style: "currency", currency: CUR, maximumFractionDigits: 0 }).format(n || 0); } catch (e) { return CUR + " " + num(n); } };
+const day = t => t ? new Date(t * 1000).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "—";
+const when = t => t ? new Date(t * 1000).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+function ago(t) {
+  if (!t) return "Never";
+  const s = Date.now() / 1000 - t;
+  if (s < 3600) return "Just now"; if (s < 86400) return Math.floor(s / 3600) + " h ago";
+  if (s < 86400 * 60) return Math.floor(s / 86400) + " days ago"; return day(t);
+}
+const monthLabel = m => new Date(m + "-01T00:00:00").toLocaleDateString(undefined, { month: "short" });
+const monthLong = m => new Date(m + "-01T00:00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
+class ApiError extends Error { constructor(status, message, code) { super(message); this.status = status; this.code = code; } }
+async function api(method, url, body) {
+  const opt = { method, headers: { "X-PF": "1" }, credentials: "same-origin" };
+  if (body !== undefined) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
+  const r = await fetch(url, opt);
+  let data = null; try { data = await r.json(); } catch (e) {}
+  if (!r.ok) throw new ApiError(r.status, (data && data.message) || "Something went wrong.", data && data.error);
+  return data;
+}
+function toast(msg, bad) {
+  const t = document.createElement("div"); t.className = "toast" + (bad ? " err" : ""); t.textContent = msg;
+  document.getElementById("toasts").appendChild(t); setTimeout(() => t.remove(), bad ? 6000 : 3200);
+}
+const fail = e => toast(e.message || "Something went wrong.", true);
+
+function modal(html, onMount) {
+  const root = document.getElementById("modal-root");
+  root.innerHTML = `<div class="ov"><div class="dlg">${html}</div></div>`;
+  const ov = root.firstChild, close = () => { root.innerHTML = ""; document.removeEventListener("keydown", k); };
+  const k = e => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", k);
+  ov.addEventListener("mousedown", e => { if (e.target === ov) close(); });
+  ov.querySelectorAll("[data-close]").forEach(b => b.onclick = close);
+  onMount && onMount(ov, close);
+  const f = ov.querySelector("textarea, input, select"); if (f) f.focus();
+}
+function confirmBox(title, text, okLabel, cls = "primary") {
+  return new Promise(res => modal(`<h2>${esc(title)}</h2><p class="muted">${esc(text)}</p>
+    <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" data-close>Cancel</button><button class="btn ${cls}" id="ok">${esc(okLabel)}</button></div>`,
+    (ov, close) => { ov.querySelector("#ok").onclick = () => { close(); res(true); }; ov.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => res(false))); }));
+}
+
+const statusBadge = a => a.status === "suspended" ? `<span class="badge bad"><span class="dot"></span>Suspended</span>`
+  : a.active_30d ? `<span class="badge ok"><span class="dot"></span>Active</span>` : `<span class="badge"><span class="dot"></span>Inactive 30d+</span>`;
+const meterHtml = (pct) => pct == null ? `<div class="muted small">Unlimited</div>` : `<div class="meter ${pct >= 90 ? "hot" : ""}"><div style="width:${Math.min(100, Math.max(pct, 1))}%"></div></div>`;
+
+/* ------------------------------------------------------------------ charts */
+// Column chart, one series. Rounded data-end, square baseline, 2px gap; hover tooltip on a full-height hit target.
+function columnChart(rows, { fmt = num, title }) {
+  const W = 560, H = 200, L = 44, B = 24, T = 8, n = rows.length, max = Math.max(1, ...rows.map(r => r.count));
+  // counts: the top tick is even, so the middle tick is a whole number too
+  const nice = (() => { const p = Math.max(1, Math.pow(10, Math.floor(Math.log10(max)))); for (const m of [2, 4, 6, 10]) if (m * p >= max) return m * p; return 20 * p; })();
+  const ticks = [0, nice / 2, nice], step = (W - L) / n, bw = Math.max(4, step - 2 - step * 0.28), r = 4;
+  const y = v => T + (H - T - B) * (1 - v / nice);
+  let g = ticks.map(t => `<line class="${t ? "gl" : "base"}" x1="${L}" x2="${W}" y1="${y(t)}" y2="${y(t)}"/><text x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${fmt(t)}</text>`).join("");
+  rows.forEach((d, i) => {
+    const x = L + i * step + (step - bw) / 2, top = y(d.count), base = y(0), h = base - top;
+    const path = h <= 0 ? "" : h < r ? `M${x},${base}V${top}H${x + bw}V${base}Z`
+      : `M${x},${base}V${top + r}Q${x},${top} ${x + r},${top}H${x + bw - r}Q${x + bw},${top} ${x + bw},${top + r}V${base}Z`;
+    g += `<rect class="hit" data-i="${i}" x="${L + i * step}" y="${T}" width="${step}" height="${H - T - B}"/>`;
+    g += `<path class="col" d="${path}"/>`;
+    if (i % (n > 8 ? 2 : 1) === 0 || i === n - 1) g += `<text x="${x + bw / 2}" y="${H - 6}" text-anchor="middle">${esc(monthLabel(d.month))}</text>`;
+  });
+  const id = "c" + Math.random().toString(36).slice(2, 8);
+  setTimeout(() => {
+    const box = document.getElementById(id); if (!box) return;
+    const tip = box.querySelector(".tip"), svg = box.querySelector("svg");
+    box.querySelectorAll(".hit").forEach(h => {
+      h.addEventListener("mouseenter", () => {
+        const d = rows[+h.dataset.i], rb = h.getBoundingClientRect(), bb = box.getBoundingClientRect();
+        const col = h.nextElementSibling; col.classList.add("on");
+        tip.innerHTML = `<b>${esc(fmt(d.count))}</b>${esc(monthLong(d.month))}`; tip.hidden = false;
+        const top = col.getBoundingClientRect().top || rb.bottom;
+        tip.style.left = Math.min(bb.width - 60, Math.max(60, rb.left - bb.left + rb.width / 2)) + "px"; tip.style.top = (Math.min(top, rb.bottom - 20) - bb.top) + "px";
+      });
+      h.addEventListener("mouseleave", () => { tip.hidden = true; h.nextElementSibling.classList.remove("on"); });
+    });
+  });
+  const table = `<details class="tv"><summary>Show as table</summary><table><thead><tr><th>Month</th><th class="n">${esc(title)}</th></tr></thead><tbody>
+    ${rows.map(d => `<tr><td>${esc(monthLong(d.month))}</td><td class="n">${esc(fmt(d.count))}</td></tr>`).join("")}</tbody></table></details>`;
+  return `<div class="chart" id="${id}"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)} per month, last 12 months">${g}</svg><div class="tip" hidden></div></div>${table}`;
+}
+// Horizontal bar list: the label names the entity, so one hue is enough. Values in text ink.
+function barList(rows, { max } = {}) {
+  if (!rows.length) return `<div class="empty">Nothing yet.</div>`;
+  const m = max || Math.max(1, ...rows.map(r => r.value));
+  return `<div class="bars">${rows.map(r => `<div class="bl" title="${esc(r.label)}: ${esc(r.text)}"><span>${r.href ? `<a href="${r.href}">${esc(r.label)}</a>` : esc(r.label)}</span>
+    <div class="tr"><div class="fl" style="width:${Math.max(0.5, r.value / m * 100)}%"></div></div><span class="val">${esc(r.text)}</span></div>`).join("")}</div>`;
+}
+
+/* ------------------------------------------------------------------ shell */
+function shell(inner, active) {
+  const link = (h, t, k) => `<a href="${h}" class="${active === k ? "on" : ""}">${t}</a>`;
+  $app.innerHTML = `<header class="top"><div class="bar">
+      <a class="logo" href="#/"><i>A</i><span>Platform admin</span></a>
+      <nav>${link("#/", "Overview", "home")}${link("#/companies", "Companies", "companies")}${link("#/camera", "Camera FTP", "camera")}${link("#/log", "Activity log", "log")}</nav>
+      <div class="who"><span>${esc(ME.user.email)}</span><a href="/">Studio dashboard</a></div>
+    </div></header><main>${inner}</main>`;
+}
+function gate(title, text) {
+  $app.innerHTML = `<div class="gate card"><h1 style="margin-bottom:8px">${esc(title)}</h1><p class="muted">${esc(text)}</p><a class="btn primary" href="/">Go to the studio dashboard</a></div>`;
+}
+
+/* ------------------------------------------------------------------ overview */
+const tile = (k, v, s, hero) => `<div class="tile${hero ? " hero" : ""}"><div class="k">${k}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`;
+
+async function viewOverview() {
+  document.title = "Overview · Platform Admin";
+  const o = await api("GET", "/api/admin/overview"); CUR = o.currency || CUR;
+  const c = o.companies, disk = o.disk;
+  const planRows = o.plans.map(p => ({ label: p.label, value: p.accounts, text: `${num(p.accounts)} · ${money(p.accounts * p.price)}/mo`, href: `#/companies?plan=${encodeURIComponent(p.plan)}` }));
+  const topRows = o.top_storage.filter(a => a.storage > 0).map(a => ({ label: a.company, value: a.storage, href: `#/companies/${a.id}`,
+    text: bytes(a.storage) + (a.limit ? ` · ${a.storage / a.limit < 0.01 ? "<1" : Math.round(a.storage / a.limit * 100)}%` : "") }));
+  shell(`<div class="head"><div><h1>Business overview</h1><div class="muted">Every studio on the platform, at a glance.</div></div>
+      <div class="row"><a class="btn" href="#/companies">All companies</a><a class="btn" href="/api/admin/accounts.csv">Export CSV</a></div></div>
+    <div class="tiles">
+      ${tile("Active companies", num(c.active), `${num(c.active_30d)} signed in during the last 30 days`, true)}
+      ${tile("Suspended", num(c.suspended), `<a href="#/companies?status=suspended">View suspended</a>`)}
+      ${tile("New in 30 days", num(c.new_30d), `${num(c.total)} companies in total`)}
+      ${tile("Monthly revenue (est.)", money(o.revenue_month), `${num(c.paying)} paying · at list price`)}
+    </div>
+    <div class="tiles">
+      ${tile("Storage used", bytes(o.storage), disk ? `${bytes(disk.free)} free on the server disk` : "Original photos")}
+      ${tile("Photos", num(o.photos), `${num(o.events)} events · ${num(o.published)} published · ${num(o.users)} users`)}
+      ${tile("Guest searches, 30 days", num(o.searches.last_30d), `${num(o.searches.found_30d)} found their photos · ${num(o.searches.total)} all time`)}
+      ${tile("Processing queue", num(o.queue.processing), o.queue.failed ? `<span style="color:var(--danger)">${num(o.queue.failed)} failed photos</span>` : "No failed photos")}
+    </div>
+    <div class="grid2 section">
+      <div class="card"><h2>New companies per month</h2>${columnChart(o.signups_by_month, { title: "New companies" })}</div>
+      <div class="card"><h2>Guest searches per month</h2>${columnChart(o.searches_by_month, { title: "Guest searches" })}</div>
+    </div>
+    <div class="grid2 section">
+      <div class="card"><h2>Active companies by plan</h2>${barList(planRows)}<p class="muted small" style="margin:12px 0 0">Revenue uses the list prices in studio/config.py. Suspended companies are not counted.</p></div>
+      <div class="card"><h2>Biggest storage users</h2>${barList(topRows)}</div>
+    </div>
+    <div class="grid2 section">
+      <div class="card"><h2>Close to a plan limit <span class="muted small" style="font-weight:400">(80% or more)</span></h2>
+        ${o.near_limit.length ? `<div class="tbl"><table><thead><tr><th>Company</th><th>Plan</th><th class="n">Events</th><th class="n">Photos</th><th class="n">Storage</th></tr></thead><tbody>
+          ${o.near_limit.map(a => `<tr class="click" data-href="#/companies/${a.id}"><td>${esc(a.company)}</td><td>${esc(a.plan_label)}</td>${["events", "photos", "storage"].map(k => `<td class="n">${a.usage_pct[k] == null ? "—" : a.usage_pct[k] + "%"}</td>`).join("")}</tr>`).join("")}
+          </tbody></table></div><p class="muted small" style="margin:10px 0 0">Good candidates for an upgrade.</p>` : `<div class="empty">No company is near its limits.</div>`}</div>
+      <div class="card"><h2>Recent admin actions</h2>${logTable(o.recent_log, true, true)}${o.recent_log.length ? `<p class="small" style="margin:10px 0 0"><a href="#/log">Full activity log</a></p>` : ""}</div>
+    </div>`, "home");
+  wire();
+}
+
+/* ------------------------------------------------------------------ companies */
+function readQuery() {
+  const q = new URLSearchParams((location.hash.split("?")[1]) || "");  // the address is the filter state
+  LIST = { q: "", status: "", plan: "", sort: "created", order: "desc", offset: 0 };
+  ["q", "status", "plan", "sort", "order"].forEach(k => { if (q.has(k)) LIST[k] = q.get(k); });
+}
+async function viewCompanies(more) {
+  document.title = "Companies · Platform Admin";
+  if (!more) LIST.offset = 0;
+  const qs = new URLSearchParams({ q: LIST.q, status: LIST.status, plan: LIST.plan, sort: LIST.sort, order: LIST.order });
+  const r = await api("GET", `/api/admin/accounts?${qs}&offset=0&limit=${LIST.offset + 50}`);
+  const opt = (v, t, cur) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(t)}</option>`;
+  shell(`<div class="head"><div><h1>Companies</h1><div class="muted">${num(r.total)} matching</div></div>
+      <a class="btn" href="/api/admin/accounts.csv?${qs}">Export CSV</a></div>
+    <div class="card"><form class="row" id="filters">
+      <input class="grow" name="q" placeholder="Search company or email" value="${esc(LIST.q)}">
+      <select name="status">${opt("", "All statuses", LIST.status)}${opt("active", "Not suspended", LIST.status)}${opt("inactive", "Inactive 30 days+", LIST.status)}${opt("suspended", "Suspended", LIST.status)}${opt("near_limit", "Near a plan limit", LIST.status)}</select>
+      <select name="plan">${opt("", "All plans", LIST.plan)}${r.plans.map(p => opt(p.plan, p.label, LIST.plan)).join("")}</select>
+      <select name="sort">${[["created", "Newest"], ["last_seen", "Last active"], ["users", "Users"], ["storage", "Storage"], ["photos", "Photos"], ["events", "Events"], ["searches", "Guest searches"], ["company", "Name"]].map(([v, t]) => opt(v, "Sort: " + t, LIST.sort)).join("")}</select>
+      <select name="order">${opt("desc", "High to low / Z-A", LIST.order)}${opt("asc", "Low to high / A-Z", LIST.order)}</select>
+      <button class="btn primary">Apply</button></form></div>
+    <div class="card" style="padding:6px 8px">${r.items.length ? `<div class="tbl"><table><thead><tr><th>Company</th><th>Plan</th><th>Status</th><th class="n">Users</th><th class="n">Events</th><th class="n">Photos</th><th>Storage</th><th class="n">Searches</th><th>Last active</th><th>Joined</th></tr></thead><tbody>
+      ${r.items.map(a => `<tr class="click" data-href="#/companies/${a.id}">
+        <td>${a.logo_url ? `<img src="${esc(a.logo_url)}" alt="" style="height:20px;max-width:90px;object-fit:contain;display:block;margin-bottom:3px">` : ""}<b>${esc(a.company)}</b><div class="muted small">${esc(a.owner_email)}</div></td>
+        <td>${esc(a.plan_label)}</td><td>${statusBadge(a)}</td>
+        <td class="n" title="${num(a.users)} members${a.invites ? `, ${num(a.invites)} invited` : ""}">${num(a.users)}${a.invites ? `<div class="muted small">+${num(a.invites)} invited</div>` : ""}</td>
+        <td class="n">${num(a.events)}</td><td class="n">${num(a.photos)}</td>
+        <td style="min-width:120px"><span class="small">${bytes(a.storage)}${a.limits.storage ? " / " + bytes(a.limits.storage) : ""}</span>${meterHtml(a.usage_pct.storage)}</td>
+        <td class="n">${num(a.searches)}</td><td class="small">${esc(ago(a.last_seen))}</td><td class="small muted">${esc(day(a.created_at))}</td></tr>`).join("")}
+      </tbody></table></div>${r.items.length < r.total ? `<div style="text-align:center;padding:12px"><button class="btn" id="more">Show more</button></div>` : ""}`
+      : `<div class="empty">No companies match.</div>`}</div>`, "companies");
+  document.getElementById("filters").onsubmit = e => {
+    e.preventDefault(); Object.assign(LIST, Object.fromEntries(new FormData(e.target)));
+    const q = new URLSearchParams(Object.entries(LIST).filter(([k, v]) => v && k !== "offset")).toString();
+    if (location.hash === "#/companies?" + q) viewCompanies().catch(fail); else location.hash = "#/companies?" + q;
+  };
+  const m = document.getElementById("more"); if (m) m.onclick = () => { LIST.offset += 50; viewCompanies(true).catch(fail); };
+  wire();
+}
+
+/* ------------------------------------------------------------------ one company */
+async function viewCompany(id) {
+  const a = await api("GET", "/api/admin/accounts/" + id); document.title = a.company + " · Platform Admin";
+  const plans = (await api("GET", "/api/admin/accounts?limit=1")).plans, self = a.id === ME.account.id;
+  const use = (k, label, f) => `<div><div class="muted small">${label}</div><b>${f(a[k === "storage" ? "storage" : k])}</b><span class="muted small"> / ${a.limits[k] == null ? "Unlimited" : f(a.limits[k])}</span>${meterHtml(a.usage_pct[k])}</div>`;
+  shell(`<div class="crumbs"><a href="#/companies">Companies</a> /</div>
+    <div class="head"><div>${a.logo_url ? `<img src="${esc(a.logo_url)}" alt="${esc(a.company)} logo" style="height:44px;max-width:220px;object-fit:contain;display:block;margin-bottom:8px">` : ""}<h1>${esc(a.company)}</h1><div class="row" style="margin-top:6px">${statusBadge(a)}<span class="badge">${esc(a.plan_label)} plan · ${money(a.price)}/mo</span>${self ? `<span class="badge warn">Your company</span>` : ""}</div></div>
+      <div class="row">${a.status === "suspended" ? `<button class="btn good" id="enable">Enable account</button>` : `<button class="btn danger" id="disable" ${self ? "disabled title=\"You can't suspend your own company\"" : ""}>Suspend account</button>`}
+        <button class="btn" id="signout">Sign out all devices</button></div></div>
+    ${a.status === "suspended" ? `<div class="alert"><b>Suspended ${esc(when(a.disabled_at))}.</b> ${a.disabled_reason ? "Reason: " + esc(a.disabled_reason) + ". " : ""}Its users can't sign in and its guest links are offline. Nothing has been deleted.</div>` : ""}
+    <div class="card"><h2>Plan usage</h2><div class="usage">${use("events", "Events", num)}${use("photos", "Photos", num)}${use("storage", "Storage", bytes)}
+        <div><div class="muted small">Team seats</div><b>${num(a.users + a.invites)}</b><span class="muted small"> / ${a.limits.users == null ? "Unlimited" : num(a.limits.users)}</span>${meterHtml(a.limits.users ? Math.round((a.users + a.invites) / a.limits.users * 100) : null)}</div></div>
+      <form class="row" id="planf" style="margin-top:16px"><label class="small muted" for="plansel">Plan</label>
+        <select id="plansel" name="plan">${plans.map(p => `<option value="${esc(p.plan)}" ${p.plan === a.plan ? "selected" : ""}>${esc(p.label)}</option>`).join("")}</select>
+        <button class="btn primary">Change plan</button></form></div>
+    <div class="grid2 section">
+      <div class="card"><h2>Details</h2><dl class="kv">
+        <dt>Owner</dt><dd>${esc(a.owner_name || "—")} · <a href="mailto:${esc(a.owner_email)}">${esc(a.owner_email)}</a></dd>
+        <dt>Joined</dt><dd>${esc(day(a.created_at))}</dd><dt>Last active</dt><dd>${esc(ago(a.last_seen))}</dd>
+        <dt>Time zone</dt><dd>${esc(a.timezone || "Server default")}</dd>
+        <dt>Clients</dt><dd>${num(a.clients)}</dd><dt>Events</dt><dd>${num(a.events)} (${num(a.published)} published)</dd>
+        <dt>Guest searches</dt><dd>${num(a.searches)}</dd><dt>Failed photos</dt><dd>${num(a.failed)}</dd>
+        <dt>Company id</dt><dd>${a.id}</dd></dl></div>
+      <div class="card"><h2>Users <span class="muted small" style="font-weight:400">${num(a.users)} member${a.users === 1 ? "" : "s"}${a.pending_invites.length ? `, ${num(a.pending_invites.length)} invited` : ""}</span></h2><div class="tbl"><table><thead><tr><th>User</th><th>Role</th><th>Last active</th><th class="n">Sessions</th></tr></thead><tbody>
+        ${a.members.map(m => `<tr><td>${esc(m.name || "—")}<div class="muted small">${esc(m.email)}</div></td><td>${esc(m.role_label || m.role)}${m.platform_admin ? ` <span class="badge warn">platform admin</span>` : ""}</td>
+          <td class="small">${esc(ago(m.last_seen_at))}</td><td class="n">${num(m.sessions)}</td></tr>`).join("")}
+          ${a.pending_invites.map(i => `<tr><td class="muted">${esc(i.email)}<div class="small">invited by ${esc(i.invited_by || "—")}</div></td><td>${esc(i.role_label)}</td>
+            <td colspan="2">${i.expires_at * 1000 < Date.now() ? `<span class="badge bad">Invite expired</span>` : `<span class="badge warn">Invited</span>`}</td></tr>`).join("")}</tbody></table></div></div>
+    </div>
+    <div class="card"><h2>Events</h2>${a.ftp_server ? "" : `<p class="small muted" style="margin:-4px 0 12px">Camera FTP: the FTP server isn't switched on (<code>--ftp-port</code>). You can enable events now; cameras can connect once it is on.</p>`}${a.event_list.length ? `<div class="tbl"><table><thead><tr><th>Event</th><th>Client</th><th>Status</th><th>Date</th><th class="n">Photos</th><th class="n">Storage</th><th class="n">Searches</th><th>Camera FTP</th></tr></thead><tbody>
+      ${a.event_list.map(e => `<tr><td><b>${esc(e.name)}</b></td><td>${esc(e.client_name)}</td><td>${e.status === "published" ? `<span class="badge ok">Published</span>` : `<span class="badge">Draft</span>`}</td>
+        <td class="small">${esc(e.event_date || "—")}</td><td class="n">${num(e.photos)}</td><td class="n">${bytes(e.storage)}</td><td class="n">${num(e.searches)}</td>
+        <td style="white-space:nowrap">${e.ftp_allowed ? `<span class="badge ok">On</span> <button class="btn sm" data-ftp="${e.id}" data-on="0">Turn off</button>` : `<button class="btn sm good" data-ftp="${e.id}" data-on="1">Enable</button>`}
+          ${e.camera_uploads != null ? `<div class="muted small">${num(e.camera_uploads)} from camera${e.camera_last_upload ? " · last photo: " + esc(ago(e.camera_last_upload)) : ""}</div>` : ""}</td></tr>`).join("")}</tbody></table></div>` : `<div class="empty">No events yet.</div>`}</div>
+    <div class="card"><h2>Admin history</h2>${logTable(a.log, false)}</div>`, "companies");
+
+  const dis = document.getElementById("disable"), en = document.getElementById("enable");
+  if (dis) dis.onclick = () => modal(`<h2>Suspend ${esc(a.company)}?</h2>
+      <p class="muted">Its users are signed out and can't sign in, and every guest link stops working. No data is deleted; you can enable it again at any time.</p>
+      <form id="df"><label class="small muted" for="reason">Reason <span>(shown here and in the log, not to the company)</span></label>
+      <textarea id="reason" name="reason" rows="3" maxlength="300" placeholder="e.g. Payment overdue since 1 Oct"></textarea>
+      <div class="row" style="justify-content:flex-end;margin-top:14px"><button type="button" class="btn" data-close>Cancel</button><button class="btn danger">Suspend account</button></div></form>`,
+    (ov, close) => ov.querySelector("#df").onsubmit = async e => { e.preventDefault();
+      try { await api("POST", `/api/admin/accounts/${a.id}/disable`, { reason: new FormData(e.target).get("reason") }); close(); toast("Account suspended."); viewCompany(id); } catch (x) { fail(x); } });
+  if (en) en.onclick = async () => { if (!await confirmBox(`Enable ${a.company}?`, "Its users can sign in again and its published guest links come back online.", "Enable account", "good")) return;
+    try { await api("POST", `/api/admin/accounts/${a.id}/enable`); toast("Account enabled."); viewCompany(id); } catch (x) { fail(x); } };
+  document.getElementById("signout").onclick = async () => { if (!await confirmBox("Sign out every device?", "All users of this company must sign in again. Nothing else changes.", "Sign out")) return;
+    try { const r = await api("POST", `/api/admin/accounts/${a.id}/signout`); toast(`Signed out ${r.signed_out} session${r.signed_out === 1 ? "" : "s"}.`); viewCompany(id); } catch (x) { fail(x); } };
+  $app.querySelectorAll("[data-ftp]").forEach(b => b.onclick = async () => {
+    const ev = a.event_list.find(x => x.id === +b.dataset.ftp), on = b.dataset.on === "1";
+    if (!on && !await confirmBox(`Turn off camera FTP for ${ev.name}?`, "The option disappears from the event screen and any camera using its login can't send photos any more. Photos already received stay. You can enable it again; the same login then works again.", "Turn off", "danger")) return;
+    try { await api("POST", `/api/admin/events/${ev.id}/ftp`, { allowed: on }); toast(on ? `Camera FTP enabled for ${ev.name}.` : `Camera FTP turned off for ${ev.name}.`); viewCompany(id); } catch (x) { fail(x); } });
+  document.getElementById("planf").onsubmit = async e => { e.preventDefault(); const plan = new FormData(e.target).get("plan");
+    if (plan === a.plan) return toast("That is already the plan.");
+    try { await api("POST", `/api/admin/accounts/${a.id}/plan`, { plan }); toast("Plan changed."); viewCompany(id); } catch (x) { fail(x); } };
+}
+
+/* ------------------------------------------------------------------ activity log */
+const ACTIONS = { suspend: ["bad", "Suspended"], enable: ["ok", "Enabled"], plan: ["warn", "Plan changed"], signout: ["", "Signed out"], ftp_on: ["ok", "Camera FTP on"], ftp_off: ["", "Camera FTP off"] };
+function logTable(rows, withCompany, compact) {
+  if (!rows.length) return `<div class="empty">No admin actions yet.</div>`;
+  return `<div class="tbl"><table><thead><tr><th>When</th>${withCompany ? "<th>Company</th>" : ""}<th>Action</th><th>Detail</th>${compact ? "" : "<th>By</th>"}</tr></thead><tbody>
+    ${rows.map(l => { const [cls, label] = ACTIONS[l.action] || ["", l.action];
+      return `<tr><td class="small" style="white-space:nowrap">${esc(when(l.created_at))}</td>${withCompany ? `<td>${l.account_id ? `<a href="#/companies/${l.account_id}">${esc(l.company)}</a>` : esc(l.company)}</td>` : ""}
+        <td><span class="badge ${cls}">${esc(label)}</span></td><td class="small">${esc(l.detail || "—")}</td>${compact ? "" : `<td class="small muted">${esc(l.admin_email)}</td>`}</tr>`; }).join("")}</tbody></table></div>`;
+}
+async function viewLog() {
+  document.title = "Activity log · Platform Admin";
+  const rows = await api("GET", "/api/admin/log?limit=300");
+  shell(`<div class="head"><div><h1>Activity log</h1><div class="muted">Every suspension, re-enable, plan change and forced sign-out, newest first.</div></div></div>
+    <div class="card">${logTable(rows, true)}</div>`, "log");
+}
+
+/* ------------------------------------------------------------------ camera FTP: every event it is on for */
+const CAM_STATE = { receiving: ["ok", "Receiving"], ready: ["", "Ready"], no_login: ["warn", "No login yet"], off: ["", "Login off"], suspended: ["bad", "Company suspended"] };
+let camTimer = null, CAMQ = "";
+const onCamera = () => location.hash.slice(1).split("?")[0] === "/camera";
+async function viewCamera() {
+  clearTimeout(camTimer);
+  document.title = "Camera FTP · Platform Admin";
+  const r = await api("GET", "/api/admin/camera"), sv = r.server, ev = r.events;
+  if (!onCamera()) return;  // left the page while it was loading
+  const n = k => ev.filter(e => e.state === k).length, total = ev.reduce((t, e) => t + e.uploads, 0);
+  const srv = sv.available ? `FTP server on <b>${esc(sv.host || location.hostname)}:${sv.port}</b> · ${sv.tls === "required" ? "FTPS required" : sv.tls === "available" ? "FTPS available" : "plain FTP (no certificate)"}`
+    : `<span style="color:var(--danger)"><b>The FTP server isn't switched on.</b></span> Start Studio with <code>--ftp-port</code>; cameras can't connect until then.`;
+  shell(`<div class="head"><div><h1>Camera FTP</h1><div class="muted">Every event with camera upload switched on, across all companies. Most recently active first; refreshes every 15 seconds.</div></div></div>
+    <p class="small" style="margin:0 0 16px">${srv}</p>
+    <div class="tiles">${tile("Events with FTP on", num(ev.length), `${num(ev.length - n("no_login"))} with a camera login`, true)}${tile("Receiving now", num(n("receiving")), "a photo in the last 10 minutes")}${tile("Waiting for a login", num(n("no_login")), "enabled, not set up by the company yet")}${tile("Photos from cameras", num(total), "across these events")}</div>
+    <div class="card section"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Events</h2>
+      <input id="camq" type="search" placeholder="Search event, company, client or username" value="${esc(CAMQ)}" style="max-width:340px;flex:1" aria-label="Search events"></div>
+      <div id="camrows"></div></div>`, "camera");
+  const paintRows = () => {
+    const q = CAMQ.trim().toLowerCase();
+    const shown = q ? ev.filter(e => [e.name, e.company, e.client_name, e.username || ""].some(x => x.toLowerCase().includes(q))) : ev;
+    document.getElementById("camrows").innerHTML = shown.length ? `<div class="tbl"><table><thead><tr><th>Event</th><th>Company</th><th>Date</th><th>Camera login</th><th>Status</th><th class="n">From camera</th><th>Last photo</th><th></th></tr></thead><tbody>
+      ${shown.map(e => { const [cls, label] = CAM_STATE[e.state];
+        return `<tr><td><b>${esc(e.name)}</b><div class="muted small">${esc(e.client_name)} · ${num(e.photos)} photo${e.photos === 1 ? "" : "s"}</div></td>
+          <td><a href="#/companies/${e.account_id}">${esc(e.company)}</a></td><td class="small" style="white-space:nowrap">${esc(e.event_date || "—")}</td>
+          <td>${e.username ? `<code style="white-space:nowrap">${esc(e.username)}</code><div class="muted small">${e.last_login_at ? "last connected: " + esc(ago(e.last_login_at)) : "camera never connected"}</div>` : `<span class="muted">—</span>`}</td>
+          <td><span class="badge ${cls}">${label}</span>${e.last_note && !/^Received /.test(e.last_note) ? `<div class="small" style="color:var(--warn);max-width:220px;margin-top:4px">${esc(e.last_note)}</div>` : ""}</td>
+          <td class="n">${num(e.uploads)}</td><td class="small">${e.last_upload_at ? esc(ago(e.last_upload_at)) : "—"}</td>
+          <td><button class="btn sm" data-ftpoff="${e.id}">Turn off</button></td></tr>`; }).join("")}</tbody></table></div>`
+      : `<div class="empty">${ev.length ? "No event matches the search." : "Camera FTP isn't on for any event yet. Enable it on a company's page: Events table, Camera FTP column."}</div>`;
+    document.querySelectorAll("[data-ftpoff]").forEach(b => b.onclick = async () => {
+      const e = ev.find(x => x.id === +b.dataset.ftpoff);
+      if (!await confirmBox(`Turn off camera FTP for ${e.name}?`, `${e.company}: the option disappears from the event screen and its camera can't send photos any more. Photos already received stay.`, "Turn off", "danger")) return;
+      try { await api("POST", `/api/admin/events/${e.id}/ftp`, { allowed: false }); toast(`Camera FTP turned off for ${e.name}.`); viewCamera(); } catch (x) { fail(x); } });
+  };
+  paintRows();
+  document.getElementById("camq").oninput = e => { CAMQ = e.target.value; paintRows(); };
+  const tick = () => {  // live refresh; waits while a dialog is open or the search box is being used
+    if (!onCamera()) return;
+    if (document.querySelector("dialog[open], .ov, .overlay") || document.activeElement?.id === "camq") { camTimer = setTimeout(tick, 15000); return; }
+    viewCamera().catch(() => {});
+  };
+  camTimer = setTimeout(tick, 15000);
+}
+
+/* ------------------------------------------------------------------ routing */
+function wire() { $app.querySelectorAll("[data-href]").forEach(r => r.onclick = e => { if (e.target.closest("a")) return; location.hash = r.dataset.href; }); }
+async function route() {
+  const h = (location.hash || "#/").slice(1), path = h.split("?")[0], parts = path.split("/").filter(Boolean);
+  try {
+    if (!ME) {
+      try { ME = await api("GET", "/api/auth/me"); }
+      catch (e) { return gate(e.code === "suspended" ? "Account suspended" : "Please sign in", e.code === "suspended" ? e.message : "Sign in on the studio dashboard with your admin account, then come back to /admin."); }
+    }
+    if (!ME.user.platform_admin) return gate("No admin access", "This account isn't a platform admin. The owner can grant access with: python -m studio grant-admin <email>");
+    if (!parts.length) return await viewOverview();
+    if (parts[0] === "companies") { if (parts[1]) return await viewCompany(+parts[1]); readQuery(); return await viewCompanies(); }
+    if (parts[0] === "log") return await viewLog();
+    if (parts[0] === "camera") return await viewCamera();
+    location.hash = "#/";
+  } catch (e) {
+    if (e.status === 401) { ME = null; return gate("Signed out", "Your session ended. Sign in again on the studio dashboard."); }
+    if (e.status === 404) { toast(e.message, true); location.hash = "#/companies"; return; }
+    fail(e);
+  }
+}
+window.addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>

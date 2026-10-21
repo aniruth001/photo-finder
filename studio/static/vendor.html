@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en" data-studio-theme="__THEME__" data-theme="__THEME_INITIAL__">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="robots" content="noindex">
+<title>Upload · __TITLE__ · __COMPANY__</title>
+__THEME_HEAD__
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; min-height: 100vh; }
+  header { max-width: 760px; margin: 0 auto; padding: 34px 16px 14px; text-align: center; }
+  .by { color: var(--accent-text); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; margin: 0; }
+  h1 { font: 700 2rem/1.15 "Noto Serif", Georgia, "Times New Roman", serif; margin: 10px 0 6px; overflow-wrap: anywhere; }
+  .sub { color: var(--muted); margin: 0; }
+  main { max-width: 760px; margin: 0 auto; padding: 0 16px 60px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+  .card h2 { margin: 0 0 6px; font-size: 1.1rem; }
+  .muted { color: var(--muted); }
+  .small { font-size: .88rem; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 18px; border-radius: 10px;
+         border: 1.5px solid var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: .95rem;
+         font-family: inherit; cursor: pointer; white-space: nowrap; }
+  .btn.ghost { background: transparent; color: var(--accent-text); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .drop { border: 2px dashed var(--line); border-radius: 14px; padding: 28px 16px; text-align: center; display: grid; gap: 6px; }
+  .drop.over { border-color: var(--accent); background: rgba(127,127,127,.08); }
+  .drop .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+  .bar { height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; margin: 10px 0 6px; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+  .stat { flex: 1; min-width: 120px; background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .stat b { display: block; font-size: 1.4rem; }
+  ul.sent { list-style: none; margin: 8px 0 0; padding: 0; max-height: 320px; overflow: auto; }
+  ul.sent li { display: flex; gap: 10px; justify-content: space-between; padding: 7px 2px; border-bottom: 1px solid var(--line); font-size: .9rem; }
+  ul.sent li span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .tag { font-size: .74rem; font-weight: 700; padding: 1px 8px; border-radius: 99px; background: var(--field); border: 1px solid var(--line); color: var(--muted); flex: none; }
+  .tag.bad { color: var(--err); border-color: var(--err); }
+  .err { color: var(--err); }
+  .ok { color: var(--accent-text); }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 0 16px 24px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+__THEME_TOGGLE__
+<header>
+  <p class="by">__MARK__</p>
+  <h1>__TITLE__</h1>
+  <p class="sub" id="sub">Upload for <b>__VENDOR__</b></p>
+</header>
+<main>
+  <section class="card">
+    <h2>Send your photos and videos</h2>
+    <p class="muted small" style="margin:0 0 12px">They go straight to __COMPANY__ for this event. Send the full-size files.
+      You won't see anyone else's photos here, only the list of what you sent.</p>
+    <div class="drop" id="drop">
+      <b>Drag photos and videos here</b>
+      <span class="muted small" id="limits">JPG, PNG, WebP, HEIC · MP4, MOV, WebM</span>
+      <div class="row"><button class="btn" id="pickf">Choose files</button><button class="btn ghost" id="pickd">Choose a folder</button></div>
+      <input type="file" id="fin" multiple accept="image/*,.heic,.heif,video/mp4,video/quicktime,video/webm,.mp4,.m4v,.mov,.webm" hidden>
+      <input type="file" id="din" webkitdirectory multiple hidden>
+    </div>
+    <div id="prog" hidden>
+      <div class="bar"><i id="pbar"></i></div>
+      <div class="small" id="ptext"></div>
+      <p class="small" id="pwarn" style="margin:6px 0 0;color:var(--muted)">Keep this page open until it finishes.</p>
+    </div>
+    <div class="small" id="result" style="margin-top:10px"></div>
+  </section>
+  <section class="card">
+    <h2>What you've sent</h2>
+    <div class="stats"><div class="stat"><b id="np">0</b><span class="muted small">photos</span></div><div class="stat"><b id="nv">0</b><span class="muted small">videos</span></div></div>
+    <ul class="sent" id="sent"></ul>
+  </section>
+</main>
+<footer>For __FOOTER_MARK__</footer>
+<script>
+const $ = id => document.getElementById(id);
+const BASE = location.pathname.replace(/\/+$/, "");   // /v/<link>
+const VIDEO_RE = /\.(mp4|m4v|mov|webm)$/i, PHOTO_RE = /\.(jpe?g|png|webp|heic|heif)$/i;
+let INFO = null, busy = false;
+const plural = (n, w) => `${n.toLocaleString()} ${w}${n === 1 ? "" : "s"}`;
+const mb = b => b >= 1073741824 ? (b / 1073741824).toFixed(1) + " GB" : Math.max(1, Math.round(b / 1048576)) + " MB";
+
+async function refresh() {
+  try {
+    const r = await fetch(BASE + "/info");
+    if (!r.ok) { $("sub").textContent = "This upload link isn't available any more. Ask the studio for a new one."; $("drop").hidden = true; return; }
+    INFO = await r.json();
+  } catch (e) { $("sub").textContent = "Can't reach the server. Check your connection."; return; }
+  $("limits").textContent = `Photos: JPG, PNG, WebP, HEIC up to ${INFO.max_file_mb} MB · Videos: MP4, MOV, WebM up to ${mb(INFO.max_video_mb * 1048576)}`;
+  $("np").textContent = INFO.photos.toLocaleString(); $("nv").textContent = INFO.videos.toLocaleString();
+  $("sent").innerHTML = "";
+  if (!INFO.sent.length) { const li = document.createElement("li"); li.className = "muted"; li.textContent = "Nothing yet."; $("sent").appendChild(li); }
+  INFO.sent.forEach(x => {
+    const li = document.createElement("li"), a = document.createElement("span"), t = document.createElement("span");
+    a.textContent = x.name; t.className = "tag" + (x.status === "failed" ? " bad" : "");
+    t.textContent = x.status === "failed" ? "couldn't be read" : x.kind;
+    li.append(a, t); $("sent").appendChild(li);
+  });
+}
+
+function send(path, files, onProgress) {  // -> {status, body}
+  return new Promise(resolve => {
+    const x = new XMLHttpRequest(); x.open("POST", BASE + path); x.setRequestHeader("X-PF", "1");
+    x.upload.onprogress = e => onProgress(e.loaded);
+    x.onload = () => { let b = null; try { b = JSON.parse(x.responseText); } catch (e) {} resolve({ status: x.status, body: b }); };
+    x.onerror = () => resolve({ status: 0, body: null });
+    const fd = new FormData(); files.forEach(f => fd.append("files", f, f.name)); x.send(fd);
+  });
+}
+
+async function upload(all) {
+  if (busy || !INFO) return;
+  const vids = all.filter(f => VIDEO_RE.test(f.name)), pics = all.filter(f => PHOTO_RE.test(f.name)), skipped = all.length - vids.length - pics.length;
+  if (!vids.length && !pics.length) { $("result").innerHTML = `<span class="err">Those aren't photos or videos. Use JPG, PNG, WebP, HEIC, MP4, MOV or WebM.</span>`; return; }
+  const jobs = [];   // photos in small batches, videos one at a time (they are big)
+  for (let i = 0; i < pics.length;) {
+    const b = []; let bytes = 0;
+    while (i < pics.length && b.length < INFO.per_request && (b.length === 0 || bytes + pics[i].size < 150 * 1048576)) { bytes += pics[i].size; b.push(pics[i++]); }
+    jobs.push({ path: "/photos", files: b });
+  }
+  vids.forEach(v => jobs.push({ path: "/videos", files: [v] }));
+  const total = all.reduce((s, f) => s + (VIDEO_RE.test(f.name) || PHOTO_RE.test(f.name) ? f.size : 0), 0) || 1;
+  let doneBytes = 0, ok = 0, dup = 0; const errs = [];
+  busy = true; $("prog").hidden = false; $("result").textContent = ""; $("pickf").disabled = $("pickd").disabled = true;
+  const paint = (extra, label) => {
+    $("pbar").style.width = Math.min(100, (doneBytes + extra) / total * 100).toFixed(1) + "%";
+    $("ptext").textContent = `${label} · ${mb(doneBytes + extra)} of ${mb(total)}`;
+  };
+  for (const [n, j] of jobs.entries()) {
+    const size = j.files.reduce((s, f) => s + f.size, 0), label = j.path === "/videos" ? `Sending ${j.files[0].name}` : `Sending photos (${n + 1} of ${jobs.length})`;
+    let r;
+    for (let tries = 0; tries < 3; tries++) {   // a dropped connection: try that part again
+      r = await send(j.path, j.files, loaded => paint(loaded, label));
+      if (r.status !== 0 && r.status < 500 && r.status !== 429) break;
+      await new Promise(res => setTimeout(res, 2000 * (tries + 1)));
+    }
+    doneBytes += size; paint(0, label);
+    if (r.status === 404) { errs.push("This upload link was turned off by the studio."); break; }
+    if (!r.body || !r.body.results) { j.files.forEach(f => errs.push(`${f.name}: ${(r.body && r.body.message) || "couldn't be sent. Check your connection and try it again."}`)); continue; }
+    r.body.results.forEach(x => x.status === "queued" ? ok++ : x.status === "duplicate" ? dup++ : errs.push(`${x.name}: ${x.error}`));
+  }
+  busy = false; $("prog").hidden = true; $("pickf").disabled = $("pickd").disabled = false;
+  const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  $("result").innerHTML = (ok ? `<p class="ok" style="margin:0 0 6px"><b>Sent ${plural(ok, "file")}.</b> Thank you!</p>` : "") +
+    (dup ? `<p class="muted" style="margin:0 0 6px">${plural(dup, "file")} had already been sent, so ${dup === 1 ? "it was" : "they were"} skipped.</p>` : "") +
+    (skipped ? `<p class="muted" style="margin:0 0 6px">${plural(skipped, "file")} skipped: not a photo or video.</p>` : "") +
+    (errs.length ? `<p class="err" style="margin:0">${errs.slice(0, 20).map(esc).join("<br>")}${errs.length > 20 ? `<br>…and ${errs.length - 20} more` : ""}</p>` : "");
+  refresh();
+}
+
+const drop = $("drop"), fin = $("fin"), din = $("din");
+$("pickf").onclick = () => fin.click(); $("pickd").onclick = () => din.click();
+fin.onchange = () => { upload([...fin.files]); fin.value = ""; }; din.onchange = () => { upload([...din.files]); din.value = ""; };
+["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => upload([...e.dataTransfer.files]));
+addEventListener("beforeunload", e => { if (busy) { e.preventDefault(); e.returnValue = ""; } });
+refresh();
+</script>
+</body>
+</html>

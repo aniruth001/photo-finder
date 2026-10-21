@@ -1,0 +1,33 @@
+# Not tested where it was written. Put PF_PUBLIC_URL=https://photos.yourdomain.com in a .env file next to this one.
+services:
+  studio:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      # camera upload (FTP/FTPS); remove these three lines if you don't use it
+      - "2121:2121"
+      - "60000-60049:60000-60049"
+    environment:
+      PF_PUBLIC_URL: ${PF_PUBLIC_URL:-http://localhost:8000}
+      PF_TRUST_PROXY: ${PF_TRUST_PROXY:-auto}  # auto: reads X-Forwarded-For only from a proxy on a private network
+      PF_ALLOW_SIGNUP: ${PF_ALLOW_SIGNUP:-1}   # 0 closes public sign-up
+      PF_GOOGLE_CLIENT_ID: ${PF_GOOGLE_CLIENT_ID:-}          # both set = "Continue with Google" on the sign-in page
+      PF_GOOGLE_CLIENT_SECRET: ${PF_GOOGLE_CLIENT_SECRET:-}
+      PF_FTP_PORT: ${PF_FTP_PORT:-2121}                       # camera upload; 0 turns it off
+      PF_FTP_HOST: ${PF_FTP_HOST:-}                           # e.g. ftp.yourdomain.com (DNS only, not proxied)
+      PF_FTP_PASSIVE: ${PF_FTP_PASSIVE:-60000-60049}
+      PF_FTP_CERT: ${PF_FTP_CERT:-}                           # PEM files inside /data for FTPS
+      PF_FTP_KEY: ${PF_FTP_KEY:-}
+      PF_FACE_MODEL: ${PF_FACE_MODEL:-sface}                 # sface (accurate) | dlib (the old engine)
+      PF_SMTP_HOST: ${PF_SMTP_HOST:-}                        # email for "Forgot password"; unset = printed to the log
+      PF_SMTP_PORT: ${PF_SMTP_PORT:-587}
+      PF_SMTP_USER: ${PF_SMTP_USER:-}
+      PF_SMTP_PASSWORD: ${PF_SMTP_PASSWORD:-}
+      PF_SMTP_SECURITY: ${PF_SMTP_SECURITY:-starttls}        # starttls | ssl | none
+      PF_MAIL_FROM: ${PF_MAIL_FROM:-}
+    volumes:
+      - studio-data:/data
+
+volumes:
+  studio-data:

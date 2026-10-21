@@ -1,0 +1,20 @@
+# live data: database, uploaded photos, face vectors (biometric). Never commit.
+data/
+cache/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.zip
+# secrets and certificates (passwords and keys come from environment variables)
+.env
+.env.*
+*.pem
+*.key
+*.crt
+certs/
+# editor and OS clutter
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

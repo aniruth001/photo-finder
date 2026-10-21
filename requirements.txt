@@ -1,0 +1,14 @@
+numpy
+opencv-python-headless  # YuNet + SFace, the default face engine (Apache-2.0 / MIT models in models/)
+pillow
+fastapi
+uvicorn
+python-multipart
+dlib-bin          # prebuilt dlib; if it has no wheel for your Python, use `dlib` instead (needs cmake + a C++ compiler)
+cryptography      # only used by --https
+qrcode[pil]       # prints a QR code in the terminal and saves qr.png
+pillow-heif       # iPhone .heic photos and selfies
+tzdata            # time-zone database for event-link expiry (Windows has none built in)
+pyftpdlib         # camera upload over FTP (studio/camera.py)
+pyopenssl         # FTPS for camera upload
+reportlab         # estimate PDFs (studio/estimates.py; fonts in studio/fonts)
