@@ -86,6 +86,7 @@ def mount_album(app, h):
         return {"count": len(rows), "note": e["album_note"] or "", "sent_at": e["album_sent_at"], "locked": bool(e["album_locked"]),
                 "by": by,
                 "photos": [{"id": r["public_id"], "name": r["orig_name"], "w": r["width"], "h": r["height"], "size": r["size"],
+                            "edited": bool(r["edited"]),
                             "picked_at": r["picked_at"], "by": r["picked_by"], "picker": r["picker"]} for r in rows]}
 
     def fresh(eid):

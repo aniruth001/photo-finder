@@ -6,6 +6,7 @@ import argparse
 import io
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import tempfile
@@ -15,7 +16,7 @@ import zipfile
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.background import BackgroundTask
 
@@ -73,15 +74,33 @@ def open_on_phone(url: str):
 def create_app(index: Index, engine, title: str, subtitle: str, tolerance: float) -> FastAPI:
     app = FastAPI(title=title, docs_url=None, redoc_url=None, openapi_url=None)
     lock = threading.Lock()  # one selfie is processed at a time; dlib and OpenCV nets are not thread-safe
+    from studio.security import RateLimiter  # stdlib only
+    limiter = RateLimiter()
+
+    def limit(request: Request, what: str, n: int, window: int):
+        ip = request.client.host if request.client else "?"
+        if not limiter.allow((what, ip), n, window):
+            raise HTTPException(429, "Too many tries. Please wait a few minutes.")
+
+    @app.middleware("http")
+    async def headers(request: Request, call_next):
+        request.state.nonce = secrets.token_urlsafe(18)
+        resp = await call_next(request)
+        for k, v in (("X-Content-Type-Options", "nosniff"), ("Referrer-Policy", "same-origin"), ("X-Frame-Options", "DENY"),
+                     ("Content-Security-Policy", f"default-src 'self'; script-src 'nonce-{request.state.nonce}'; style-src 'self' 'unsafe-inline'; "
+                                                 "img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")):
+            resp.headers.setdefault(k, v)
+        return resp
     page = (HERE / "static" / "index.html").read_text(encoding="utf-8")
     page = page.replace("__TITLE__", title).replace("__SUBTITLE__", subtitle)
 
     @app.get("/", response_class=HTMLResponse)
-    def home():
-        return page
+    def home(request: Request):  # the page's script carries this response's nonce (see the policy below)
+        return page.replace("<script>", f'<script nonce="{request.state.nonce}">')
 
     @app.post("/api/search")
-    def search(file: UploadFile = File(...)):
+    def search(request: Request, file: UploadFile = File(...)):
+        limit(request, "search", 30, 600)
         data = file.file.read(MAX_SELFIE_BYTES + 1)
         if len(data) > MAX_SELFIE_BYTES:
             raise HTTPException(413, "That image is too large.")
@@ -123,7 +142,8 @@ def create_app(index: Index, engine, title: str, subtitle: str, tolerance: float
         return FileResponse(e["path"], filename=e["name"], content_disposition_type="attachment")
 
     @app.post("/api/zip")
-    def zip_all(ids: str = Form(...)):
+    def zip_all(request: Request, ids: str = Form(...)):
+        limit(request, "zip", 10, 600)  # each zip copies up to 1000 photos to a temporary file
         pids = [p for p in ids.split(",") if p in index.photos][:1000]
         if not pids:
             raise HTTPException(400, "No photos selected.")

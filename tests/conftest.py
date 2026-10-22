@@ -32,6 +32,7 @@ class Sess:
     def get(self, url, **kw): return self.req("GET", url, **kw)
     def post(self, url, **kw): return self.req("POST", url, **kw)
     def patch(self, url, **kw): return self.req("PATCH", url, **kw)
+    def put(self, url, **kw): return self.req("PUT", url, **kw)
     def delete(self, url, **kw): return self.req("DELETE", url, **kw)
 
 

@@ -34,6 +34,8 @@ __THEME_HEAD__
   .selecting .tile .tick { display: grid; }
   .tile.on .tick { background: var(--accent); border-color: var(--accent); }
   .tile.on img { opacity: .75; }
+  .tile .edtag { position: absolute; left: 5px; bottom: 5px; padding: 2px 7px; border-radius: 99px; font-size: .68rem; font-weight: 700;
+                 line-height: 1.2; pointer-events: none; white-space: nowrap; background: rgba(20,20,20,.78); color: #fff; }
   .tile .heart { position: absolute; right: 5px; bottom: 5px; padding: 3px 8px; border-radius: 99px; display: none; font-size: .72rem; font-weight: 700;
                  line-height: 1.2; pointer-events: none; white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,.35); background: #ffe4ea; color: #a3153a; }
   .tile.alb .heart { display: block; }
@@ -404,6 +406,7 @@ function addTile(p, i) {
   const hr = document.createElement("span"); hr.className = "heart"; hr.textContent = "♥"; hr.title = "In your album";
   b.dataset.id = p.id;
   b.append(im, t, hr); markAlb(b, p.id);
+  if (p.edited) { const g = document.createElement("span"); g.className = "edtag"; g.textContent = "✎ Edited"; g.title = "An edited version from the studio"; b.append(g); }
   b.onclick = () => selecting ? toggle(b, p) : openLb(i);
   $("grid").appendChild(b);
 }
@@ -626,7 +629,7 @@ function paint() {
   view.reset();
   $("big").src = `${BASE}/web/${encodeURIComponent(p.id)}.jpg`; $("big").alt = p.name;
   $("dl").href = `${BASE}/download/${encodeURIComponent(p.id)}`; $("dl").setAttribute("download", p.name);
-  $("pos").textContent = `${cur + 1} / ${viewCount()}  ·  ${p.name}`;
+  $("pos").textContent = `${cur + 1} / ${viewCount()}  ·  ${p.name}${p.edited ? "  ·  ✎ Edited" : ""}`;
   const ia = album.ids.has(p.id);
   const by = album.by.get(p.id);
   $("lbalb").hidden = album.locked; $("lbalb").classList.toggle("on", ia);

@@ -124,10 +124,20 @@ def mark(company: str, logo: str, size: str, small: bool = False, badge: bool = 
             f'style="--h:{h}px;height:{h}px;max-width:{h * 5}px;object-fit:contain;vertical-align:middle">')
 
 
-def render(page: str, e, ink: str, text: dict = None) -> str:
+SCRIPT_TAG = re.compile(r"<script(?=[\s>])")
+
+
+def with_nonce(page: str, nonce: str) -> str:
+    """Give the page's own <script> tags this response's nonce: under the Content-Security-Policy only scripts that
+    carry it run, so a script that found its way into the page any other way does not."""
+    return SCRIPT_TAG.sub(f'<script nonce="{nonce}"', page) if nonce else page
+
+
+def render(page: str, e, ink: str, text: dict = None, nonce: str = "") -> str:
     """Fill a guest or client page's studio parts: theme, colours, logo or name. `e` has the account's columns.
     `text` maps more placeholders to plain text (escaped here). Everything is replaced in one pass, so an event
-    name that happens to contain a placeholder's name is shown as typed."""
+    name that happens to contain a placeholder's name is shown as typed. The nonce goes on the page's own scripts
+    before any of that text is filled in, so nothing typed by a user can ever carry it."""
     theme = e["theme"] if e["theme"] in THEMES else "dark"
     marks = {"__MARK__": mark(e["company"], e["logo"], e["logo_size"], badge=bool(e["logo_badge"]),
                               badge_light=bool(e["logo_badge_light"])),
@@ -136,6 +146,7 @@ def render(page: str, e, ink: str, text: dict = None) -> str:
     page = page.replace("__THEME_HEAD__", (STATIC / "_theme.html").read_text(encoding="utf-8"))
     page = page.replace("__THEME_TOGGLE__", (STATIC / "_theme_toggle.html").read_text(encoding="utf-8"))
     page = page.replace("__VIEWER__", (STATIC / "_viewer.html").read_text(encoding="utf-8"))  # zoom, pan, rotate
+    page = with_nonce(page, nonce)
     values = {**marks, "__THEME__": theme, "__THEME_INITIAL__": "light" if theme == "light" else "dark",
               "__ACCENT_DARK__": accent_text(e["brand_color"], DARK_BG),
               "__ACCENT_LIGHT__": accent_text(e["brand_color"], LIGHT_BG),

@@ -209,6 +209,8 @@
   .alb-note { background: var(--soft); border-radius: 10px; padding: 10px 12px; margin: 10px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
   .alb-badge { display: inline-block; font-size: .74rem; font-weight: 700; padding: 2px 9px; border-radius: 99px; margin-left: 6px; vertical-align: 2px; }
   .alb-badge.new { background: #ffe4ea; color: #a3153a; }
+  .edtag { position: absolute; left: 6px; bottom: 6px; font-size: .68rem; font-weight: 700; padding: 2px 8px; border-radius: 99px;
+           background: var(--ink); color: #fff; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,.25); white-space: nowrap; }
   .albby { position: absolute; top: 6px; right: 6px; font-size: .68rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; pointer-events: none;
            box-shadow: 0 1px 3px rgba(0,0,0,.25); white-space: nowrap; }
   .albby.client { background: #ffe4ea; color: #a3153a; } .albby.studio { background: #e6f0ff; color: #1f55ad; } .albby.both { background: #f1e9ff; color: #5b34b0; }
@@ -824,7 +826,7 @@ async function viewEvent(id) {
     <details class="card" id="ev-settings" data-need="events"></details>`, "events");
   CAM = null; CAM_PW = ""; loadCamera().then(camPoll);
   VD = { items: [], sel: new Set(), busy: false };
-  AL = { photos: [], count: 0, note: "", locked: false, sent_at: null, sel: new Set(), loaded: false };
+  AL = freshAlbum();
   paintTop(); paintShare(); paintClient(); paintUpload(); paintSettings(); paintStatus(); wireMin("photos"); wireMin("videos"); wireMin("album"); wireMin("vendors"); paintCounts();
   VN = { items: [], loaded: false };
   loadVideos(); loadAlbum(); loadVendors(); loadScenes(); await loadPhotos(true);
@@ -939,7 +941,7 @@ async function loadPhotos(reset) {
     PH.more = false; PH.loading = false; return paintPhotos();
   }
   try {
-    const q = PH.filter === "all" ? "" : PH.filter.startsWith("alb-") ? "&album=" + PH.filter.slice(4)
+    const q = PH.filter === "all" ? "" : PH.filter === "edited" ? "&edited=1" : PH.filter.startsWith("alb-") ? "&album=" + PH.filter.slice(4)
       : PH.filter[0] === "v" ? "&vendor=" + (PH.filter === "vany" ? "any" : PH.filter.slice(1)) : "&status=" + PH.filter;
     const rows = await api("GET", `/api/events/${EV.id}/photos?offset=${PH.items.length}&limit=120${q}`);
     PH.items = PH.items.concat(rows); PH.more = rows.length === 120;
@@ -963,13 +965,13 @@ function paintPhotos() {
       ? "Try: " + sc.tags.map(t => `<button class="linkish" data-tag="${esc(t.label)}">${esc(t.label)}</button> <span>${num(t.count)}</span>`).join(" · ") : ""}</div>` : "";
   box.innerHTML = search + (dsc ? `<p class="small" style="margin:10px 0 0">${PH.clear ? `Photos that look like <b>“${esc(PH.q)}”</b>, best match first.`
       : `No clear matches for <b>“${esc(PH.q)}”</b>. These come closest.`} <button class="linkish" id="ph-noq">Show all photos</button></p>` : "") +
-    `<div class="chips" style="margin-top:10px">${chip("all", "All")}${chip("ready", "Ready")}${chip("busy", "Processing")}${chip("failed", "Failed")}${VN.items.length ? chip("vany", "From vendors") : ""}${one ? chip(PH.filter, "From " + esc(one.name)) : ""}${AL.count
+    `<div class="chips" style="margin-top:10px">${chip("all", "All")}${chip("ready", "Ready")}${chip("busy", "Processing")}${chip("failed", "Failed")}${VN.items.length ? chip("vany", "From vendors") : ""}${one ? chip(PH.filter, "From " + esc(one.name)) : ""}${EV.edited || PH.filter === "edited" ? chip("edited", "✎ Edited") : ""}${AL.count
       ? chip("alb-any", "♥ In album") + (AL.by.client + AL.by.both ? chip("alb-client", "Client's picks") : "") + (AL.by.studio + AL.by.both ? chip("alb-studio", "Studio's picks") : "") : ""}</div>` +
     (PH.items.length ? `<div class="photos">${PH.items.map(p => {
       const ok = p.status === "ready", bad = p.status === "failed";
-      return `<div class="ph ${bad ? "bad" : ""}" data-pid="${esc(p.id)}" title="${esc(p.name)}${p.vendor ? " · from " + esc(p.vendor) : ""}${p.error ? " — " + esc(p.error) : ""}">
-        ${ok ? `<img loading="lazy" alt="" src="/api/events/${EV.id}/photos/${esc(p.id)}/thumb">` : `<div class="st">${bad ? "Failed<br>" + esc(p.error || "") : "Processing…"}</div>`}
-        ${p.vendor ? `<span class="pnm">${esc(p.vendor)}</span>` : ""}${albBadge(p.album)}
+      return `<div class="ph ${bad ? "bad" : ""}" data-pid="${esc(p.id)}" title="${esc(p.name)}${p.vendor ? " · from " + esc(p.vendor) : ""}${p.edited ? " · edited copy" + (p.source ? " of " + esc(p.source.name) : "") + " (clients and guests see it tagged Edited)" : ""}${p.error ? " — " + esc(p.error) : ""}">
+        ${ok ? `<img loading="lazy" alt="" src="/api/events/${EV.id}/photos/${esc(p.id)}/thumb?v=${p.v || 0}">` : `<div class="st">${bad ? "Failed<br>" + esc(p.error || "") : "Processing…"}</div>`}
+        ${p.vendor ? `<span class="pnm">${esc(p.vendor)}</span>` : ""}${p.edited ? `<span class="edtag">✎ Edited</span>` : ""}${albBadge(p.album)}
         <input type="checkbox" data-need="delete_photos" data-sel="${esc(p.id)}" ${SEL.has(p.id) ? "checked" : ""} aria-label="Select ${esc(p.name)}"></div>`; }).join("")}</div>
       ${PH.more ? `<div style="text-align:center;margin-top:14px"><button class="btn" id="more">Load more</button></div>` : ""}`
       : `<div class="empty">${PH.filter === "all" ? "<b>No photos yet</b>Drop photos in the box above." : "Nothing here."}</div>`);
@@ -1011,7 +1013,7 @@ function viewPhoto(p, from = "photos") {  // one photo, zoom/pan/rotate, then pr
     <div class="stage"><button class="nav prev" id="pv-prev" aria-label="Previous photo" title="Previous (←)">‹</button>
       <img alt="" id="pv-img"><button class="nav next" id="pv-next" aria-label="Next photo" title="Next (→)">›</button></div>
     <div class="foot"><span class="small" style="color:#aaa">Rotating here only changes the view; the photo itself isn't changed.</span>
-      <span class="row"><span id="pv-alb" class="row"></span><a class="btn sm" id="pv-dl" href="#">Download original</a><button class="btn sm" data-close>Close</button></span></div></div>`,
+      <span class="row"><span id="pv-alb" class="row"></span>${can("upload") ? `<button class="btn sm" id="pv-edit" title="Open in the photo editor (a new tab)">✎ Edit</button>` : ""}<a class="btn sm" id="pv-dl" href="#">Download original</a><button class="btn sm" data-close>Close</button></span></div></div>`,
     { wide: true, onMount: ov => {
       const box = ov.querySelector(".dash-view"), stage = box.querySelector(".stage"), img = box.querySelector("#pv-img");
       const view = pfViewer({ lb: box, stage, img, top: box.querySelector(".top"), close: box.querySelector(".x"), onSwipe: d => go(d), slides: false });
@@ -1040,12 +1042,14 @@ function viewPhoto(p, from = "photos") {  // one photo, zoom/pan/rotate, then pr
         cur = (cur + l.length) % l.length;
         const q = l[cur];
         view.reset();
-        img.src = `/api/events/${EV.id}/photos/${encodeURIComponent(q.id)}/web`; img.alt = q.name;
-        box.querySelector("#pv-name").textContent = `${q.name}${q.size ? " · " + fmtBytes(q.size) : ""}`;
+        img.src = `/api/events/${EV.id}/photos/${encodeURIComponent(q.id)}/web?v=${q.v || 0}`; img.alt = q.name;
+        const ed = box.querySelector("#pv-edit"); if (ed) ed.onclick = () => window.open(`/editor?e=${EV.id}&p=${encodeURIComponent(q.id)}`, "_blank", "noopener");
+        box.querySelector("#pv-name").textContent = `${q.edited ? "✎ Edited · " : ""}${q.name}${q.size ? " · " + fmtBytes(q.size) : ""}`;
         box.querySelector("#pv-name").title = q.name;
         const more = from === "photos" && PH.more;
         box.querySelector("#pv-pos").textContent = l.length > 1 || more ? `${cur + 1} / ${num(l.length)}${more ? "+" : ""}` : "";
         box.querySelector("#pv-dl").href = `/api/events/${EV.id}/photos/${encodeURIComponent(q.id)}/orig`;
+        box.querySelector("#pv-dl").textContent = q.edited ? "Download" : "Download original";
         box.querySelectorAll(".nav").forEach(b => b.hidden = l.length < 2 && !more);
         paintAlb(q);
         if (more && cur >= l.length - 3) loadPhotos(false);   // near the end of what's loaded: fetch the next page
@@ -1066,6 +1070,9 @@ function viewPhoto(p, from = "photos") {  // one photo, zoom/pan/rotate, then pr
       show();
     } });
 }
+
+// the photo editor (another tab) saved a photo of the event that's open here: show it
+try { new BroadcastChannel("pf-photos").onmessage = m => { if (EV && m.data && m.data.event === EV.id && document.getElementById("ev-photos")) refreshEvent(); }; } catch (x) {}
 
 /* upload */
 function paintUpload() {
@@ -1740,7 +1747,10 @@ function paintVendors() {
 }
 
 /* ------------------------------------------------------------------ the photos the client chose for the album */
-let AL = { photos: [], count: 0, note: "", locked: false, sent_at: null, sel: new Set(), loaded: false, by: { client: 0, studio: 0, both: 0 }, who: "all" };
+// an event's album list as the card shows it; who: the chip that filters it ("all" until the studio picks another)
+const freshAlbum = () => ({ photos: [], count: 0, note: "", locked: false, sent_at: null, sel: new Set(), loaded: false,
+                           by: { client: 0, studio: 0, both: 0 }, who: "all" });
+let AL = freshAlbum();
 const ALB_BY = { client: "♥ Client", studio: "♥ Studio", both: "♥ Both" };
 const albBadge = (by, picker) => by ? `<span class="albby ${by}" title="${by === "client" ? "Chosen by the client" : by === "studio" ? "Added by the studio" + (picker ? " (" + esc(picker) + ")" : "")
   : "Chosen by the client and the studio" + (picker ? " (" + esc(picker) + ")" : "")}">${ALB_BY[by]}</span>` : "";
@@ -1756,7 +1766,7 @@ function paintAlbum() {
   const n = AL.photos.length, when = AL.sent_at ? new Date(AL.sent_at * 1000).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
   document.getElementById("al-count").innerHTML = (n ? `${num(n)} photo${n === 1 ? "" : "s"}` : "") +
     (AL.locked ? `<span class="alb-badge lock">Finalised</span>` : "");
-  if (!AL.photos.some(p => AL.who === "all" || p.by === AL.who || p.by === "both")) AL.who = "all";
+  if (!["all", "client", "studio"].includes(AL.who) || !AL.photos.some(p => AL.who === "all" || p.by === AL.who || p.by === "both")) AL.who = "all";
   const shown = AL.photos.filter(p => AL.who === "all" || p.by === AL.who || p.by === "both");
   const whoChip = (k, t, c) => c ? `<button class="chip ${AL.who === k ? "on" : ""}" data-who="${k}">${t} <span class="muted">${num(c)}</span></button>` : "";
   const tools = document.getElementById("al-tools");
@@ -1772,7 +1782,7 @@ function paintAlbum() {
     ${n ? `<div class="alb-who">${whoChip("all", "All", n)}${whoChip("client", "Chosen by " + esc(EV.client_name), AL.by.client + AL.by.both)}${whoChip("studio", "Added by the studio", AL.by.studio + AL.by.both)}</div>
       <p class="small muted" style="margin:6px 0 0">${[AL.by.client && `${num(AL.by.client)} by the client only`, AL.by.studio && `${num(AL.by.studio)} by the studio only`, AL.by.both && `${num(AL.by.both)} by both`].filter(Boolean).join(" · ")}</p>
       <div class="photos">${shown.map(p => `<div class="ph" data-apid="${esc(p.id)}" title="${esc(p.name)}">
-        <img loading="lazy" alt="" src="/api/events/${EV.id}/photos/${esc(p.id)}/thumb"><span class="pnm">${esc(p.name)}</span>${albBadge(p.by, p.picker)}
+        <img loading="lazy" alt="" src="/api/events/${EV.id}/photos/${esc(p.id)}/thumb"><span class="pnm">${p.edited ? "✎ " : ""}${esc(p.name)}</span>${albBadge(p.by, p.picker)}
         <input type="checkbox" data-need="events" data-asel="${esc(p.id)}" ${AL.sel.has(p.id) ? "checked" : ""} aria-label="Select ${esc(p.name)}"></div>`).join("")}</div>`
       : `<div class="empty" style="padding:22px"><b>${AL.loaded ? "Nothing chosen yet" : "Loading…"}</b>${AL.loaded ? "The photos your client picks for the album appear here, apart from the rest." : ""}</div>`}`;
   el.querySelectorAll("[data-who]").forEach(b => b.onclick = () => { AL.who = b.dataset.who; paintAlbum(); });

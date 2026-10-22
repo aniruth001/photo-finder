@@ -213,3 +213,35 @@ def test_windows_connection_reset_is_cleaned_up_quietly():
     assert events == ["lost", "closed", "detached"] and t._sock is None and t._server is None
     t._call_connection_lost(None)                                                   # twice: nothing more
     assert events == ["lost", "closed", "detached"]
+
+
+def test_security_headers_on_every_response(app_client, anon):
+    for url in ("/", "/api/auth/providers", "/e/nope"):
+        h = anon.get(url).headers
+        assert h["x-content-type-options"] == "nosniff" and h["x-frame-options"] == "DENY" and h["referrer-policy"] == "same-origin"
+        csp = h["content-security-policy"]
+        assert "frame-ancestors 'none'" in csp and "object-src 'none'" in csp and "connect-src 'self'" in csp
+        script_src = next(d for d in csp.split(";") if d.strip().startswith("script-src"))
+        assert "'unsafe-inline'" not in script_src and "'unsafe-eval'" not in script_src and "'nonce-" in script_src
+
+
+def test_only_the_pages_own_scripts_run(studio, anon):
+    """Every <script> on every page carries this response's nonce (new each time); typed text never does."""
+    import re
+    s, _, ev = studio
+    s.patch(f"/api/events/{ev['id']}", json={"name": 'Party <script>alert(1)</script>', "status": "published", "client_enabled": True})
+    e = s.get(f"/api/events/{ev['id']}").json()
+    vendor = s.post(f"/api/events/{ev['id']}/vendors", json={"name": "Drone <script>x</script>"}).json()
+    pages = {"dashboard": "/", "admin (404 for others)": None, "guest": f"/e/{e['slug']}",
+             "client": e["client"]["url"].split("testserver", 1)[1], "vendor": vendor["url"].split("testserver", 1)[1]}
+    seen = set()
+    for name, url in pages.items():
+        if not url:
+            continue
+        r = anon.get(url)
+        nonce = re.search(r"'nonce-([^']+)'", r.headers["content-security-policy"]).group(1)
+        tags = re.findall(r"<script\b[^>]*>", r.text)
+        assert tags and all(f'nonce="{nonce}"' in t for t in tags), name
+        assert "<script>alert(1)" not in r.text and "<script>x" not in r.text, name      # typed text stays text
+        seen.add(nonce)
+    assert len(seen) == 4                                                                # a new nonce every time

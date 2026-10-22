@@ -38,13 +38,15 @@ def photo_usage(account_id: int) -> dict:
     return {"photos": p["c"], "storage": p["s"]}
 
 
-def add_photo(account_id: int, event_id: int, plan: dict, name: str, stream, used: dict = None, vendor_id: int = None) -> dict:
+def add_photo(account_id: int, event_id: int, plan: dict, name: str, stream, used: dict = None, vendor_id: int = None,
+              edited: bool = False, edited_of: int = None) -> dict:
     """Store `stream` (anything with .read(n)) as a new photo of the event.
 
     Returns {"name", "status": queued | duplicate | rejected, "error", "id" (when queued)}. `used` is an optional
     running {"photos", "storage"} count the caller keeps across several files, for the cheap early checks; it is
     updated when the photo is queued. The authoritative check always re-counts inside the transaction. `vendor_id`
-    tags a photo sent through a vendor's upload link.
+    tags a photo sent through a vendor's upload link. `edited` makes it an edited copy (studio/editing.py), made from
+    the photo `edited_of` if it still exists: shown everywhere with an Edited tag.
     """
     cfg = config.settings
     name = Path(name or "photo").name[:200] or "photo"
@@ -98,9 +100,11 @@ def add_photo(account_id: int, event_id: int, plan: dict, name: str, stream, use
                 raise PlanLimit(f"Photo limit of the {plan['label']} plan reached.")
             if plan["storage"] is not None and now_used["storage"] + size > plan["storage"]:
                 raise PlanLimit(f"Storage limit of the {plan['label']} plan reached.")
+            now = int(time.time())
             db.ex("""INSERT INTO photos(public_id, account_id, event_id, orig_name, ext, size, sha256, status,
-                     created_at, vendor_id) VALUES(?,?,?,?,?,?,?,?,?,?)""",
-                  (pub, account_id, event_id, name, ext, size, h.hexdigest(), "uploading", int(time.time()), vendor_id))
+                     created_at, vendor_id, edited, edited_of, edited_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                  (pub, account_id, event_id, name, ext, size, h.hexdigest(), "uploading", now, vendor_id,
+                   int(edited), edited_of, now if edited else None))
     except PlanLimit as e:
         part.unlink(missing_ok=True)
         res["error"] = str(e)

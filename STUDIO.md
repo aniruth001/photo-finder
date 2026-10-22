@@ -171,6 +171,26 @@ vectors the model made for the studio's photos; on makes them again in the backg
 photo looks like (a stage, a group, hands with henna), not who is in it; they are not face data. Deleting a photo or
 an event deletes its vector.
 
+## Editing photos
+
+In the event's photo viewer, **✎ Edit** opens the photo in the editor, in a new tab: a layered editor in the browser
+with move, selection, crop, brush, eraser, paint bucket, gradient, eyedropper, text and shapes; adjustments (exposure,
+brightness, contrast, saturation, hue, temperature), levels, auto contrast, black & white, sepia; blur, sharpen,
+vignette, noise and more; layers with blend modes; and a history to step back through. Press **?** for the keyboard
+shortcuts.
+
+- **Save as copy** puts the edit back in the event as a new photo, `NAME (edited).jpg`. **The uploaded original is
+  never changed.** From then on **Save** updates that copy; **Save as new copy** (Ctrl+Shift+S) makes another. Opening
+  an edited copy with Edit goes straight to updating it.
+- **Download** saves a PNG, JPEG or WebP to the computer, without saving anything to the event.
+- Edited copies are photos of the event like the others, always tagged **✎ Edited**: on the Photos card (with a
+  filter chip; the viewer says which photo they came from), in the client gallery (tile and viewer), and on the guest
+  page when a selfie matches them. They are in face search, search by description and zips, and both the client and
+  the studio can add them to the album. Deleting the original keeps the copy.
+- The editor works on the photo at up to 6,000 pixels on the long side (a 24-megapixel photo at full size; bigger ones
+  are scaled to that), the right way up, and HEIC photos open too. With very large photos it keeps fewer undo steps.
+- Owners, admins, managers and photographers save edits; viewers can open the editor and download, not save.
+
 ## Vendor uploads
 
 On the event page, **Vendor uploads** (under Upload photos) makes an upload link for each vendor: a second shooter,

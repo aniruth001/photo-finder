@@ -45,6 +45,7 @@ from .bookings import mount_bookings
 from .tasks import mount_tasks
 from .scenes import SceneIndexer, mount_scenes
 from .clips import mount_clips
+from .editing import mount_editing
 from .album import mount_album
 from .vendors import mount_vendors
 
@@ -130,6 +131,27 @@ def client_ip(request: Request) -> str:
 
 def public_base(request: Request) -> str:
     return config.settings.public_url or str(request.base_url).rstrip("/")
+
+
+def email_base(request: Request) -> str:
+    """The address for links in emails (password reset, invitations). Never the request's Host header, which the
+    sender of the request chooses: with no public URL set, the address this server is actually listening on."""
+    if config.settings.public_url:
+        return config.settings.public_url
+    host, port = (request.scope.get("server") or ("localhost", 80))[:2]
+    scheme = request.scope.get("scheme", "http")
+    if ":" in str(host):
+        host = f"[{host}]"  # IPv6
+    return f"{scheme}://{host}" + ("" if (scheme, port) in (("http", 80), ("https", 443)) else f":{port}")
+
+
+def csp(nonce: str) -> str:
+    """Scripts run only if they carry this response's nonce (branding.with_nonce puts it on the pages' own), never
+    because they are inline; inline event handlers and eval are blocked too. Everything else (frames, plugins, form
+    targets, where a page may connect or load from) is limited to this site. Inline style attributes stay allowed."""
+    return (f"default-src 'self'; script-src 'nonce-{nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+            "media-src 'self' blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; "
+            "form-action 'self'; frame-ancestors 'none'")
 
 
 def err(status: int, msg: str, code: str = "") -> HTTPException:
@@ -318,10 +340,12 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
 
     @app.middleware("http")
     async def headers(request: Request, call_next):
+        request.state.nonce = secrets.token_urlsafe(18)  # new on every response: a page's scripts carry it (see csp)
         resp = await call_next(request)
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("Referrer-Policy", "same-origin")  # event links must not leak to other sites
         resp.headers.setdefault("X-Frame-Options", "DENY")
+        resp.headers.setdefault("Content-Security-Policy", csp(request.state.nonce))
         if request.url.path.startswith("/api/") and "cache-control" not in resp.headers:
             resp.headers["Cache-Control"] = "no-store"
         return resp
@@ -567,9 +591,9 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
                 db.ex("INSERT INTO password_resets(token_hash, user_id, expires_at, created_at) VALUES(?,?,?,?)",
                       (security._digest(token), u["id"], now + minutes * 60, now))
             # in the fragment (#), so the token never reaches a server log or a Referer header
-            link = f"{public_base(request)}/#/reset?token={token}"
+            link = f"{email_base(request)}/#/reset?token={token}"
             text, page = reset_email(u["name"], u["company"], link, minutes,
-                                     branding.logo_url(u["logo"], public_base(request)))
+                                     branding.logo_url(u["logo"], email_base(request)))
             tasks.add_task(mailer.send, u["email"], "Reset your Photo Finder Studio password", text, page)  # after the reply
         return same
 
@@ -730,6 +754,7 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
       (SELECT COUNT(*) FROM photos p WHERE p.event_id=e.id AND p.status='ready') AS n_ready,
       (SELECT COUNT(*) FROM photos p WHERE p.event_id=e.id AND p.status IN ('uploading','uploaded','processing')) AS n_busy,
       (SELECT COUNT(*) FROM photos p WHERE p.event_id=e.id AND p.status='failed') AS n_failed,
+      (SELECT COUNT(*) FROM photos p WHERE p.event_id=e.id AND p.edited=1) AS n_edited,
       (SELECT COUNT(*) FROM videos v WHERE v.event_id=e.id) AS n_videos,
       (SELECT COUNT(*) FROM album_picks a JOIN photos p ON p.id=a.photo_id WHERE a.event_id=e.id AND p.status='ready') AS n_album,
       (SELECT COUNT(*) FROM guest_searches s WHERE s.event_id=e.id) AS n_searches,
@@ -745,6 +770,7 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
             "face_model": r["face_model"],
             "tolerance_presets": [[v, LEVEL_LABELS[k]] for k, v in PRESETS.get(r["face_model"], PRESETS["dlib"]).items()],
             "photos": r["n_photos"], "ready": r["n_ready"], "processing": r["n_busy"], "failed": r["n_failed"],
+            "edited": r["n_edited"],
             "videos": r["n_videos"], "album": r["n_album"], "album_locked": bool(r["album_locked"]),
             "searches": r["n_searches"], "found": r["n_found"], "guest_has_pin": bool(r["guest_pin"]),
             "client": {"enabled": bool(r["client_enabled"]), "has_pin": bool(r["client_pin"]),
@@ -868,12 +894,14 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
     # ---------------------------------------------------------------- photos (dashboard side)
     @app.get("/api/events/{eid}/photos")
     def list_photos(eid: int, status: Optional[str] = None, vendor: Optional[str] = None, album: Optional[str] = None,
-                    offset: int = 0, limit: int = 120, u: dict = Depends(user_dep)):
+                    edited: Optional[str] = None, offset: int = 0, limit: int = 120, u: dict = Depends(user_dep)):
         """status: busy | ready | failed. vendor: "any" (sent through any vendor link) or one vendor link's id.
         album: "any" (in the album list), "client" (chosen by the client, alone or with the studio) or "studio" (likewise)."""
         get_event(u, eid)
         limit = max(1, min(limit, 500))
-        sql, args = """SELECT p.public_id, p.orig_name, p.size, p.status, p.error, v.name AS vendor, a.picked_by AS album FROM photos p
+        sql, args = """SELECT p.public_id, p.orig_name, p.size, p.status, p.error, p.edited, p.edited_at, src.orig_name AS source,
+                              src.public_id AS source_id, v.name AS vendor, a.picked_by AS album FROM photos p
+                       LEFT JOIN photos src ON src.id=p.edited_of
                        LEFT JOIN vendor_links v ON v.id=p.vendor_id LEFT JOIN album_picks a ON a.photo_id=p.id AND a.event_id=p.event_id
                        WHERE p.event_id=? AND p.account_id=? """, [eid, u["account_id"]]
         if status == "busy":
@@ -886,6 +914,9 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         elif vendor and vendor.isdigit():
             sql += "AND p.vendor_id=? "
             args.append(int(vendor))
+        if edited in ("0", "1"):
+            sql += "AND p.edited=? "
+            args.append(int(edited))
         if album == "any":
             sql += "AND a.photo_id IS NOT NULL "
         elif album in ("client", "studio"):
@@ -893,7 +924,9 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
             args.append(album)
         rows = db.q(sql + "ORDER BY p.id DESC LIMIT ? OFFSET ?", args + [limit, max(0, offset)])
         return [{"id": r["public_id"], "name": r["orig_name"], "size": r["size"], "status": r["status"],
-                 "error": r["error"], "vendor": r["vendor"], "album": r["album"]} for r in rows]
+                 "error": r["error"], "vendor": r["vendor"], "album": r["album"], "edited": bool(r["edited"]),
+                 "source": {"id": r["source_id"], "name": r["source"]} if r["source_id"] else None,
+                 "v": r["edited_at"] or 0} for r in rows]
 
     @app.post("/api/events/{eid}/photos")
     def upload_photos(eid: int, files: List[UploadFile] = File(...), u: dict = Depends(can("upload"))):
@@ -984,14 +1017,14 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         return FileResponse(path, **kw)
 
     @app.get("/e/{slug}", response_class=HTMLResponse)
-    def guest_page(slug: str):
+    def guest_page(slug: str, request: Request):
         try:
             e = guest_event(slug)
         except HTTPException:
             return HTMLResponse((STATIC / "unavailable.html").read_text(encoding="utf-8"), status_code=404)
         page = branding.render((STATIC / "guest.html").read_text(encoding="utf-8"), e, ink_for(e["brand_color"]), {
             "__TITLE__": e["name"], "__SUBTITLE__": e["subtitle"] or "Take a selfie and we'll find every photo you're in.",
-            "__COMPANY__": e["company"]})
+            "__COMPANY__": e["company"]}, nonce=request.state.nonce)
         return HTMLResponse(page, headers={"Cache-Control": "no-store"})
 
     @app.get("/e/{slug}/info")
@@ -1048,7 +1081,7 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
             ids = list(order)
             for i in range(0, len(ids), 500):
                 part = ids[i:i + 500]
-                rows += db.q(f"SELECT id, public_id, orig_name, width, height FROM photos WHERE status='ready' "
+                rows += db.q(f"SELECT id, public_id, orig_name, width, height, edited FROM photos WHERE status='ready' "
                              f"AND event_id=? AND id IN ({','.join('?' * len(part))})", [e["id"]] + part)
             rows.sort(key=lambda r: order[r["id"]])
         return rows, len(found) > 1
@@ -1060,7 +1093,7 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         if not limiter.allow(("search", ip, slug), 20, 600) or not limiter.allow(("search-ip", ip), 80, 600):
             raise err(429, "Too many tries. Please wait a few minutes.", "rate")
         rows, multiple = match_selfie(e, file)
-        photos = [{"id": r["public_id"], "name": r["orig_name"]} for r in rows]
+        photos = [{"id": r["public_id"], "name": r["orig_name"], "edited": bool(r["edited"])} for r in rows]
         db.run("INSERT INTO guest_searches(event_id, created_at, matches) VALUES(?,?,?)",
                (e["id"], int(time.time()), len(photos)))  # a count only: no selfie, no face data
         return {"count": len(photos), "multiple_faces": multiple, "photos": photos}
@@ -1107,15 +1140,16 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
 
     # ---------------------------------------------------------------- pages
     @app.get("/", response_class=HTMLResponse)
-    def dashboard():
+    def dashboard(request: Request):
         page = (STATIC / "app.html").read_text(encoding="utf-8").replace("__VIEWER__", (STATIC / "_viewer.html").read_text(encoding="utf-8"))
-        return HTMLResponse(page, headers={"Cache-Control": "no-store"})
+        return HTMLResponse(branding.with_nonce(page, request.state.nonce), headers={"Cache-Control": "no-store"})
 
     @app.get("/admin", response_class=HTMLResponse)
-    def admin_page():
-        return HTMLResponse((STATIC / "admin.html").read_text(encoding="utf-8"), headers={"Cache-Control": "no-store"})
+    def admin_page(request: Request):
+        page = branding.with_nonce((STATIC / "admin.html").read_text(encoding="utf-8"), request.state.nonce)
+        return HTMLResponse(page, headers={"Cache-Control": "no-store"})
 
-    mount_team(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, public_base=public_base, client_ip=client_ip,
+    mount_team(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, public_base=email_base, client_ip=client_ip,
                                     limiter=limiter, set_session=set_session, email_re=EMAIL_RE, plan_of=plan_of,
                                     suspended=SUSPENDED))
 
@@ -1129,6 +1163,8 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
     mount_inventory(app, SimpleNamespace(user_dep=user_dep, can=can, err=err))
     mount_bookings(app, SimpleNamespace(user_dep=user_dep, can=can, err=err))
     mount_tasks(app, SimpleNamespace(user_dep=user_dep, can=can, err=err))
+    mount_editing(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, get_event=get_event, plan_of=plan_of,
+                                       poke=lambda: processor.poke()))
     mount_clips(app, SimpleNamespace(err=err, client_open=app.state.client_open, client_ip=client_ip, limiter=limiter))
     mount_scenes(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, get_event=get_event, client_open=app.state.client_open,
                                       client_ip=client_ip, limiter=limiter))

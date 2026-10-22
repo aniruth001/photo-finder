@@ -42,7 +42,8 @@ def test_the_clip_is_cut_streamed_and_never_stored(video, anon, tmp_path):
     before = files_on_disk()
     r = anon.get(f"{path}/video/{vid}/clip", params={"start": 1.5, "end": 4})
     assert r.status_code == 200 and r.headers["content-type"] == "video/mp4"
-    assert r.headers["content-disposition"] == 'attachment; filename="Ceremony clip 00m01s-00m04s.mp4"'
+    assert r.headers["content-disposition"] == ("attachment; filename=\"Ceremony clip 00m01s-00m04s.mp4\"; "
+                                                "filename*=UTF-8''Ceremony%20clip%2000m01s-00m04s.mp4")
     assert r.content[4:8] == b"ftyp"                                   # a real MP4
     assert abs(duration(r.content, tmp_path) - 2.5) < 0.15             # exactly the part asked for
     assert files_on_disk() == before                                   # no copy left on the server
@@ -83,3 +84,32 @@ def test_clips_are_rate_limited(video, anon):
     _, _, path, vid = video
     codes = [anon.get(f"{path}/video/{vid}/clip", params={"start": 0, "end": 0.6}).status_code for _ in range(21)]
     assert codes[:20] == [200] * 20 and codes[20] == 429
+
+
+def test_ffmpeg_reads_only_the_declared_format_and_local_files(tmp_path):
+    """A playlist dressed as a video can't make ffmpeg open other files (it is told the format, not left to guess)."""
+    (tmp_path / "other.ts").write_bytes(b"\x47" * 188 * 50)
+    (tmp_path / "evil.mp4").write_text("ffconcat version 1.0\nfile 'other.ts'\n")
+    cmd = clips.command(tmp_path / "evil.mp4", 0, 2)
+    assert cmd[cmd.index("-f") + 1] == "mov" and cmd[cmd.index("-protocol_whitelist") + 1] == "file,pipe"
+    assert clips.command(tmp_path / "x.webm", 0, 1)[cmd.index("-f") + 1] == "matroska"
+    out = subprocess.run(cmd, capture_output=True, timeout=60)
+    assert len(out.stdout) == 0 and out.returncode != 0          # not opened as a playlist: nothing comes out
+
+
+def test_any_language_name_one_clip_per_visitor(video, anon, monkeypatch):
+    s, e, path, vid = video
+    from studio import db
+    db.run("UPDATE videos SET orig_name=? WHERE public_id=?", ("வரவேற்பு \"நடனம்\".mp4", vid))   # Tamil, with quotes
+    r = anon.get(f"{path}/video/{vid}/clip", params={"start": 0, "end": 1})
+    assert r.status_code == 200 and r.content[4:8] == b"ftyp"
+    cd = r.headers["content-disposition"]
+    assert cd.startswith('attachment; filename="') and "filename*=UTF-8''%E0%AE" in cd and '\\"' not in cd
+    with clips.making_lock:
+        clips.making.add("testclient")                                   # this visitor already has one being made
+    try:
+        assert anon.get(f"{path}/video/{vid}/clip", params={"start": 0, "end": 1}).json()["error"] == "busy"
+    finally:
+        clips.making.discard("testclient")
+    assert anon.get(f"{path}/video/{vid}/clip", params={"start": 0, "end": 1}).status_code == 200
+    assert not clips.making                                               # and it lets go when done

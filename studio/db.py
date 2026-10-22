@@ -402,6 +402,12 @@ MIGRATIONS = {
         ALTER TABLE album_picks ADD COLUMN picked_by TEXT NOT NULL DEFAULT 'client';  -- client | studio | both
         ALTER TABLE album_picks ADD COLUMN picker TEXT NOT NULL DEFAULT '';           -- the team member who added it (studio)
     """,
+    25: """
+        ALTER TABLE photos ADD COLUMN edited INTEGER NOT NULL DEFAULT 0;  -- 1 = made in the editor: shown everywhere with an Edited tag
+        ALTER TABLE photos ADD COLUMN edited_of INTEGER REFERENCES photos(id) ON DELETE SET NULL;  -- the photo it was edited from
+        ALTER TABLE photos ADD COLUMN edited_at INTEGER;                  -- last saved from the editor (also busts cached thumbnails)
+    """,
+    26: "UPDATE photos SET status='uploaded' WHERE edited=1 AND status='ready'",  # edited copies now get face data: redo them
 }
 
 _local = threading.local()

@@ -444,9 +444,10 @@ def mount_scenes(app, h):
         q = query(q)
         usable(e["account_id"])
         ids, clear = search(e["id"], q)
-        rows = _rows(ids, "SELECT p.id, p.public_id, p.orig_name, p.width, p.height FROM photos p WHERE p.status='ready' AND p.id IN ({})")
+        rows = _rows(ids, "SELECT p.id, p.public_id, p.orig_name, p.width, p.height, p.edited FROM photos p WHERE p.status='ready' AND p.id IN ({})")
         return {"q": q, "clear": clear,
-                "photos": [{"id": r["public_id"], "name": r["orig_name"], "w": r["width"], "h": r["height"]} for r in rows]}
+                "photos": [{"id": r["public_id"], "name": r["orig_name"], "w": r["width"], "h": r["height"],
+                            "edited": bool(r["edited"])} for r in rows]}
 
 
 def _rows(ids, sql):

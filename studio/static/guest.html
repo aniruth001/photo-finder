@@ -33,7 +33,9 @@ __THEME_HEAD__
   .actions.single { grid-template-columns: 1fr; }
   .actions .wide { grid-column: 1 / -1; }
   .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
-  .tile { padding: 0; border: 0; background: var(--tile); aspect-ratio: 1; overflow: hidden; cursor: pointer; }
+  .tile { position: relative; padding: 0; border: 0; background: var(--tile); aspect-ratio: 1; overflow: hidden; cursor: pointer; }
+  .tile .edtag { position: absolute; left: 5px; bottom: 5px; padding: 2px 7px; border-radius: 99px; font-size: .68rem; font-weight: 700;
+                 line-height: 1.2; pointer-events: none; white-space: nowrap; background: rgba(20,20,20,.78); color: #fff; }
   .tile img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; display: block; }
   .spinner { width: 34px; height: 34px; margin: 28px auto 12px; border: 3px solid var(--line); border-top-color: var(--accent);
              border-radius: 50%; animation: spin .8s linear infinite; }
@@ -196,7 +198,9 @@ function render() {
   photos.forEach((p, i) => {
     const b = document.createElement("button"); b.className = "tile";
     const im = document.createElement("img"); im.loading = "lazy"; im.alt = ""; im.src = `${BASE}/thumb/${p.id}.jpg`;
-    b.appendChild(im); b.onclick = () => openLb(i); $("grid").appendChild(b);
+    b.appendChild(im);
+    if (p.edited) { const g = document.createElement("span"); g.className = "edtag"; g.textContent = "✎ Edited"; g.title = "An edited version from the studio"; b.appendChild(g); }
+    b.onclick = () => openLb(i); $("grid").appendChild(b);
   });
   if (!photos.length) return fail("No photos left. Take a new selfie to search again.");
   show("results");
@@ -216,7 +220,7 @@ function paint() {
   const p = photos[cur];
   view.reset();
   $("big").src = `${BASE}/web/${p.id}.jpg`; $("dl").href = `${BASE}/download/${p.id}`; $("dl").setAttribute("download", p.name);
-  $("pos").textContent = `${cur + 1} / ${photos.length}`;
+  $("pos").textContent = `${cur + 1} / ${photos.length}${p.edited ? "  ·  ✎ Edited" : ""}`;
 }
 const step = d => { cur = (cur + d + photos.length) % photos.length; paint(); };
 $("prev").onclick = () => step(-1); $("next").onclick = () => step(1); $("close").onclick = closeLb;

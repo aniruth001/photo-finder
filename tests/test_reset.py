@@ -88,3 +88,14 @@ def test_console_fallback_without_smtp(capsys, monkeypatch):
     assert mailer.send("a@x.test", "Hello", "the body") is False
     out = capsys.readouterr().out
     assert "To: a@x.test" in out and "the body" in out
+
+
+def test_a_forged_host_header_never_reaches_the_email(make_user, anon, outbox, monkeypatch):
+    """With no public URL set, the link uses the address the server answers on, not the request's Host header:
+    otherwise anyone could ask for a victim's reset and receive the token on their own site."""
+    make_user(email="victim@studio.test")
+    monkeypatch.setattr(config.settings, "public_url", "")
+    anon.post("/api/auth/forgot", json={"email": "victim@studio.test"}, headers={"Host": "evil.example"})
+    assert len(outbox) == 1
+    assert "evil.example" not in outbox[0]["text"] + outbox[0]["html"]
+    assert "http://testserver/#/reset?token=" in outbox[0]["text"]

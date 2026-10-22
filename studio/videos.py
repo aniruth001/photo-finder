@@ -28,6 +28,16 @@ class VideoIds(BaseModel):
     ids: List[str] = Field(max_length=500)
 
 
+MP4_BOXES = {b"ftyp", b"moov", b"mdat", b"free", b"wide", b"skip", b"pnot"}   # what an MP4/MOV file can start with
+
+
+def looks_like_video(head: bytes, ext: str) -> bool:
+    """The first bytes match the container the name says (MP4/MOV: an ISO box; WebM: an EBML header)."""
+    if ext == ".webm":
+        return head[:4] == b"\x1a\x45\xdf\xa3"
+    return len(head) >= 8 and head[4:8] in MP4_BOXES
+
+
 def video_path(r) -> Path:
     return get_storage().event_dir(r["account_id"], r["event_id"]) / "video" / f"{r['public_id']}{r['ext']}"
 
@@ -46,20 +56,26 @@ def add_video(account_id: int, event_id: int, plan: dict, name: str, stream, ven
     final = video_path(row)
     final.parent.mkdir(parents=True, exist_ok=True)
     part = final.with_name(final.name + ".part")
-    h, size = hashlib.sha256(), 0
+    h, size, checked = hashlib.sha256(), 0, False
     with open(part, "wb") as out:
         while True:
             chunk = stream.read(4 << 20)
             if not chunk:
                 break
+            if not checked:  # a "video" that isn't one (a playlist, a web page) never gets stored
+                checked = True
+                if not looks_like_video(chunk[:16], ext):
+                    size = -1
+                    break
             size += len(chunk)
             if size > limit:
                 break
             h.update(chunk)
             out.write(chunk)
-    if size > limit or size == 0:
+    if size > limit or size <= 0:
         part.unlink(missing_ok=True)
-        res["error"] = f"Videos can be up to {config.settings.max_video_mb:,} MB." if size else "File is empty."
+        res["error"] = (f"Videos can be up to {config.settings.max_video_mb:,} MB." if size > 0 else "File is empty." if size == 0
+                        else "This file isn't a real video. Use an MP4, MOV, M4V or WebM video.")
         return res
     try:
         with db.tx():  # counted inside the write lock, like photos

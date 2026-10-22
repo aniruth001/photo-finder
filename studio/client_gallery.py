@@ -148,14 +148,15 @@ def mount_client(app, h):
 
     # ------------------------------------------------------------------ the client's side (no login)
     @app.get("/c/{token}", response_class=HTMLResponse)
-    def page(token: str):
+    def page(token: str, request: Request):
         try:
             e = client_event(token)
         except Exception:
             return HTMLResponse((STATIC / "unavailable.html").read_text(encoding="utf-8"), status_code=404)
         db.run("UPDATE events SET client_views=client_views+1 WHERE id=?", (e["id"],))
         out = branding.render((STATIC / "client.html").read_text(encoding="utf-8"), e, h.ink_for(e["brand_color"]),
-                              {"__TITLE__": e["name"], "__SUBTITLE__": e["subtitle"] or "", "__COMPANY__": e["company"]})
+                              {"__TITLE__": e["name"], "__SUBTITLE__": e["subtitle"] or "", "__COMPANY__": e["company"]},
+                              nonce=request.state.nonce)
         return HTMLResponse(out, headers={"Cache-Control": "no-store"})
 
     @app.get("/c/{token}/info")
@@ -187,9 +188,9 @@ def mount_client(app, h):
     def photos(token: str, request: Request, offset: int = 0, limit: int = PAGE):
         e = open_event(token, request)
         limit = max(1, min(limit, 500))
-        rows = db.q("""SELECT public_id, orig_name, width, height FROM photos WHERE event_id=? AND status='ready'
+        rows = db.q("""SELECT public_id, orig_name, width, height, edited FROM photos WHERE event_id=? AND status='ready'
                        ORDER BY orig_name COLLATE NOCASE, id LIMIT ? OFFSET ?""", (e["id"], limit, max(0, offset)))
-        return [{"id": r["public_id"], "name": r["orig_name"], "w": r["width"], "h": r["height"]} for r in rows]
+        return [{"id": r["public_id"], "name": r["orig_name"], "w": r["width"], "h": r["height"], "edited": bool(r["edited"])} for r in rows]
 
     @app.post("/c/{token}/search")
     def search(token: str, request: Request, file: UploadFile = File(...)):
@@ -200,7 +201,8 @@ def mount_client(app, h):
             raise err(429, "Too many tries. Please wait a few minutes.", "rate")
         rows, multiple = h.match_selfie(e, file)  # not counted in the guest statistics
         return {"count": len(rows), "multiple_faces": multiple,
-                "photos": [{"id": r["public_id"], "name": r["orig_name"], "w": r["width"], "h": r["height"]} for r in rows]}
+                "photos": [{"id": r["public_id"], "name": r["orig_name"], "w": r["width"], "h": r["height"],
+                            "edited": bool(r["edited"])} for r in rows]}
 
     @app.get("/c/{token}/thumb/{pid}.jpg")
     def thumb(token: str, pid: str, request: Request):

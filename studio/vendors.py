@@ -117,13 +117,14 @@ def mount_vendors(app, h):
         return [{"name": x["orig_name"], "kind": x["kind"], "status": "failed" if x["status"] == "failed" else "received"} for x in rows]
 
     @app.get("/v/{token}", response_class=HTMLResponse)
-    def page(token: str):
+    def page(token: str, request: Request):
         try:
             r = vendor_link(token)
         except Exception:
             return HTMLResponse((STATIC / "unavailable.html").read_text(encoding="utf-8"), status_code=404)
         html = branding.render((STATIC / "vendor.html").read_text(encoding="utf-8"), r, h.ink_for(r["brand_color"]),
-                               {"__TITLE__": r["event_name"], "__COMPANY__": r["company"], "__VENDOR__": r["name"]})
+                               {"__TITLE__": r["event_name"], "__COMPANY__": r["company"], "__VENDOR__": r["name"]},
+                               nonce=request.state.nonce)
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
     @app.get("/v/{token}/info")
