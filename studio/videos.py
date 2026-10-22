@@ -143,7 +143,9 @@ def mount_videos(app, h):
     @app.get("/c/{token}/videos")
     def client_videos(token: str, request: Request):
         e = h.client_open(token, request)
-        return [out(r) for r in db.q("SELECT * FROM videos WHERE event_id=? ORDER BY orig_name COLLATE NOCASE, id", (e["id"],))]
+        from .clips import available  # cutting a clip is a download: offered only where downloads are allowed
+        clip = bool(e["client_download"]) and available()
+        return [{**out(r), "clip": clip} for r in db.q("SELECT * FROM videos WHERE event_id=? ORDER BY orig_name COLLATE NOCASE, id", (e["id"],))]
 
     @app.get("/c/{token}/video/{vid}")
     def client_play(token: str, vid: str, request: Request):

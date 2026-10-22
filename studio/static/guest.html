@@ -31,6 +31,7 @@ __THEME_HEAD__
   .status { text-align: center; color: var(--muted); margin: 8px 0 14px; }
   .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
   .actions.single { grid-template-columns: 1fr; }
+  .actions .wide { grid-column: 1 / -1; }
   .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
   .tile { padding: 0; border: 0; background: var(--tile); aspect-ratio: 1; overflow: hidden; cursor: pointer; }
   .tile img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; display: block; }
@@ -98,6 +99,7 @@ __THEME_TOGGLE__
     <div class="actions" id="actions">
       <button class="btn" id="all">↓ Download all</button>
       <button class="btn ghost" id="again">New selfie</button>
+      <button class="btn ghost wide" id="slides">▶ Slideshow</button>
     </div>
     <div class="grid" id="grid"></div>
   </section>
@@ -121,6 +123,7 @@ __THEME_TOGGLE__
 <input type="file" id="camera" accept="image/*" capture="user" hidden>
 <input type="file" id="gallery" accept="image/*" hidden>
 
+__VIEWER__
 <script>
 const $ = id => document.getElementById(id);
 const BASE = location.pathname.replace(/\/+$/, "");   // /e/<event>
@@ -208,9 +211,10 @@ $("all").onclick = () => {
 };
 
 function openLb(i) { cur = i; $("lb").hidden = false; document.body.style.overflow = "hidden"; paint(); }
-function closeLb() { $("lb").hidden = true; document.body.style.overflow = ""; }
+function closeLb() { view.stop(); $("lb").hidden = true; document.body.style.overflow = ""; }
 function paint() {
   const p = photos[cur];
+  view.reset();
   $("big").src = `${BASE}/web/${p.id}.jpg`; $("dl").href = `${BASE}/download/${p.id}`; $("dl").setAttribute("download", p.name);
   $("pos").textContent = `${cur + 1} / ${photos.length}`;
 }
@@ -218,17 +222,15 @@ const step = d => { cur = (cur + d + photos.length) % photos.length; paint(); };
 $("prev").onclick = () => step(-1); $("next").onclick = () => step(1); $("close").onclick = closeLb;
 $("notme").onclick = () => { photos.splice(cur, 1); closeLb(); render(); };   // hides a wrong match for this visitor only
 document.addEventListener("keydown", e => {
-  if ($("lb").hidden) return;
+  if ($("lb").hidden || view.key(e)) return;
   if (e.key === "Escape") closeLb();
   if (e.key === "ArrowLeft") step(-1);
   if (e.key === "ArrowRight") step(1);
 });
-let x0 = null;
-$("lb").addEventListener("touchstart", e => x0 = e.touches[0].clientX, { passive: true });
-$("lb").addEventListener("touchend", e => {
-  if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null;
-  if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1);
-});
+const view = pfViewer({ lb: $("lb"), stage: document.querySelector("#lb .stage"), img: $("big"), top: document.querySelector("#lb .top"),
+                        close: $("close"), onSwipe: d => step(d), onNext: () => step(1),
+                        nextSrc: () => photos.length > 1 ? `${BASE}/web/${photos[(cur + 1) % photos.length].id}.jpg` : null });
+$("slides").onclick = () => { if (photos.length) { openLb(0); view.play(true); } };
 </script>
 </body>
 </html>

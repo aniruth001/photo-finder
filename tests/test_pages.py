@@ -11,7 +11,7 @@ NODE = shutil.which("node")
 
 
 @pytest.mark.skipif(not NODE, reason="needs Node.js to parse the page scripts")
-@pytest.mark.parametrize("page", ["app.html", "admin.html", "guest.html", "client.html", "_theme.html", "_theme_toggle.html"])
+@pytest.mark.parametrize("page", ["app.html", "admin.html", "guest.html", "client.html", "_theme.html", "_theme_toggle.html", "_viewer.html"])
 def test_page_script_parses(page, tmp_path):
     scripts = re.findall(r"<script>(.*?)</script>", (STATIC / page).read_text(encoding="utf-8"), re.S)
     assert scripts

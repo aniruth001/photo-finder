@@ -108,7 +108,22 @@ __THEME_HEAD__
   #vp .top span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #vp .x { background: none; border: 0; color: #fff; font-size: 1.6rem; cursor: pointer; padding: 4px 8px; }
   #vp video { flex: 1; min-height: 0; width: 100%; background: #000; }
-  #vp .actions { display: flex; justify-content: center; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
+  #vp .actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
+  #vp .btn.dark { background: #000; color: #fff; border-color: #555; }
+  /* make a clip: a timeline with two handles under the player */
+  .clipbox { padding: 12px 16px 0; color: #ddd; display: grid; gap: 10px; max-width: 760px; width: 100%; margin: 0 auto; }
+  .ctrack { position: relative; height: 34px; border-radius: 8px; background: #2a2a2a; cursor: pointer; touch-action: none; }
+  .csel { position: absolute; top: 0; bottom: 0; background: rgba(255,255,255,.12); border: 2px solid var(--accent); border-radius: 6px; }
+  .cnow { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #fff; pointer-events: none; }
+  .chandle { position: absolute; top: 50%; width: 22px; height: 40px; margin: -20px 0 0 -11px; border-radius: 6px; border: 0; background: var(--accent);
+             cursor: ew-resize; touch-action: none; padding: 0; }
+  .chandle::after { content: ""; position: absolute; left: 7px; top: 12px; bottom: 12px; width: 4px; border-left: 1.5px solid var(--accent-ink); border-right: 1.5px solid var(--accent-ink); }
+  .chandle:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  .crow { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .crow .btn { padding: 8px 14px; font-size: .88rem; }
+  .ctimes { font-variant-numeric: tabular-nums; font-size: .92rem; text-align: center; flex: 1; }
+  .cnote { margin: 0; color: #999; font-size: .8rem; text-align: center; min-height: 1.2em; }
+  .cnote.bad { color: #ff8a80; }
 </style>
 </head>
 <body>
@@ -132,6 +147,7 @@ __THEME_TOGGLE__
       <span class="count" id="count"></span>
       <button class="btn ghost" id="find" hidden>Find a person</button>
       <button class="btn ghost" id="albview" hidden>♥ My album</button>
+      <button class="btn ghost" id="slides" hidden>▶ Slideshow</button>
       <button class="btn ghost" id="sel" hidden>Select</button>
       <button class="btn" id="alb" hidden>Proceed for album</button>
       <button class="btn" id="all" hidden>↓ Download all</button>
@@ -170,7 +186,15 @@ __THEME_TOGGLE__
 <div id="vp" hidden role="dialog" aria-label="Video">
   <div class="top"><span id="vname"></span><button class="x" id="vclose" aria-label="Close">✕</button></div>
   <video id="vplayer" controls playsinline></video>
-  <div class="actions"><a class="btn" id="vdl" href="#" download>↓ Download video</a></div>
+  <div class="clipbox" id="clipbox" hidden>
+    <div class="ctrack" id="ctrack"><div class="csel" id="csel"></div><div class="cnow" id="cnow"></div>
+      <button class="chandle" id="hs" type="button" aria-label="Clip start"></button><button class="chandle" id="he" type="button" aria-label="Clip end"></button></div>
+    <div class="crow"><button class="btn dark" id="cstart" type="button">Start here</button><span class="ctimes" id="ctimes"></span><button class="btn dark" id="cend" type="button">End here</button></div>
+    <p class="cnote" id="cnote"></p>
+  </div>
+  <div class="actions"><a class="btn" id="vdl" href="#" download>↓ Download video</a><button class="btn dark" id="vclip" type="button" hidden>✂ Make a clip</button>
+    <button class="btn dark" id="cplay" type="button" hidden>▶ Preview</button><button class="btn" id="cget" type="button" hidden>↓ Download clip</button>
+    <button class="btn dark" id="cquit" type="button" hidden>Cancel</button></div>
 </div>
 <input type="file" id="camera" accept="image/*" capture="user" hidden>
 <input type="file" id="gallery" accept="image/*" hidden>
@@ -186,6 +210,7 @@ __THEME_TOGGLE__
   <div class="actions"><button class="btn inalb" id="lbalb" hidden>♡ Add to album</button><a class="btn" id="dl" href="#" download>↓ Download</a><button class="btn dark" id="notme" hidden>Not this person</button></div>
 </div>
 
+__VIEWER__
 <script>
 const $ = id => document.getElementById(id);
 const BASE = location.pathname.replace(/\/+$/, "");   // /c/<link>
@@ -268,15 +293,103 @@ async function loadVideos() {  // the studio's videos: only on this page, never 
   $("vids").hidden = !!person || !videos.length;
 }
 function playVideo(v) {
+  clipMode(false); CLIP.v = v;
   $("vname").textContent = v.name;
   $("vplayer").src = `${BASE}/video/${encodeURIComponent(v.id)}`;
-  $("vdl").hidden = !canDownload; $("vdl").href = `${BASE}/video/${encodeURIComponent(v.id)}/download`;
+  $("vdl").hidden = !canDownload; $("vdl").href = `${BASE}/video/${encodeURIComponent(v.id)}/download`; $("vclip").hidden = !v.clip;
   $("vp").hidden = false; document.body.style.overflow = "hidden";
   $("vplayer").play().catch(() => {});
 }
-function closeVideo() { $("vplayer").pause(); $("vplayer").removeAttribute("src"); $("vplayer").load(); $("vp").hidden = true; document.body.style.overflow = ""; }
+function closeVideo() { clipMode(false); $("vplayer").pause(); $("vplayer").removeAttribute("src"); $("vplayer").load(); $("vp").hidden = true; document.body.style.overflow = ""; }
 $("vclose").onclick = closeVideo;
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("vp").hidden) closeVideo(); });
+
+/* ---- make a clip: choose a start and an end, download just that part (cut on the server as it downloads; never stored) */
+const CLIP = { v: null, a: 0, b: 0, max: 180, previewing: false, ctl: null };
+const vp = () => $("vplayer");
+const ftime = t => { const m = Math.floor(t / 60), s = t - m * 60; return `${m}:${s < 10 ? "0" : ""}${s.toFixed(1)}`; };
+function clipMode(on) {
+  if (CLIP.ctl) { CLIP.ctl.abort(); CLIP.ctl = null; }
+  CLIP.previewing = false;
+  $("clipbox").hidden = !on; $("vdl").hidden = on || !canDownload; $("vclip").hidden = on || !(CLIP.v && CLIP.v.clip);
+  ["cplay", "cget", "cquit"].forEach(id => $(id).hidden = !on);
+  $("cget").disabled = false; $("cget").textContent = "↓ Download clip";
+  if (!on) return;
+  const d = vp().duration || 0, t = vp().currentTime || 0;
+  CLIP.a = Math.min(t, Math.max(0, d - 1)); CLIP.b = Math.min(d, CLIP.a + 15);
+  paintClip(); note(`Drag the handles, or play and tap Start here / End here. Up to ${CLIP.max / 60} minutes. Nothing is kept on our side.`);
+}
+function note(t, bad) { $("cnote").textContent = t; $("cnote").classList.toggle("bad", !!bad); }
+function setEnds(a, b, moved) {  // keep the start before the end, inside the video, and the clip no longer than the limit
+  const d = vp().duration || 0;
+  a = Math.max(0, Math.min(a, d)); b = Math.max(0, Math.min(b, d));
+  if (b - a < 0.5) { if (moved === "a") a = Math.max(0, b - 0.5); else b = Math.min(d, a + 0.5); }
+  if (b - a > CLIP.max) { if (moved === "a") b = a + CLIP.max; else a = b - CLIP.max; }
+  CLIP.a = a; CLIP.b = b; paintClip();
+}
+function paintClip() {
+  const d = vp().duration || 1, pa = CLIP.a / d * 100, pb = CLIP.b / d * 100;
+  $("csel").style.left = pa + "%"; $("csel").style.width = (pb - pa) + "%";
+  $("hs").style.left = pa + "%"; $("he").style.left = pb + "%";
+  $("cnow").style.left = Math.min(100, (vp().currentTime || 0) / d * 100) + "%";
+  $("ctimes").textContent = `${ftime(CLIP.a)}  to  ${ftime(CLIP.b)}  ·  ${(CLIP.b - CLIP.a).toFixed(1)} s`;
+}
+$("vclip").onclick = () => { if (vp().readyState >= 1) return clipMode(true); vp().addEventListener("loadedmetadata", () => clipMode(true), { once: true }); };
+$("cquit").onclick = () => clipMode(false);
+$("cstart").onclick = () => setEnds(vp().currentTime, CLIP.b, "a");
+$("cend").onclick = () => setEnds(CLIP.a, vp().currentTime, "b");
+vp().addEventListener("timeupdate", () => {
+  if ($("clipbox").hidden) return;
+  if (CLIP.previewing && vp().currentTime >= CLIP.b) { vp().pause(); CLIP.previewing = false; }
+  paintClip();
+});
+$("cplay").onclick = () => { CLIP.previewing = true; vp().currentTime = CLIP.a; vp().play().catch(() => {}); };
+(function () {  // drag a handle, or tap the track to move the nearer end there; the video shows that frame
+  let which = null;
+  const timeAt = x => { const r = $("ctrack").getBoundingClientRect(); return Math.max(0, Math.min(1, (x - r.left) / r.width)) * (vp().duration || 0); };
+  const move = e => {
+    if (!which) return;
+    const t = timeAt(e.clientX);
+    if (which === "a") setEnds(t, CLIP.b, "a"); else setEnds(CLIP.a, t, "b");
+    vp().currentTime = which === "a" ? CLIP.a : CLIP.b;
+  };
+  $("ctrack").addEventListener("pointerdown", e => {
+    const t = timeAt(e.clientX);
+    which = e.target === $("hs") ? "a" : e.target === $("he") ? "b" : Math.abs(t - CLIP.a) <= Math.abs(t - CLIP.b) ? "a" : "b";
+    try { $("ctrack").setPointerCapture(e.pointerId); } catch (x) {}
+    vp().pause(); CLIP.previewing = false; move(e);
+  });
+  $("ctrack").addEventListener("pointermove", move);
+  ["pointerup", "pointercancel"].forEach(t => $("ctrack").addEventListener(t, () => which = null));
+  [["hs", "a"], ["he", "b"]].forEach(([id, w]) => $(id).addEventListener("keydown", e => {  // arrows nudge an end
+    const k = { ArrowLeft: -0.1, ArrowRight: 0.1, ArrowDown: -1, ArrowUp: 1 }[e.key]; if (!k) return;
+    e.preventDefault(); e.stopPropagation();
+    if (w === "a") setEnds(CLIP.a + k, CLIP.b, "a"); else setEnds(CLIP.a, CLIP.b + k, "b");
+    vp().currentTime = w === "a" ? CLIP.a : CLIP.b;
+  }));
+})();
+$("cget").onclick = async () => {
+  const b = $("cget"); b.disabled = true; b.textContent = "Making your clip…"; note("It's cut from the original as it downloads. Keep this page open.");
+  const ctl = CLIP.ctl = new AbortController();
+  try {
+    const r = await fetch(`${BASE}/video/${encodeURIComponent(CLIP.v.id)}/clip?start=${CLIP.a.toFixed(2)}&end=${CLIP.b.toFixed(2)}`, { signal: ctl.signal });
+    if (r.status === 401) return location.reload();
+    if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.message || "The clip couldn't be made. Please try again."); }
+    const reader = r.body.getReader(), parts = []; let got = 0;
+    for (;;) { const { done, value } = await reader.read(); if (done) break; parts.push(value); got += value.length; b.textContent = `Making your clip… ${(got / 1048576).toFixed(1)} MB`; }
+    if (!got) throw new Error("The clip couldn't be made from this video.");
+    const name = (/filename="([^"]+)"/.exec(r.headers.get("content-disposition") || "") || [])[1] || "clip.mp4";
+    const url = URL.createObjectURL(new Blob(parts, { type: "video/mp4" }));
+    const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    note(`Downloaded: ${name}`); say("Clip downloaded.");
+  } catch (x) {
+    if (x.name !== "AbortError") note(x.message || "The clip couldn't be made. Please try again.", true);
+  } finally {
+    if (CLIP.ctl === ctl) CLIP.ctl = null;
+    b.disabled = false; b.textContent = "↓ Download clip";
+  }
+};
 $("vplayer").addEventListener("error", () => { if ($("vplayer").getAttribute("src")) $("vname").textContent = "This browser can't play this video." + (canDownload ? " Download it to watch." : ""); });
 
 function addTile(p, i) {
@@ -302,6 +415,7 @@ function paintBar() {
     + (person ? "" : $("count").dataset.more || "");
   $("sel").textContent = selecting ? "Cancel" : "Select";
   $("sel").hidden = !total || (av && (album.locked || !photos.length));
+  $("slides").hidden = !photos.length || selecting;
   $("albview").hidden = !album.ids.size || av;
   $("albview").textContent = `♥ My album (${album.ids.size.toLocaleString()})`;
   $("alb").hidden = !selecting || album.locked;
@@ -473,9 +587,10 @@ async function describe(q) {
 
 /* ---- full-screen viewer */
 function openLb(i) { cur = i; $("lb").hidden = false; document.body.style.overflow = "hidden"; $("notme").hidden = !person || person.kind !== "face"; paint(); }
-function closeLb() { $("lb").hidden = true; document.body.style.overflow = ""; }
+function closeLb() { view.stop(); $("lb").hidden = true; document.body.style.overflow = ""; }
 function paint() {
   const p = photos[cur];
+  view.reset();
   $("big").src = `${BASE}/web/${encodeURIComponent(p.id)}.jpg`; $("big").alt = p.name;
   $("dl").href = `${BASE}/download/${encodeURIComponent(p.id)}`; $("dl").setAttribute("download", p.name);
   $("pos").textContent = `${cur + 1} / ${viewCount()}  ·  ${p.name}`;
@@ -492,15 +607,13 @@ $("notme").onclick = () => {  // a wrong match: hide it from this view only
 document.addEventListener("keydown", e => {
   if (!$("sheet").hidden && e.key === "Escape") return sheet(false);
   if (!$("asheet").hidden && e.key === "Escape") return albumSheet(false);
-  if ($("lb").hidden) return;
+  if ($("lb").hidden || view.key(e)) return;
   if (e.key === "Escape") closeLb(); if (e.key === "ArrowLeft") step(-1); if (e.key === "ArrowRight") step(1);
 });
-let x0 = null;
-$("lb").addEventListener("touchstart", e => x0 = e.touches[0].clientX, { passive: true });
-$("lb").addEventListener("touchend", e => {
-  if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null;
-  if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1);
-});
+const view = pfViewer({ lb: $("lb"), stage: document.querySelector("#lb .stage"), img: $("big"), top: document.querySelector("#lb .top"),
+                        close: $("close"), onSwipe: d => step(d), onNext: () => step(1),
+                        nextSrc: () => photos.length > 1 ? `${BASE}/web/${encodeURIComponent(photos[(cur + 1) % photos.length].id)}.jpg` : null });
+$("slides").onclick = () => { if (photos.length) { openLb(0); view.play(true); } };   // what the grid shows, from the first photo
 if (!$("sub").textContent.trim()) $("sub").hidden = true;
 start();
 </script>

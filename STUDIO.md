@@ -206,6 +206,16 @@ and aren't re-encoded; the browser plays the file you uploaded, so **MP4 (H.264)
 every phone and computer. iPhone MOV (HEVC) plays in Safari but not everywhere. Videos count towards the plan's
 storage. Only roles that can upload add them; roles that can delete photos delete them.
 
+**Clips:** in the client gallery's video player, **Make a clip** lets the client mark a start and an end (drag the two
+handles, or play and tap **Start here** / **End here**), **Preview** it, and **Download clip**: just that part, as an MP4
+that plays on every phone, named like `Couple entry clip 00m12s-00m20s.mp4`. The clip is cut on the server by ffmpeg
+and streamed straight into the client's download as it is made; **it is never saved on the server**, so it takes no
+storage. It is cut exactly where chosen (re-encoded to H.264, at most 1080p), so even iPhone MOV videos give a clip
+that plays everywhere. Limits: up to 3 minutes per clip, 2 clips being made at a time on the server, 20 per visitor
+per hour. It follows **Client can download** (no downloads, no clips) and the gallery's PIN. ffmpeg comes with the
+`imageio-ffmpeg` package in requirements.txt; without it, the button isn't shown. Making a clip takes about half its
+own length for 1080p video (measured: a 30-second clip in 13 seconds on an 8-core PC).
+
 **Minimize / Maximize:** the Photos and Videos cards fold away with the button in their top corner, showing just the
 count. The choice is remembered in that browser.
 

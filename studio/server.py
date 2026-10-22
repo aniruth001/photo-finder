@@ -44,6 +44,7 @@ from .inventory import mount_inventory
 from .bookings import mount_bookings
 from .tasks import mount_tasks
 from .scenes import SceneIndexer, mount_scenes
+from .clips import mount_clips
 from .album import mount_album
 from .vendors import mount_vendors
 
@@ -1120,6 +1121,7 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
     mount_inventory(app, SimpleNamespace(user_dep=user_dep, can=can, err=err))
     mount_bookings(app, SimpleNamespace(user_dep=user_dep, can=can, err=err))
     mount_tasks(app, SimpleNamespace(user_dep=user_dep, can=can, err=err))
+    mount_clips(app, SimpleNamespace(err=err, client_open=app.state.client_open, client_ip=client_ip, limiter=limiter))
     mount_scenes(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, get_event=get_event, client_open=app.state.client_open,
                                       client_ip=client_ip, limiter=limiter))
     mount_album(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, get_event=get_event, client_open=app.state.client_open,

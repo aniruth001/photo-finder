@@ -1,0 +1,227 @@
+<style>
+  /* the full-screen viewer's zoom, pan and rotate (guest page and client gallery) */
+  #lb .top > span { flex: 1; min-width: 0; }
+  #lb .stage { overflow: hidden; touch-action: none; }
+  #lb .stage img { transform-origin: center center; transition: transform .18s ease, opacity .6s ease; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
+  #lb .stage img.now { transition: opacity .6s ease; }
+  #lb .stage img.fade { opacity: 0; }
+  /* slideshow: progress line, controls that step aside while it plays */
+  #lb .stage .sbar { position: absolute; left: 0; top: 0; height: 3px; width: 0; background: var(--accent); z-index: 2; pointer-events: none; }
+  #lb.playing .stage .sbar.run { animation: pfss var(--ss, 4s) linear forwards; }
+  @keyframes pfss { to { width: 100%; } }
+  #lb .top, #lb .actions, #lb .bar, #lb .nav, #lb .hint { transition: opacity .35s ease; }
+  #lb.idle .top, #lb.idle .actions, #lb.idle .bar, #lb.idle .nav, #lb.idle .hint { opacity: 0; pointer-events: none; }
+  #lb.idle, #lb.idle * { cursor: none !important; }
+  #lb .vtools .speed { display: none; }
+  #lb.playing .vtools .speed { display: grid; }
+  @media (prefers-reduced-motion: reduce) { #lb .stage img, #lb .stage img.now { transition: none; } #lb.playing .stage .sbar.run { animation: none; } }
+  #lb .stage.zoomed { cursor: grab; }
+  #lb .stage.zoomed.grabbing { cursor: grabbing; }
+  #lb .vtools { display: flex; align-items: center; gap: 4px; flex: none; }
+  #lb .vtools button { width: 36px; height: 36px; border-radius: 50%; border: 0; padding: 0; background: rgba(255,255,255,.12); color: #fff;
+                       display: grid; place-items: center; cursor: pointer; font: inherit; }
+  #lb .vtools button:hover:not(:disabled) { background: rgba(255,255,255,.24); }
+  #lb .vtools button:disabled { opacity: .35; cursor: default; }
+  #lb .vtools button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #lb .vtools svg { width: 18px; height: 18px; }
+  #lb .vtools .pct, #lb .vtools .speed { width: auto; min-width: 46px; height: 28px; border-radius: 8px; background: none; font-size: .8rem; font-variant-numeric: tabular-nums; }
+  @media (max-width: 380px) { #lb .vtools .pct { display: none; } }
+</style>
+<script>
+  /* pfViewer({lb, stage, img, top, close, onSwipe, onNext, nextSrc}): zoom in and out, pan and rotate the photo in the
+     viewer, and play the photos as a slideshow. Buttons in the top bar; pinch, wheel, double-tap and drag; keys + - 0 R,
+     Space for the slideshow. Swipes reach onSwipe(+1 / -1) only at normal size, so moving around a zoomed photo never
+     turns the page. It only changes how the photo is shown: downloads are always the original file.
+     Slideshow: onNext() shows the next photo, nextSrc() is its address (preloaded). Zooming, panning or rotating pauses
+     it; closing the viewer (stop()) or leaving full screen ends it. */
+  window.pfViewer = function (o) {
+    var stage = o.stage, img = o.img, lb = o.lb, MAX = 5;
+    var s = 1, r = 0, x = 0, y = 0, fit = 1;
+    var PLAY = '<path d="M8 5v14l11-7z" fill="currentColor"/>', PAUSE = '<path d="M8 5v14M16 5v14"/>';
+    var svg = function (d) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>'; };
+    var tools = document.createElement("div");
+    tools.className = "vtools";
+    tools.innerHTML = '<button type="button" data-v="play" aria-label="Play slideshow" title="Slideshow (Space)">' + svg(PLAY) + '</button>' +
+      '<button type="button" class="speed" data-v="speed" aria-label="Seconds per photo" title="Seconds per photo"></button>' +
+      '<button type="button" data-v="out" aria-label="Zoom out" title="Zoom out (-)">' + svg('<path d="M5 12h14"/>') + '</button>' +
+      '<button type="button" class="pct" data-v="reset" aria-label="Reset zoom" title="Back to normal size (0)">100%</button>' +
+      '<button type="button" data-v="in" aria-label="Zoom in" title="Zoom in (+)">' + svg('<path d="M12 5v14M5 12h14"/>') + '</button>' +
+      '<button type="button" data-v="rot" aria-label="Rotate" title="Rotate (R)">' + svg('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>') + '</button>';
+    o.top.insertBefore(tools, o.close);
+    var bOut = tools.querySelector('[data-v="out"]'), bIn = tools.querySelector('[data-v="in"]'), pct = tools.querySelector(".pct");
+    img.draggable = false;
+
+    function turned() { return Math.abs(r / 90) % 2 === 1; }
+    function fitFor() {  // a quarter turn swaps width and height: shrink it so the whole photo still fits
+      var w = img.offsetWidth, h = img.offsetHeight;
+      return turned() && w && h ? Math.min(1, stage.clientWidth / h, stage.clientHeight / w) : 1;
+    }
+    function clamp() {  // no panning past the photo's edges
+      var w = img.offsetWidth * fit * s, h = img.offsetHeight * fit * s;
+      if (turned()) { var t = w; w = h; h = t; }
+      var mx = Math.max(0, (w - stage.clientWidth) / 2), my = Math.max(0, (h - stage.clientHeight) / 2);
+      x = Math.min(mx, Math.max(-mx, x)); y = Math.min(my, Math.max(-my, y));
+    }
+    function apply(now) {
+      fit = fitFor();
+      if (s <= 1.001) { s = 1; x = 0; y = 0; }
+      clamp();
+      img.classList.toggle("now", !!now);
+      img.style.transform = "translate(" + x + "px," + y + "px) scale(" + fit * s + ") rotate(" + r + "deg)";
+      stage.classList.toggle("zoomed", s > 1);
+      pct.textContent = Math.round(s * 100) + "%";
+      bOut.disabled = s <= 1; bIn.disabled = s >= MAX;
+    }
+    function at(cx, cy) {  // a screen point, relative to the stage's centre
+      var b = stage.getBoundingClientRect();
+      return [cx - b.left - b.width / 2, cy - b.top - b.height / 2];
+    }
+    function zoomTo(s2, px, py, now) {  // keep the point (px, py) under the finger or cursor
+      pause();
+      s2 = Math.min(MAX, Math.max(1, s2));
+      px = px || 0; py = py || 0;
+      x = px - (px - x) * (s2 / s); y = py - (py - y) * (s2 / s); s = s2;
+      apply(now);
+    }
+    function reset(now) { s = 1; r = 0; x = 0; y = 0; apply(now); }
+    function rotate() { pause(); r += 90; x = 0; y = 0; apply(); }
+
+    // ---- slideshow
+    var SPEEDS = [3, 4, 6, 10], every = 4, playing = false, ours = false, timer = null, lock = null, idleT = null;
+    try { every = SPEEDS.indexOf(+localStorage.getItem("pf_slides")) >= 0 ? +localStorage.getItem("pf_slides") : 4; } catch (err) {}
+    var bPlay = tools.querySelector('[data-v="play"]'), bSpeed = tools.querySelector('[data-v="speed"]');
+    var bar = document.createElement("div"); bar.className = "sbar"; stage.appendChild(bar);
+    var still = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    function buttons() {
+      bPlay.innerHTML = svg(playing ? PAUSE : PLAY);
+      bPlay.setAttribute("aria-label", playing ? "Pause slideshow" : "Play slideshow");
+      bSpeed.textContent = every + " s";
+      lb.style.setProperty("--ss", every + "s");
+    }
+    function schedule() {  // the next photo in `every` seconds; the line at the top shows the countdown
+      clearTimeout(timer);
+      if (!playing) return;
+      bar.classList.remove("run"); void bar.offsetWidth; bar.classList.add("run");
+      timer = setTimeout(function () { if (playing) o.onNext(); }, every * 1000);
+      var next = o.nextSrc && o.nextSrc();
+      if (next) (new Image()).src = next;
+    }
+    function wake() {  // keep the screen on while it plays (a tablet or TV at the venue)
+      try { if (navigator.wakeLock && !lock) navigator.wakeLock.request("screen").then(function (l) { lock = l; }).catch(function () {}); } catch (err) {}
+    }
+    function idle() {  // controls and cursor step aside after a moment without movement
+      lb.classList.remove("idle"); clearTimeout(idleT);
+      if (playing) idleT = setTimeout(function () { lb.classList.add("idle"); }, 2500);
+    }
+    function play(full) {
+      if (playing) return;
+      playing = true; lb.classList.add("playing"); buttons(); wake(); idle();
+      if (full && !document.fullscreenElement && lb.requestFullscreen) lb.requestFullscreen().then(function () { ours = true; }).catch(function () {});
+      schedule();
+    }
+    function pause() {
+      if (!playing) return;
+      playing = false; clearTimeout(timer); clearTimeout(idleT);
+      lb.classList.remove("playing", "idle"); bar.classList.remove("run"); img.classList.remove("fade"); buttons();
+      if (lock) { lock.release().catch(function () {}); lock = null; }
+    }
+    function stop() {
+      pause();
+      if (ours && document.fullscreenElement) document.exitFullscreen().catch(function () {});
+      ours = false;
+    }
+    document.addEventListener("fullscreenchange", function () { if (!document.fullscreenElement && ours) { ours = false; pause(); } });
+    document.addEventListener("visibilitychange", function () { if (playing && document.visibilityState === "visible") { lock = null; wake(); } });
+    ["mousemove", "pointerdown", "keydown"].forEach(function (t) { lb.addEventListener(t, idle); });
+    buttons();
+
+    tools.onclick = function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      var v = b.getAttribute("data-v");
+      if (v === "in") zoomTo(s * 1.5); else if (v === "out") zoomTo(s / 1.5); else if (v === "reset") { s = 1; apply(); } else if (v === "rot") rotate();
+      else if (v === "play") { if (playing) pause(); else play(false); }
+      else if (v === "speed") {
+        every = SPEEDS[(SPEEDS.indexOf(every) + 1) % SPEEDS.length]; buttons(); schedule();
+        try { localStorage.setItem("pf_slides", every); } catch (err) {}
+      }
+    };
+    stage.addEventListener("wheel", function (e) {
+      e.preventDefault();
+      var p = at(e.clientX, e.clientY);
+      zoomTo(s * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0018)), p[0], p[1], true);
+    }, { passive: false });
+
+    // pointers: one drags (zoomed) or swipes (normal size), two pinch; a quick second tap toggles zoom
+    var pts = {}, n = 0, start = null, pinch = null, lastTap = 0, lastXY = null;
+    stage.addEventListener("pointerdown", function (e) {
+      if (e.target.closest("button")) return;
+      pts[e.pointerId] = [e.clientX, e.clientY]; n++;
+      try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+      if (n === 1) start = { x: e.clientX, y: e.clientY, tx: x, ty: y, t: Date.now(), type: e.pointerType };
+      if (n === 2) {
+        var k = Object.keys(pts), a = pts[k[0]], b = pts[k[1]];
+        var m = at((a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+        pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, s: s, mx: m[0], my: m[1], x: x, y: y };
+        start = null;
+      }
+      if (s > 1) stage.classList.add("grabbing");
+    });
+    stage.addEventListener("pointermove", function (e) {
+      if (!pts[e.pointerId]) return;
+      pts[e.pointerId] = [e.clientX, e.clientY];
+      if (pinch && n >= 2) {
+        var k = Object.keys(pts), a = pts[k[0]], b = pts[k[1]];
+        var m = at((a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+        pause();
+        var s2 = Math.min(MAX, Math.max(1, pinch.s * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.d));
+        x = m[0] - (pinch.mx - pinch.x) * (s2 / pinch.s); y = m[1] - (pinch.my - pinch.y) * (s2 / pinch.s); s = s2;
+        apply(true);
+      } else if (start && s > 1) {
+        x = start.tx + e.clientX - start.x; y = start.ty + e.clientY - start.y;
+        apply(true);
+      }
+    });
+    function up(e) {
+      if (!pts[e.pointerId]) return;
+      delete pts[e.pointerId]; n = Math.max(0, n - 1);
+      stage.classList.remove("grabbing");
+      if (n < 2) pinch = null;
+      if (!start || n) return;
+      var dx = e.clientX - start.x, dy = e.clientY - start.y, moved = Math.hypot(dx, dy), quick = Date.now() - start.t < 300;
+      if (s === 1 && start.type !== "mouse" && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) { start = null; return o.onSwipe(dx < 0 ? 1 : -1); }
+      if (moved < 10 && quick) {
+        var now = Date.now();
+        if (now - lastTap < 320 && lastXY && Math.hypot(e.clientX - lastXY[0], e.clientY - lastXY[1]) < 30) {
+          if (s > 1) { s = 1; apply(); } else { var p = at(e.clientX, e.clientY); zoomTo(2.5, p[0], p[1]); }
+          lastTap = 0;
+        } else { lastTap = now; lastXY = [e.clientX, e.clientY]; }
+      }
+      start = null;
+    }
+    stage.addEventListener("pointerup", up);
+    stage.addEventListener("pointercancel", up);
+    img.addEventListener("load", function () { apply(true); img.classList.remove("fade"); if (playing) schedule(); });   // its size is known now
+    window.addEventListener("resize", function () { if (!stage.offsetParent) return; apply(true); });
+
+    return {
+      reset: function () {  // a new photo is about to be shown
+        reset(true);
+        if (playing) {
+          if (!still) img.classList.add("fade");
+          setTimeout(function () { if (img.complete) { img.classList.remove("fade"); schedule(); } }, 60);  // already loaded: no load event
+        }
+      },
+      play: play, stop: stop, playing: function () { return playing; },
+      zoomed: function () { return s > 1; },
+      key: function (e) {  // true when the key was the viewer's
+        if (e.ctrlKey || e.metaKey || e.altKey) return false;
+        if (e.key === "+" || e.key === "=") { zoomTo(s * 1.5); return true; }
+        if (e.key === "-" || e.key === "_") { zoomTo(s / 1.5); return true; }
+        if (e.key === "0") { s = 1; apply(); return true; }
+        if (e.key === "r" || e.key === "R") { rotate(); return true; }
+        if (e.key === " ") { e.preventDefault(); if (playing) pause(); else play(false); return true; }
+        return false;
+      }
+    };
+  };
+</script>
