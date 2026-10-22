@@ -208,7 +208,11 @@
   @media (max-width: 640px) { .vn-add { grid-template-columns: 1fr; } }
   .alb-note { background: var(--soft); border-radius: 10px; padding: 10px 12px; margin: 10px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
   .alb-badge { display: inline-block; font-size: .74rem; font-weight: 700; padding: 2px 9px; border-radius: 99px; margin-left: 6px; vertical-align: 2px; }
-  .alb-badge.new { background: #ffe4ea; color: #a3153a; } .alb-badge.lock { background: var(--soft); color: var(--muted); }
+  .alb-badge.new { background: #ffe4ea; color: #a3153a; }
+  .albby { position: absolute; top: 6px; right: 6px; font-size: .68rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; pointer-events: none;
+           box-shadow: 0 1px 3px rgba(0,0,0,.25); white-space: nowrap; }
+  .albby.client { background: #ffe4ea; color: #a3153a; } .albby.studio { background: #e6f0ff; color: #1f55ad; } .albby.both { background: #f1e9ff; color: #5b34b0; }
+  .alb-who { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; } .alb-badge.lock { background: var(--soft); color: var(--muted); }
   .ph .pnm { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 6px 4px; font-size: .7rem; color: #fff;
              background: linear-gradient(transparent, rgba(0,0,0,.65)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ph .st { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 8px; font-size: .78rem; font-weight: 600; color: var(--muted); }
@@ -321,6 +325,20 @@
   .ed-zoom input { flex: 1; }
   .mono { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-weight: 600; letter-spacing: .02em; }
   #modal-root .dlg.wide img { width: 100%; max-height: 80vh; object-fit: contain; display: block; }
+  /* a photo in the dashboard: the shared viewer (zoom, pan, rotate) */
+  .dash-view { --accent: var(--brand); --accent-ink: var(--brand-ink); display: flex; flex-direction: column; color: #fff; }
+  .dash-view .top { display: flex; align-items: center; gap: 10px; padding: 0 2px 10px; }
+  .dash-view .top > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .85rem; color: #ddd; }
+  .dash-view .x { background: none; border: 0; color: #fff; font-size: 1.4rem; line-height: 1; cursor: pointer; padding: 4px 6px; }
+  .dash-view .stage { position: relative; height: min(74vh, 720px); display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #000; }
+  #modal-root .dlg.wide .dash-view img { width: auto; max-width: 100%; max-height: 100%; }
+  .dash-view .top > .pv-pos { flex: none; color: #aaa; font-size: .8rem; font-variant-numeric: tabular-nums; margin-left: auto; }
+  .dash-view .nav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 3; width: 44px; height: 44px; border-radius: 50%; border: 0;
+                    background: rgba(0,0,0,.5); color: #fff; font-size: 1.6rem; line-height: 1; cursor: pointer; display: grid; place-items: center; padding: 0 0 3px;
+                    box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
+  .dash-view .nav:hover { background: rgba(0,0,0,.75); }
+  .dash-view .prev { left: 10px; } .dash-view .next { right: 10px; }
+  .dash-view .foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 2px 2px; flex-wrap: wrap; }
   #toasts { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 30; display: grid; gap: 8px; width: min(440px, 92vw); }
   .toast { background: var(--ink); color: #fff; padding: 11px 15px; border-radius: 10px; font-size: .9rem; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
   .toast.err { background: var(--danger); }
@@ -331,6 +349,7 @@
 <div id="modal-root"></div>
 <div id="toasts"></div>
 
+__VIEWER__
 <script>
 "use strict";
 const $app = document.getElementById("app");
@@ -920,7 +939,8 @@ async function loadPhotos(reset) {
     PH.more = false; PH.loading = false; return paintPhotos();
   }
   try {
-    const q = PH.filter === "all" ? "" : PH.filter[0] === "v" ? "&vendor=" + (PH.filter === "vany" ? "any" : PH.filter.slice(1)) : "&status=" + PH.filter;
+    const q = PH.filter === "all" ? "" : PH.filter.startsWith("alb-") ? "&album=" + PH.filter.slice(4)
+      : PH.filter[0] === "v" ? "&vendor=" + (PH.filter === "vany" ? "any" : PH.filter.slice(1)) : "&status=" + PH.filter;
     const rows = await api("GET", `/api/events/${EV.id}/photos?offset=${PH.items.length}&limit=120${q}`);
     PH.items = PH.items.concat(rows); PH.more = rows.length === 120;
   } catch (x) { fail(x); }
@@ -930,7 +950,11 @@ function paintPhotos() {
   const box = document.getElementById("ev-photos"); if (!box) return;
   const chip = (k, t) => `<button class="chip ${PH.filter === k ? "on" : ""}" data-filter="${k}">${t}</button>`;
   const tools = document.getElementById("ev-tools");
-  tools.innerHTML = SEL.size ? `<span class="muted small">${SEL.size} selected</span><button class="btn sm danger" id="delsel" data-need="delete_photos">Delete selected</button><button class="btn sm" id="clrsel">Clear</button>` : "";
+  const inAlb = PH.items.filter(p => SEL.has(p.id) && p.album).length;
+  tools.innerHTML = SEL.size ? `<span class="muted small">${SEL.size} selected</span>
+    <button class="btn sm primary" id="albsel" data-need="events" title="Add the selected photos to the album selection, as the studio's picks">♥ Add to album</button>
+    ${inAlb ? `<button class="btn sm" id="unalbsel" data-need="events">Remove from album (${inAlb})</button>` : ""}
+    <button class="btn sm danger" id="delsel" data-need="delete_photos">Delete selected</button><button class="btn sm" id="clrsel">Clear</button>` : "";
   const one = PH.filter[0] === "v" && PH.filter !== "vany" ? VN.items.find(v => "v" + v.id === PH.filter) : null;
   const sc = PH.scenes, dsc = PH.filter === "describe";
   const search = sc && sc.available ? `<form class="row ph-find" id="ph-find" role="search"><input id="ph-q" type="search" maxlength="100" value="${esc(dsc ? PH.q : "")}"
@@ -939,12 +963,13 @@ function paintPhotos() {
       ? "Try: " + sc.tags.map(t => `<button class="linkish" data-tag="${esc(t.label)}">${esc(t.label)}</button> <span>${num(t.count)}</span>`).join(" · ") : ""}</div>` : "";
   box.innerHTML = search + (dsc ? `<p class="small" style="margin:10px 0 0">${PH.clear ? `Photos that look like <b>“${esc(PH.q)}”</b>, best match first.`
       : `No clear matches for <b>“${esc(PH.q)}”</b>. These come closest.`} <button class="linkish" id="ph-noq">Show all photos</button></p>` : "") +
-    `<div class="chips" style="margin-top:10px">${chip("all", "All")}${chip("ready", "Ready")}${chip("busy", "Processing")}${chip("failed", "Failed")}${VN.items.length ? chip("vany", "From vendors") : ""}${one ? chip(PH.filter, "From " + esc(one.name)) : ""}</div>` +
+    `<div class="chips" style="margin-top:10px">${chip("all", "All")}${chip("ready", "Ready")}${chip("busy", "Processing")}${chip("failed", "Failed")}${VN.items.length ? chip("vany", "From vendors") : ""}${one ? chip(PH.filter, "From " + esc(one.name)) : ""}${AL.count
+      ? chip("alb-any", "♥ In album") + (AL.by.client + AL.by.both ? chip("alb-client", "Client's picks") : "") + (AL.by.studio + AL.by.both ? chip("alb-studio", "Studio's picks") : "") : ""}</div>` +
     (PH.items.length ? `<div class="photos">${PH.items.map(p => {
       const ok = p.status === "ready", bad = p.status === "failed";
       return `<div class="ph ${bad ? "bad" : ""}" data-pid="${esc(p.id)}" title="${esc(p.name)}${p.vendor ? " · from " + esc(p.vendor) : ""}${p.error ? " — " + esc(p.error) : ""}">
         ${ok ? `<img loading="lazy" alt="" src="/api/events/${EV.id}/photos/${esc(p.id)}/thumb">` : `<div class="st">${bad ? "Failed<br>" + esc(p.error || "") : "Processing…"}</div>`}
-        ${p.vendor ? `<span class="pnm">${esc(p.vendor)}</span>` : ""}
+        ${p.vendor ? `<span class="pnm">${esc(p.vendor)}</span>` : ""}${albBadge(p.album)}
         <input type="checkbox" data-need="delete_photos" data-sel="${esc(p.id)}" ${SEL.has(p.id) ? "checked" : ""} aria-label="Select ${esc(p.name)}"></div>`; }).join("")}</div>
       ${PH.more ? `<div style="text-align:center;margin-top:14px"><button class="btn" id="more">Load more</button></div>` : ""}`
       : `<div class="empty">${PH.filter === "all" ? "<b>No photos yet</b>Drop photos in the box above." : "Nothing here."}</div>`);
@@ -954,8 +979,16 @@ function paintPhotos() {
   const nq = document.getElementById("ph-noq"); if (nq) nq.onclick = () => { PH.filter = "all"; loadPhotos(true); };
   box.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { PH.filter = b.dataset.filter; loadPhotos(true); });
   box.querySelectorAll("[data-sel]").forEach(c => c.onclick = ev => { ev.stopPropagation(); c.checked ? SEL.add(c.dataset.sel) : SEL.delete(c.dataset.sel); paintPhotos(); });
-  box.querySelectorAll(".ph").forEach(t => t.onclick = () => { const p = PH.items.find(x => x.id === t.dataset.pid); if (p && p.status === "ready") viewPhoto(p); });
+  box.querySelectorAll(".ph").forEach(t => t.onclick = () => { const p = PH.items.find(x => x.id === t.dataset.pid); if (p && p.status === "ready") viewPhoto(p, "photos"); });
   const m = document.getElementById("more"); if (m) m.onclick = () => loadPhotos(false);
+  const ab = document.getElementById("albsel"); if (ab) ab.onclick = async () => {
+    const ids = [...SEL];
+    try { const r = await api("POST", `/api/events/${EV.id}/album/add`, { ids }); Object.assign(AL, r);
+      SEL.clear(); toast(`Added ${num(r.added)} photo${r.added === 1 ? "" : "s"} to the album as the studio's picks.`); paintAlbum(); loadPhotos(true); } catch (x) { fail(x); } };
+  const ub = document.getElementById("unalbsel"); if (ub) ub.onclick = async () => {
+    const ids = PH.items.filter(p => SEL.has(p.id) && p.album).map(p => p.id);
+    if (!await confirmBox(`Take ${ids.length} photo${ids.length === 1 ? "" : "s"} out of the album?`, "They stay in the event; they're only taken out of the album selection, whoever chose them.", "Remove")) return;
+    try { Object.assign(AL, await api("POST", `/api/events/${EV.id}/album/remove`, { ids })); SEL.clear(); toast(`Removed ${ids.length} from the album.`); paintAlbum(); loadPhotos(true); } catch (x) { fail(x); } };
   const ds = document.getElementById("delsel"), cs = document.getElementById("clrsel");
   if (cs) cs.onclick = () => { SEL.clear(); paintPhotos(); };
   if (ds) ds.onclick = async () => {
@@ -967,10 +1000,71 @@ async function loadScenes() {  // is search by description on, and how far is th
   try { PH.scenes = await api("GET", `/api/events/${EV.id}/scenes`); } catch (x) { PH.scenes = null; }
   paintPhotos();
 }
-function viewPhoto(p) {
-  modal(`<img alt="${esc(p.name)}" src="/api/events/${EV.id}/photos/${esc(p.id)}/web">
-    <div class="row" style="justify-content:space-between;padding:10px 6px 2px;color:#fff"><span class="small">${esc(p.name)} · ${fmtBytes(p.size)}</span>
-    <span class="row"><a class="btn sm" href="/api/events/${EV.id}/photos/${esc(p.id)}/orig">Download original</a><button class="btn sm" data-close>Close</button></span></div>`, { wide: true });
+function viewPhoto(p, from = "photos") {  // one photo, zoom/pan/rotate, then previous and next through the list it came from
+  // from: "photos" (the Photos card, as filtered now) or "album" (the Selected for album card, as filtered now)
+  const list = () => from === "album" ? AL.photos.filter(x => AL.who === "all" || x.by === AL.who || x.by === "both")
+    : PH.items.filter(x => x.status === "ready");
+  let cur = Math.max(0, list().findIndex(x => x.id === p.id));
+  const albumBy = id => (AL.photos.find(x => x.id === id) || {}).by || null;   // who chose it, from the album list itself
+  modal(`<div class="pfv dash-view"><div class="top"><span id="pv-name"></span><span id="pv-pos" class="pv-pos"></span>
+      <button class="x" data-close aria-label="Close">✕</button></div>
+    <div class="stage"><button class="nav prev" id="pv-prev" aria-label="Previous photo" title="Previous (←)">‹</button>
+      <img alt="" id="pv-img"><button class="nav next" id="pv-next" aria-label="Next photo" title="Next (→)">›</button></div>
+    <div class="foot"><span class="small" style="color:#aaa">Rotating here only changes the view; the photo itself isn't changed.</span>
+      <span class="row"><span id="pv-alb" class="row"></span><a class="btn sm" id="pv-dl" href="#">Download original</a><button class="btn sm" data-close>Close</button></span></div></div>`,
+    { wide: true, onMount: ov => {
+      const box = ov.querySelector(".dash-view"), stage = box.querySelector(".stage"), img = box.querySelector("#pv-img");
+      const view = pfViewer({ lb: box, stage, img, top: box.querySelector(".top"), close: box.querySelector(".x"), onSwipe: d => go(d), slides: false });
+      const paintAlb = q => {  // ♥ Add to album, or who chose it and Remove
+        const el = box.querySelector("#pv-alb");
+        if (!can("events")) { const by = albumBy(q.id); el.innerHTML = by ? `<span class="albby ${by}" style="position:static">${ALB_BY[by]}</span>` : ""; return; }
+        const by = albumBy(q.id);
+        el.innerHTML = by ? `<span class="albby ${by}" style="position:static" title="${by === "client" ? "Chosen by the client" : by === "studio" ? "Added by the studio" : "Chosen by the client and the studio"}">${ALB_BY[by]}</span>
+            <button class="btn sm" id="pv-unalb">Remove from album</button>`
+          : `<button class="btn sm primary" id="pv-addalb">♥ Add to album</button>`;
+        const ad = el.querySelector("#pv-addalb"), rm = el.querySelector("#pv-unalb");
+        if (ad) ad.onclick = () => albumCall("add", q);
+        if (rm) rm.onclick = () => albumCall("remove", q);
+      };
+      const albumCall = async (what, q) => {
+        try {
+          Object.assign(AL, await api("POST", `/api/events/${EV.id}/album/${what}`, { ids: [q.id] }));
+          const it = PH.items.find(x => x.id === q.id); if (it) it.album = albumBy(q.id);   // keep the grid's badge in step
+          paintAlbum(); paintPhotos(); paintAlb(q);
+          toast(what === "add" ? "Added to the album as the studio's pick." : "Taken out of the album.");
+          if (from === "album" && what === "remove") { const l = list(); if (!l.length) return close(); cur = Math.min(cur, l.length - 1); show(); }
+        } catch (x) { fail(x); }
+      };
+      const show = () => {
+        const l = list(); if (!l.length) return;
+        cur = (cur + l.length) % l.length;
+        const q = l[cur];
+        view.reset();
+        img.src = `/api/events/${EV.id}/photos/${encodeURIComponent(q.id)}/web`; img.alt = q.name;
+        box.querySelector("#pv-name").textContent = `${q.name}${q.size ? " · " + fmtBytes(q.size) : ""}`;
+        box.querySelector("#pv-name").title = q.name;
+        const more = from === "photos" && PH.more;
+        box.querySelector("#pv-pos").textContent = l.length > 1 || more ? `${cur + 1} / ${num(l.length)}${more ? "+" : ""}` : "";
+        box.querySelector("#pv-dl").href = `/api/events/${EV.id}/photos/${encodeURIComponent(q.id)}/orig`;
+        box.querySelectorAll(".nav").forEach(b => b.hidden = l.length < 2 && !more);
+        paintAlb(q);
+        if (more && cur >= l.length - 3) loadPhotos(false);   // near the end of what's loaded: fetch the next page
+        const nx = l[(cur + 1) % l.length]; if (nx && nx !== q) (new Image()).src = `/api/events/${EV.id}/photos/${encodeURIComponent(nx.id)}/web`;
+      };
+      const go = d => { cur += d; show(); };
+      const close = () => box.querySelector("[data-close]").click();
+      box.querySelector("#pv-prev").onclick = () => go(-1);
+      box.querySelector("#pv-next").onclick = () => go(1);
+      const keys = e => {  // ← → + - 0 R while it's open; it lets go when the dialog closes
+        if (!document.body.contains(stage)) { document.removeEventListener("keydown", keys); view.destroy(); return; }
+        if (e.target.closest && e.target.closest("input, textarea, select")) return;
+        if (e.key === "ArrowLeft") return go(-1);
+        if (e.key === "ArrowRight") return go(1);
+        view.key(e);
+      };
+      document.addEventListener("keydown", keys);
+      show();
+    } });
 }
 
 /* upload */
@@ -1646,19 +1740,25 @@ function paintVendors() {
 }
 
 /* ------------------------------------------------------------------ the photos the client chose for the album */
-let AL = { photos: [], count: 0, note: "", locked: false, sent_at: null, sel: new Set(), loaded: false };
+let AL = { photos: [], count: 0, note: "", locked: false, sent_at: null, sel: new Set(), loaded: false, by: { client: 0, studio: 0, both: 0 }, who: "all" };
+const ALB_BY = { client: "♥ Client", studio: "♥ Studio", both: "♥ Both" };
+const albBadge = (by, picker) => by ? `<span class="albby ${by}" title="${by === "client" ? "Chosen by the client" : by === "studio" ? "Added by the studio" + (picker ? " (" + esc(picker) + ")" : "")
+  : "Chosen by the client and the studio" + (picker ? " (" + esc(picker) + ")" : "")}">${ALB_BY[by]}</span>` : "";
 async function loadAlbum() {
   if (!EV) return;
   const eid = EV.id;
   try { const j = await api("GET", `/api/events/${eid}/album`); if (!EV || EV.id !== eid) return; Object.assign(AL, j, { loaded: true }); } catch (x) { return; }
   AL.sel = new Set([...AL.sel].filter(id => AL.photos.some(p => p.id === id)));
-  paintAlbum();
+  paintAlbum(); paintPhotos();   // the Photos card's album chips follow the list
 }
 function paintAlbum() {
   const el = document.getElementById("ev-album"); if (!el || !EV) return;
   const n = AL.photos.length, when = AL.sent_at ? new Date(AL.sent_at * 1000).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
   document.getElementById("al-count").innerHTML = (n ? `${num(n)} photo${n === 1 ? "" : "s"}` : "") +
-    (AL.locked ? `<span class="alb-badge lock">Finalised</span>` : n ? `<span class="alb-badge new">From ${esc(EV.client_name)}</span>` : "");
+    (AL.locked ? `<span class="alb-badge lock">Finalised</span>` : "");
+  if (!AL.photos.some(p => AL.who === "all" || p.by === AL.who || p.by === "both")) AL.who = "all";
+  const shown = AL.photos.filter(p => AL.who === "all" || p.by === AL.who || p.by === "both");
+  const whoChip = (k, t, c) => c ? `<button class="chip ${AL.who === k ? "on" : ""}" data-who="${k}">${t} <span class="muted">${num(c)}</span></button>` : "";
   const tools = document.getElementById("al-tools");
   tools.innerHTML = AL.sel.size ? `<span class="muted small">${AL.sel.size} selected</span><button class="btn sm danger" id="al-rm" data-need="events">Remove from album</button><button class="btn sm" id="al-clr">Clear</button>`
     : `<button class="btn sm" id="al-ref" title="Check for new picks from the client">Refresh</button>` + (n ? `<button class="btn sm" id="al-names">Copy file names</button>
@@ -1666,21 +1766,24 @@ function paintAlbum() {
        <button class="btn sm" id="al-lock" data-need="events">${AL.locked ? "Unlock" : "Finalise"}</button>` : "");
   const how = !EV.client.enabled ? `Your client chooses album photos in the client gallery. <b>Turn on the client gallery above</b> and send them the link.`
     : AL.locked ? `Finalised: the client can see these but can't change them. Unlock to let them change the selection.`
-    : `Your client chooses these in the client gallery (Select, then Proceed for album). Finalise when you start designing, so the selection stops changing.`;
+    : `Your client chooses these in the client gallery (Select, then Proceed for album). You can add the studio's own picks from Photos below: select them, then ♥ Add to album. Finalise when you start designing, so the client's selection stops changing.`;
   el.innerHTML = `<p class="small muted" style="margin:6px 0 0">${how}${when ? ` Last sent ${esc(when)}.` : ""}</p>
     ${AL.note ? `<div class="alb-note small"><b>Note from ${esc(EV.client_name)}:</b> ${esc(AL.note)}</div>` : ""}
-    ${n ? `<div class="photos">${AL.photos.map(p => `<div class="ph" data-apid="${esc(p.id)}" title="${esc(p.name)}">
-        <img loading="lazy" alt="" src="/api/events/${EV.id}/photos/${esc(p.id)}/thumb"><span class="pnm">${esc(p.name)}</span>
+    ${n ? `<div class="alb-who">${whoChip("all", "All", n)}${whoChip("client", "Chosen by " + esc(EV.client_name), AL.by.client + AL.by.both)}${whoChip("studio", "Added by the studio", AL.by.studio + AL.by.both)}</div>
+      <p class="small muted" style="margin:6px 0 0">${[AL.by.client && `${num(AL.by.client)} by the client only`, AL.by.studio && `${num(AL.by.studio)} by the studio only`, AL.by.both && `${num(AL.by.both)} by both`].filter(Boolean).join(" · ")}</p>
+      <div class="photos">${shown.map(p => `<div class="ph" data-apid="${esc(p.id)}" title="${esc(p.name)}">
+        <img loading="lazy" alt="" src="/api/events/${EV.id}/photos/${esc(p.id)}/thumb"><span class="pnm">${esc(p.name)}</span>${albBadge(p.by, p.picker)}
         <input type="checkbox" data-need="events" data-asel="${esc(p.id)}" ${AL.sel.has(p.id) ? "checked" : ""} aria-label="Select ${esc(p.name)}"></div>`).join("")}</div>`
       : `<div class="empty" style="padding:22px"><b>${AL.loaded ? "Nothing chosen yet" : "Loading…"}</b>${AL.loaded ? "The photos your client picks for the album appear here, apart from the rest." : ""}</div>`}`;
+  el.querySelectorAll("[data-who]").forEach(b => b.onclick = () => { AL.who = b.dataset.who; paintAlbum(); });
   el.querySelectorAll("[data-asel]").forEach(c => c.onclick = ev => { ev.stopPropagation(); c.checked ? AL.sel.add(c.dataset.asel) : AL.sel.delete(c.dataset.asel); paintAlbum(); });
-  el.querySelectorAll("[data-apid]").forEach(t => t.onclick = () => { const p = AL.photos.find(x => x.id === t.dataset.apid); if (p) viewPhoto(p); });
+  el.querySelectorAll("[data-apid]").forEach(t => t.onclick = () => { const p = AL.photos.find(x => x.id === t.dataset.apid); if (p) viewPhoto(p, "album"); });
   const $$ = id => document.getElementById(id);
   if ($$("al-ref")) $$("al-ref").onclick = async () => { await loadAlbum(); toast("Up to date."); };
   if ($$("al-clr")) $$("al-clr").onclick = () => { AL.sel.clear(); paintAlbum(); };
   if ($$("al-names")) $$("al-names").onclick = async () => {
-    const text = AL.photos.map(p => p.name).join("\n");
-    try { await navigator.clipboard.writeText(text); toast(`Copied ${n} file name${n === 1 ? "" : "s"}. Paste them into Lightroom or your album software.`); }
+    const text = shown.map(p => p.name).join("\n");
+    try { await navigator.clipboard.writeText(text); toast(`Copied ${shown.length} file name${shown.length === 1 ? "" : "s"}. Paste them into Lightroom or your album software.`); }
     catch (x) { modal(`<h3>File names</h3><textarea class="grow" style="width:100%;min-height:220px" readonly>${esc(text)}</textarea><div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn" data-close>Close</button></div>`); }
   };
   if ($$("al-lock")) $$("al-lock").onclick = async () => {

@@ -422,10 +422,11 @@ def mount_scenes(app, h):
         q = query(q)
         usable(u["account_id"])
         ids, clear = search(eid, q)
-        rows = _rows(ids, """SELECT p.id, p.public_id, p.orig_name, p.size, p.status, p.error, v.name AS vendor FROM photos p
-                             LEFT JOIN vendor_links v ON v.id=p.vendor_id WHERE p.status='ready' AND p.id IN ({})""")
+        rows = _rows(ids, """SELECT p.id, p.public_id, p.orig_name, p.size, p.status, p.error, v.name AS vendor, a.picked_by AS album
+                             FROM photos p LEFT JOIN vendor_links v ON v.id=p.vendor_id
+                             LEFT JOIN album_picks a ON a.photo_id=p.id AND a.event_id=p.event_id WHERE p.status='ready' AND p.id IN ({})""")
         return {"q": q, "clear": clear, "photos": [{"id": r["public_id"], "name": r["orig_name"], "size": r["size"], "status": r["status"],
-                                                     "error": r["error"], "vendor": r["vendor"]} for r in rows]}
+                                                     "error": r["error"], "vendor": r["vendor"], "album": r["album"]} for r in rows]}
 
     # ------------------------------------------------------------------ the client gallery (its link and PIN)
     @app.get("/c/{token}/scenes")

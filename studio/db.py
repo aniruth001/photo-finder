@@ -398,6 +398,10 @@ MIGRATIONS = {
         CREATE INDEX photo_scenes_event ON photo_scenes(event_id, model);
         ALTER TABLE accounts ADD COLUMN scene_search INTEGER NOT NULL DEFAULT 1;  -- the studio's on/off switch
     """,
+    24: """
+        ALTER TABLE album_picks ADD COLUMN picked_by TEXT NOT NULL DEFAULT 'client';  -- client | studio | both
+        ALTER TABLE album_picks ADD COLUMN picker TEXT NOT NULL DEFAULT '';           -- the team member who added it (studio)
+    """,
 }
 
 _local = threading.local()

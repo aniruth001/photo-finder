@@ -867,13 +867,15 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
 
     # ---------------------------------------------------------------- photos (dashboard side)
     @app.get("/api/events/{eid}/photos")
-    def list_photos(eid: int, status: Optional[str] = None, vendor: Optional[str] = None, offset: int = 0, limit: int = 120,
-                    u: dict = Depends(user_dep)):
-        """status: busy | ready | failed. vendor: "any" (sent through any vendor link) or one vendor link's id."""
+    def list_photos(eid: int, status: Optional[str] = None, vendor: Optional[str] = None, album: Optional[str] = None,
+                    offset: int = 0, limit: int = 120, u: dict = Depends(user_dep)):
+        """status: busy | ready | failed. vendor: "any" (sent through any vendor link) or one vendor link's id.
+        album: "any" (in the album list), "client" (chosen by the client, alone or with the studio) or "studio" (likewise)."""
         get_event(u, eid)
         limit = max(1, min(limit, 500))
-        sql, args = """SELECT p.public_id, p.orig_name, p.size, p.status, p.error, v.name AS vendor FROM photos p
-                       LEFT JOIN vendor_links v ON v.id=p.vendor_id WHERE p.event_id=? AND p.account_id=? """, [eid, u["account_id"]]
+        sql, args = """SELECT p.public_id, p.orig_name, p.size, p.status, p.error, v.name AS vendor, a.picked_by AS album FROM photos p
+                       LEFT JOIN vendor_links v ON v.id=p.vendor_id LEFT JOIN album_picks a ON a.photo_id=p.id AND a.event_id=p.event_id
+                       WHERE p.event_id=? AND p.account_id=? """, [eid, u["account_id"]]
         if status == "busy":
             sql += "AND p.status IN ('uploading','uploaded','processing') "
         elif status in ("ready", "failed"):
@@ -884,9 +886,14 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         elif vendor and vendor.isdigit():
             sql += "AND p.vendor_id=? "
             args.append(int(vendor))
+        if album == "any":
+            sql += "AND a.photo_id IS NOT NULL "
+        elif album in ("client", "studio"):
+            sql += "AND a.picked_by IN (?, 'both') "
+            args.append(album)
         rows = db.q(sql + "ORDER BY p.id DESC LIMIT ? OFFSET ?", args + [limit, max(0, offset)])
         return [{"id": r["public_id"], "name": r["orig_name"], "size": r["size"], "status": r["status"],
-                 "error": r["error"], "vendor": r["vendor"]} for r in rows]
+                 "error": r["error"], "vendor": r["vendor"], "album": r["album"]} for r in rows]
 
     @app.post("/api/events/{eid}/photos")
     def upload_photos(eid: int, files: List[UploadFile] = File(...), u: dict = Depends(can("upload"))):
@@ -1101,7 +1108,8 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
     # ---------------------------------------------------------------- pages
     @app.get("/", response_class=HTMLResponse)
     def dashboard():
-        return HTMLResponse((STATIC / "app.html").read_text(encoding="utf-8"), headers={"Cache-Control": "no-store"})
+        page = (STATIC / "app.html").read_text(encoding="utf-8").replace("__VIEWER__", (STATIC / "_viewer.html").read_text(encoding="utf-8"))
+        return HTMLResponse(page, headers={"Cache-Control": "no-store"})
 
     @app.get("/admin", response_class=HTMLResponse)
     def admin_page():

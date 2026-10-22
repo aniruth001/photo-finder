@@ -1,39 +1,41 @@
 <style>
-  /* the full-screen viewer's zoom, pan and rotate (guest page and client gallery) */
-  #lb .top > span { flex: 1; min-width: 0; }
-  #lb .stage { overflow: hidden; touch-action: none; }
-  #lb .stage img { transform-origin: center center; transition: transform .18s ease, opacity .6s ease; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
-  #lb .stage img.now { transition: opacity .6s ease; }
-  #lb .stage img.fade { opacity: 0; }
+  /* the photo viewer's zoom, pan, rotate and slideshow: guest page, client gallery (#lb) and the studio's dashboard */
+  .pfv .top > span { flex: 1; min-width: 0; }
+  .pfv .stage { overflow: hidden; touch-action: none; }
+  .pfv .stage img { transform-origin: center center; transition: transform .18s ease, opacity .6s ease; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
+  .pfv .stage img.now { transition: opacity .6s ease; }
+  .pfv .stage img.fade { opacity: 0; }
   /* slideshow: progress line, controls that step aside while it plays */
-  #lb .stage .sbar { position: absolute; left: 0; top: 0; height: 3px; width: 0; background: var(--accent); z-index: 2; pointer-events: none; }
-  #lb.playing .stage .sbar.run { animation: pfss var(--ss, 4s) linear forwards; }
+  .pfv .stage .sbar { position: absolute; left: 0; top: 0; height: 3px; width: 0; background: var(--accent); z-index: 2; pointer-events: none; }
+  .pfv.playing .stage .sbar.run { animation: pfss var(--ss, 4s) linear forwards; }
   @keyframes pfss { to { width: 100%; } }
-  #lb .top, #lb .actions, #lb .bar, #lb .nav, #lb .hint { transition: opacity .35s ease; }
-  #lb.idle .top, #lb.idle .actions, #lb.idle .bar, #lb.idle .nav, #lb.idle .hint { opacity: 0; pointer-events: none; }
-  #lb.idle, #lb.idle * { cursor: none !important; }
-  #lb .vtools .speed { display: none; }
-  #lb.playing .vtools .speed { display: grid; }
-  @media (prefers-reduced-motion: reduce) { #lb .stage img, #lb .stage img.now { transition: none; } #lb.playing .stage .sbar.run { animation: none; } }
-  #lb .stage.zoomed { cursor: grab; }
-  #lb .stage.zoomed.grabbing { cursor: grabbing; }
-  #lb .vtools { display: flex; align-items: center; gap: 4px; flex: none; }
-  #lb .vtools button { width: 36px; height: 36px; border-radius: 50%; border: 0; padding: 0; background: rgba(255,255,255,.12); color: #fff;
+  .pfv .top, .pfv .actions, .pfv .bar, .pfv .nav, .pfv .hint { transition: opacity .35s ease; }
+  .pfv.idle .top, .pfv.idle .actions, .pfv.idle .bar, .pfv.idle .nav, .pfv.idle .hint { opacity: 0; pointer-events: none; }
+  .pfv.idle, .pfv.idle * { cursor: none !important; }
+  .pfv .vtools .speed { display: none; }
+  .pfv.playing .vtools .speed { display: grid; }
+  @media (prefers-reduced-motion: reduce) { .pfv .stage img, .pfv .stage img.now { transition: none; } .pfv.playing .stage .sbar.run { animation: none; } }
+  .pfv .stage.zoomed { cursor: grab; }
+  .pfv .stage.zoomed.grabbing { cursor: grabbing; }
+  .pfv .vtools { display: flex; align-items: center; gap: 4px; flex: none; }
+  .pfv .vtools button { width: 36px; height: 36px; border-radius: 50%; border: 0; padding: 0; background: rgba(255,255,255,.12); color: #fff;
                        display: grid; place-items: center; cursor: pointer; font: inherit; }
-  #lb .vtools button:hover:not(:disabled) { background: rgba(255,255,255,.24); }
-  #lb .vtools button:disabled { opacity: .35; cursor: default; }
-  #lb .vtools button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  #lb .vtools svg { width: 18px; height: 18px; }
-  #lb .vtools .pct, #lb .vtools .speed { width: auto; min-width: 46px; height: 28px; border-radius: 8px; background: none; font-size: .8rem; font-variant-numeric: tabular-nums; }
-  @media (max-width: 380px) { #lb .vtools .pct { display: none; } }
+  .pfv .vtools button:hover:not(:disabled) { background: rgba(255,255,255,.24); }
+  .pfv .vtools button:disabled { opacity: .35; cursor: default; }
+  .pfv .vtools button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .pfv .vtools svg { width: 18px; height: 18px; }
+  .pfv .vtools .pct, .pfv .vtools .speed { width: auto; min-width: 46px; height: 28px; border-radius: 8px; background: none; font-size: .8rem; font-variant-numeric: tabular-nums; }
+  @media (max-width: 380px) { .pfv .vtools .pct { display: none; } }
+  .pfv .vtools .noslides { display: none !important; }
 </style>
 <script>
-  /* pfViewer({lb, stage, img, top, close, onSwipe, onNext, nextSrc}): zoom in and out, pan and rotate the photo in the
+  /* pfViewer({lb, stage, img, top, close, onSwipe, onNext, nextSrc, slides}): zoom in and out, pan and rotate the photo in the
      viewer, and play the photos as a slideshow. Buttons in the top bar; pinch, wheel, double-tap and drag; keys + - 0 R,
      Space for the slideshow. Swipes reach onSwipe(+1 / -1) only at normal size, so moving around a zoomed photo never
      turns the page. It only changes how the photo is shown: downloads are always the original file.
      Slideshow: onNext() shows the next photo, nextSrc() is its address (preloaded). Zooming, panning or rotating pauses
-     it; closing the viewer (stop()) or leaving full screen ends it. */
+     it; closing the viewer (stop()) or leaving full screen ends it. slides: false leaves the slideshow out (one photo).
+     destroy() lets go of the window and document listeners when the viewer itself goes away (a dialog). */
   window.pfViewer = function (o) {
     var stage = o.stage, img = o.img, lb = o.lb, MAX = 5;
     var s = 1, r = 0, x = 0, y = 0, fit = 1;
@@ -48,6 +50,8 @@
       '<button type="button" data-v="in" aria-label="Zoom in" title="Zoom in (+)">' + svg('<path d="M12 5v14M5 12h14"/>') + '</button>' +
       '<button type="button" data-v="rot" aria-label="Rotate" title="Rotate (R)">' + svg('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>') + '</button>';
     o.top.insertBefore(tools, o.close);
+    var slides = o.slides !== false;
+    if (!slides) tools.querySelectorAll('[data-v="play"], [data-v="speed"]').forEach(function (b) { b.classList.add("noslides"); });
     var bOut = tools.querySelector('[data-v="out"]'), bIn = tools.querySelector('[data-v="in"]'), pct = tools.querySelector(".pct");
     img.draggable = false;
 
@@ -130,8 +134,10 @@
       if (ours && document.fullscreenElement) document.exitFullscreen().catch(function () {});
       ours = false;
     }
-    document.addEventListener("fullscreenchange", function () { if (!document.fullscreenElement && ours) { ours = false; pause(); } });
-    document.addEventListener("visibilitychange", function () { if (playing && document.visibilityState === "visible") { lock = null; wake(); } });
+    var onFull = function () { if (!document.fullscreenElement && ours) { ours = false; pause(); } };
+    var onShow = function () { if (playing && document.visibilityState === "visible") { lock = null; wake(); } };
+    document.addEventListener("fullscreenchange", onFull);
+    document.addEventListener("visibilitychange", onShow);
     ["mousemove", "pointerdown", "keydown"].forEach(function (t) { lb.addEventListener(t, idle); });
     buttons();
 
@@ -201,7 +207,8 @@
     stage.addEventListener("pointerup", up);
     stage.addEventListener("pointercancel", up);
     img.addEventListener("load", function () { apply(true); img.classList.remove("fade"); if (playing) schedule(); });   // its size is known now
-    window.addEventListener("resize", function () { if (!stage.offsetParent) return; apply(true); });
+    var onResize = function () { if (!stage.offsetParent) return; apply(true); };
+    window.addEventListener("resize", onResize);
 
     return {
       reset: function () {  // a new photo is about to be shown
@@ -212,6 +219,12 @@
         }
       },
       play: play, stop: stop, playing: function () { return playing; },
+      destroy: function () {
+        stop();
+        window.removeEventListener("resize", onResize);
+        document.removeEventListener("fullscreenchange", onFull);
+        document.removeEventListener("visibilitychange", onShow);
+      },
       zoomed: function () { return s > 1; },
       key: function (e) {  // true when the key was the viewer's
         if (e.ctrlKey || e.metaKey || e.altKey) return false;
@@ -219,7 +232,7 @@
         if (e.key === "-" || e.key === "_") { zoomTo(s / 1.5); return true; }
         if (e.key === "0") { s = 1; apply(); return true; }
         if (e.key === "r" || e.key === "R") { rotate(); return true; }
-        if (e.key === " ") { e.preventDefault(); if (playing) pause(); else play(false); return true; }
+        if (e.key === " " && slides) { e.preventDefault(); if (playing) pause(); else play(false); return true; }
         return false;
       }
     };

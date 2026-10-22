@@ -196,6 +196,19 @@ client's note and when they last sent. **Copy file names** puts the names on the
 album software. **Download originals** zips just those photos. **Finalise** locks the selection so it stops changing
 while you design; **Unlock** lets the client change it again. A deleted photo leaves the selection on its own.
 
+**The studio's picks:** in **Photos**, select photos and tap **♥ Add to album** to put them in the same selection as
+the studio's suggestions (**Remove from album** takes selected photos out). Every album photo shows who chose it:
+**♥ Client**, **♥ Studio** (hover for which team member) or **♥ Both** (each chose it on their own). The Photos card
+has chips for **♥ In album**, **Client's picks** and **Studio's picks**; the Selected for album card counts them
+("2 by the client only · 1 by the studio only · 1 by both") and filters by who chose them, and Copy file names follows
+that filter. In the client gallery every album photo carries a label too: **♥ You** (pink), **♥ Studio** (blue) or
+**♥ Both** (purple). **My album** says how many each ("8 photos for your album: 4 you chose, 3 the studio added, 1 you
+both chose") and, once the studio has added any, has chips **All · Chosen by you · Added by the studio**; Download these
+and Slideshow follow the chip. In the full-screen viewer the album button says "♥ Added by the studio" on the studio's
+picks. The client can keep or remove the studio's picks until you Finalise. Finalise stops
+the client's changes, not yours. Taking a photo out of the album takes it out whoever chose it. Only roles that manage
+events (owner, admin, manager) add or remove the studio's picks.
+
 ## Videos (client gallery only)
 
 The event page has a **Videos** card under Photos: drag in the highlight film, the first dance or the speeches (MP4,

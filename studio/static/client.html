@@ -34,9 +34,13 @@ __THEME_HEAD__
   .selecting .tile .tick { display: grid; }
   .tile.on .tick { background: var(--accent); border-color: var(--accent); }
   .tile.on img { opacity: .75; }
-  .tile .heart { position: absolute; right: 6px; bottom: 6px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,.5);
-                 color: #ff5a7a; display: none; place-items: center; font-size: .85rem; line-height: 1; pointer-events: none; }
-  .tile.alb .heart { display: grid; }
+  .tile .heart { position: absolute; right: 5px; bottom: 5px; padding: 3px 8px; border-radius: 99px; display: none; font-size: .72rem; font-weight: 700;
+                 line-height: 1.2; pointer-events: none; white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,.35); background: #ffe4ea; color: #a3153a; }
+  .tile.alb .heart { display: block; }
+  .tile.alb.studio .heart { background: #e6f0ff; color: #1f55ad; }
+  .tile.alb.both .heart { background: #f1e9ff; color: #5b34b0; }
+  @media (max-width: 520px) { .tile .heart { font-size: .64rem; padding: 2px 6px; right: 3px; bottom: 3px; } }
+  .awho { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin: -2px 4px 12px; }
   #asheet { position: fixed; inset: 0; z-index: 9; background: rgba(0,0,0,.7); display: grid; place-items: center; padding: 16px; }
   #asheet .card { margin: 0; text-align: left; width: 100%; max-width: 440px; }
   #asheet h2 { margin: 0 0 6px; }
@@ -156,6 +160,7 @@ __THEME_TOGGLE__
       placeholder="Describe a moment: cake cutting, group photo, mehendi…" aria-label="Describe the photos you're looking for"><button class="btn" id="dgo">Search</button></form>
     <div class="dchips" id="dchips" hidden></div>
     <div class="filter" id="filter" hidden><span id="ftext"></span><button class="linkbtn" id="clear">Show all photos</button></div>
+    <div class="awho" id="awho" hidden></div>
     <div id="vids" hidden><h2 class="sec" id="vhead">Videos</h2><div class="vgrid" id="vgrid"></div><h2 class="sec" id="phead">Photos</h2></div>
     <div class="grid" id="grid"></div>
     <p class="note" id="more" hidden>Loading more…</p>
@@ -199,7 +204,7 @@ __THEME_TOGGLE__
 <input type="file" id="camera" accept="image/*" capture="user" hidden>
 <input type="file" id="gallery" accept="image/*" hidden>
 
-<div id="lb" hidden>
+<div id="lb" class="pfv" hidden>
   <div class="top"><span id="pos"></span><button class="x" id="close" aria-label="Close">✕</button></div>
   <div class="stage">
     <button class="nav prev" id="prev" aria-label="Previous">‹</button>
@@ -218,7 +223,7 @@ const BASE = location.pathname.replace(/\/+$/, "");   // /c/<link>
 // (person.kind "face") or the photos chosen for the album (person.kind "album")
 let photos = [], done = false, loading = false, cur = 0, canDownload = true, total = 0, selecting = false, person = null, videos = [];
 const picked = new Set();
-const album = { ids: new Set(), locked: false, note: "", photos: [] };   // what this client has sent for the album
+const album = { ids: new Set(), locked: false, note: "", photos: [], by: new Map() };   // by: photo id -> client | studio | both   // what this client has sent for the album
 const inAlbumView = () => !!person && person.kind === "album";
 let toastTimer = null;
 function say(msg, bad) {
@@ -397,10 +402,31 @@ function addTile(p, i) {
   const im = document.createElement("img"); im.loading = "lazy"; im.alt = p.name; im.src = `${BASE}/thumb/${encodeURIComponent(p.id)}.jpg`;
   const t = document.createElement("span"); t.className = "tick"; t.textContent = "✓";
   const hr = document.createElement("span"); hr.className = "heart"; hr.textContent = "♥"; hr.title = "In your album";
-  b.dataset.id = p.id; b.classList.toggle("alb", album.ids.has(p.id));
-  b.append(im, t, hr);
+  b.dataset.id = p.id;
+  b.append(im, t, hr); markAlb(b, p.id);
   b.onclick = () => selecting ? toggle(b, p) : openLb(i);
   $("grid").appendChild(b);
+}
+const WHO = { client: ["♥ You", "You chose this for your album"], studio: ["♥ Studio", "The studio added this to your album"],
+              both: ["♥ Both", "You and the studio both chose this"] };
+function markAlb(tile, id) {  // album photos say who chose them: you, the studio, or both
+  const by = album.by.get(id) || "client";
+  tile.classList.toggle("alb", album.ids.has(id)); tile.classList.toggle("studio", by === "studio"); tile.classList.toggle("both", by === "both");
+  const h = tile.querySelector(".heart"); if (h) { h.textContent = WHO[by][0]; h.title = WHO[by][1]; }
+}
+const albWho = () => (person && person.who) || "all";
+function albPhotos() {  // the album, as the chips filter it
+  const w = albWho();
+  return album.photos.filter(p => w === "all" || album.by.get(p.id) === w || album.by.get(p.id) === "both");
+}
+function paintWho() {  // All · Chosen by you · Added by the studio (both count in each)
+  const el = $("awho");
+  if (!inAlbumView() || !album.photos.length) { el.hidden = true; return; }
+  const n = k => album.photos.filter(p => album.by.get(p.id) === k).length, both = n("both"), you = n("client") + both, st = n("studio") + both;
+  const chip = (k, t, c) => `<button type="button" class="dchip${albWho() === k ? " on" : ""}" data-who="${k}">${t}<span>${c}</span></button>`;
+  el.innerHTML = chip("all", "All", album.photos.length) + (you ? chip("client", "Chosen by you", you) : "") + (st ? chip("studio", "Added by the studio", st) : "");
+  el.hidden = !st;   // only worth showing when the studio added something
+  el.querySelectorAll("[data-who]").forEach(b => b.onclick = () => { person.who = b.dataset.who; stopSelecting(); photos = albPhotos(); redraw(); });
 }
 function redraw() { $("grid").innerHTML = ""; photos.forEach((p, i) => addTile(p, i)); paintBar(); }
 function toggle(b, p) {
@@ -428,15 +454,21 @@ function paintBar() {
   $("all").disabled = (selecting && !picked.size) || (person && !photos.length);
   $("filter").hidden = !person;
   $("vids").hidden = !!person || !videos.length;  // a filter: the videos step aside
-  if (av) $("ftext").textContent = album.locked ? `The studio has finalised your album with these ${plural(photos.length, "photo")}.`
-    : photos.length ? `These are the photos you sent for your album.${album.note ? " Your note: “" + album.note + "”" : ""}`
-    : "Your album is empty. Select photos and tap Proceed for album.";
+  if (av) $("ftext").textContent = (() => {
+      const all = album.photos, n = k => all.filter(p => album.by.get(p.id) === k).length;
+      const parts = [n("client") && `${n("client")} you chose`, n("studio") && `${n("studio")} the studio added`, n("both") && `${n("both")} you both chose`].filter(Boolean);
+      const split = n("studio") || n("both") ? `: ${parts.join(", ")}` : "";
+      if (!all.length) return "Your album is empty. Select photos and tap Proceed for album.";
+      return (album.locked ? `The studio has finalised your album with these ${plural(all.length, "photo")}${split}.`
+        : `${plural(all.length, "photo")} for your album${split}.`) + (album.note ? " Your note: “" + album.note + "”" : "");
+    })();
   else if (dsc) $("ftext").textContent = person.clear ? `Showing the photos that look like “${person.q}”.`
     : `No clear matches for “${person.q}”. These ${plural(photos.length, "photo")} come closest; try other words.`;
   else if (person) $("ftext").textContent = person.multiple
     ? `Showing ${plural(photos.length, "photo")} of the biggest face in your photo.`
     : `Showing ${plural(photos.length, "photo")} of the person in your photo.`;
-  document.querySelectorAll(".dchip").forEach(c => c.classList.toggle("on", dsc && c.dataset.q.toLowerCase() === person.q.toLowerCase()));
+  document.querySelectorAll("#dchips .dchip").forEach(c => c.classList.toggle("on", dsc && c.dataset.q.toLowerCase() === person.q.toLowerCase()));
+  paintWho();
 }
 function stopSelecting() {
   selecting = false; picked.clear(); $("grid").classList.remove("selecting");
@@ -459,7 +491,8 @@ $("all").onclick = () => {  // the server streams one zip; the browser saves it 
 /* ---- album: the client chooses photos for the album; the studio sees them on its event page */
 function setAlbum(j) {
   album.ids = new Set(j.photos.map(p => p.id)); album.locked = j.locked; album.note = j.note || ""; album.photos = j.photos;
-  document.querySelectorAll(".tile[data-id]").forEach(t => t.classList.toggle("alb", album.ids.has(t.dataset.id)));
+  album.by = new Map(j.photos.map(p => [p.id, p.by]));
+  document.querySelectorAll(".tile[data-id]").forEach(t => markAlb(t, t.dataset.id));
   if (!$("lb").hidden) paint();
 }
 async function loadAlbum() {
@@ -492,7 +525,7 @@ $("alb").onclick = async () => {
   const n = picked.size, j = await albumCall("/album/remove", { ids: [...picked] });
   if (!j) return;
   say(`Removed ${plural(n, "photo")} from your album.`);
-  stopSelecting(); photos = j.photos; redraw();
+  stopSelecting(); photos = albPhotos(); redraw();
 };
 $("asend").onclick = async () => {
   $("asend").disabled = true; $("asend").textContent = "Sending…";
@@ -505,7 +538,7 @@ $("acancel").onclick = () => albumSheet(false);
 $("asheet").addEventListener("mousedown", e => { if (e.target === $("asheet")) albumSheet(false); });
 $("albview").onclick = async () => {
   await loadAlbum();
-  stopSelecting(); person = { kind: "album" }; photos = album.photos.slice(); redraw(); $("more").hidden = true;
+  stopSelecting(); person = { kind: "album", who: "all" }; photos = albPhotos(); redraw(); $("more").hidden = true;
   window.scrollTo({ top: $("gallery").offsetTop - 8, behavior: "smooth" });
 };
 $("lbalb").onclick = async () => {  // one photo, from the full-screen viewer
@@ -595,7 +628,10 @@ function paint() {
   $("dl").href = `${BASE}/download/${encodeURIComponent(p.id)}`; $("dl").setAttribute("download", p.name);
   $("pos").textContent = `${cur + 1} / ${viewCount()}  ·  ${p.name}`;
   const ia = album.ids.has(p.id);
-  $("lbalb").hidden = album.locked; $("lbalb").classList.toggle("on", ia); $("lbalb").textContent = ia ? "♥ In your album" : "♡ Add to album";
+  const by = album.by.get(p.id);
+  $("lbalb").hidden = album.locked; $("lbalb").classList.toggle("on", ia);
+  $("lbalb").textContent = !ia ? "♡ Add to album" : by === "studio" ? "♥ Added by the studio" : by === "both" ? "♥ You & the studio" : "♥ In your album";
+  $("lbalb").title = ia ? "Tap to take it out of your album" : "";
   if (!person && cur >= photos.length - 5) load();
 }
 const step = d => { cur = (cur + d + photos.length) % photos.length; paint(); };

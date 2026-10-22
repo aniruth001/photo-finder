@@ -1,9 +1,14 @@
-"""Album selection: the client picks photos in the client gallery and sends them to the studio for the album.
+"""Album selection: the client picks photos in the client gallery and sends them to the studio for the album; the studio
+can add photos to the same list from the event page.
 
 The client selects photos and taps "Proceed for album"; those photos (and an optional note) are added to the event's
 album list. The client can look at the list and take photos out again. The studio sees the list on the event page,
-copies the file names (to find them in Lightroom), downloads the originals, and locks the list once the album is
-being designed, so it doesn't change underneath the designer. A deleted photo leaves the list on its own.
+adds its own suggestions, copies the file names (to find them in Lightroom), downloads the originals, and locks the
+list once the album is being designed, so it doesn't change underneath the designer. A locked list stops the client's
+changes, not the studio's. A deleted photo leaves the list on its own.
+
+Every photo in the list remembers who chose it: the client, the studio (and which team member), or both (each chose it
+on their own). Taking a photo out takes it out for both.
 """
 import re
 import time
@@ -29,6 +34,10 @@ class AlbumIds(BaseModel):
     ids: List[str] = Field(max_length=MAX_IDS)
 
 
+class StudioAdd(BaseModel):
+    ids: List[str] = Field(max_length=MAX_IDS)
+
+
 class LockIn(BaseModel):
     locked: bool
 
@@ -43,8 +52,18 @@ def photo_ids(event_id: int, public_ids) -> List[int]:
     return out
 
 
+def add(event_id: int, ids, by: str, picker: str = ""):
+    """Put photos in the list as chosen by `by` (client | studio). Already chosen by the other side: now both."""
+    now = int(time.time())
+    db.conn().executemany("""INSERT INTO album_picks(event_id, photo_id, picked_at, picked_by, picker) VALUES(?,?,?,?,?)
+                             ON CONFLICT(event_id, photo_id) DO UPDATE SET
+                               picked_by = CASE WHEN album_picks.picked_by IN (excluded.picked_by, 'both') THEN album_picks.picked_by ELSE 'both' END,
+                               picker = CASE WHEN album_picks.picker = '' THEN excluded.picker ELSE album_picks.picker END""",
+                          [(event_id, i, now, by, picker) for i in ids])
+
+
 def picks(event_id: int):
-    return db.q("""SELECT p.*, a.picked_at FROM album_picks a JOIN photos p ON p.id=a.photo_id
+    return db.q("""SELECT p.*, a.picked_at, a.picked_by, a.picker FROM album_picks a JOIN photos p ON p.id=a.photo_id
                    WHERE a.event_id=? AND p.status='ready' ORDER BY p.orig_name COLLATE NOCASE, p.id""", (event_id,))
 
 
@@ -63,9 +82,11 @@ def mount_album(app, h):
 
     def state(e) -> dict:
         rows = picks(e["id"])
+        by = {k: sum(r["picked_by"] == k for r in rows) for k in ("client", "studio", "both")}
         return {"count": len(rows), "note": e["album_note"] or "", "sent_at": e["album_sent_at"], "locked": bool(e["album_locked"]),
-                "photos": [{"id": r["public_id"], "name": r["orig_name"], "w": r["width"], "h": r["height"],
-                            "size": r["size"], "picked_at": r["picked_at"]} for r in rows]}
+                "by": by,
+                "photos": [{"id": r["public_id"], "name": r["orig_name"], "w": r["width"], "h": r["height"], "size": r["size"],
+                            "picked_at": r["picked_at"], "by": r["picked_by"], "picker": r["picker"]} for r in rows]}
 
     def fresh(eid):
         return db.q1("SELECT * FROM events WHERE id=?", (eid,))
@@ -91,7 +112,7 @@ def mount_album(app, h):
             raise err(400, "Choose the photos for your album first.", "empty")
         now = int(time.time())
         with db.tx() as c:
-            c.executemany("INSERT OR IGNORE INTO album_picks(event_id, photo_id, picked_at) VALUES(?,?,?)", [(e["id"], i, now) for i in ids])
+            add(e["id"], ids, "client")
             note = body.note.strip()
             c.execute("UPDATE events SET album_sent_at=?, album_note=CASE WHEN ?='' THEN album_note ELSE ? END WHERE id=?",
                       (now, note, note, e["id"]))
@@ -107,6 +128,16 @@ def mount_album(app, h):
     @app.get("/api/events/{eid}/album")
     def album(eid: int, u: dict = Depends(h.user_dep)):
         return state(h.get_event(u, eid))
+
+    @app.post("/api/events/{eid}/album/add")
+    def studio_add(eid: int, body: StudioAdd, u: dict = Depends(h.can("events"))):
+        e = h.get_event(u, eid)
+        ids = photo_ids(e["id"], body.ids)
+        if not ids:
+            raise err(400, "Select ready photos to add to the album.", "empty")
+        with db.tx():
+            add(e["id"], ids, "studio", u["name"] or u["email"])
+        return {**state(fresh(e["id"])), "added": len(ids)}
 
     @app.post("/api/events/{eid}/album/remove")
     def studio_remove(eid: int, body: AlbumIds, u: dict = Depends(h.can("events"))):
@@ -125,7 +156,7 @@ def mount_album(app, h):
         e = h.get_event(u, eid)
         rows = picks(e["id"])
         if not rows:
-            raise err(400, "The client hasn't chosen any photos for the album yet.", "empty")
+            raise err(400, "No photos have been chosen for the album yet.", "empty")
         store = get_storage()
         files = [(store.photo_path(r, "orig"), name) for r, name in unique_names(rows)]
         fname = re.sub(r"[^A-Za-z0-9]+", "-", e["name"]).strip("-").lower() or "event"
