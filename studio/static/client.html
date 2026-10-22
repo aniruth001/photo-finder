@@ -55,6 +55,16 @@ __THEME_HEAD__
   .card input { width: 100%; font-weight: 600; font-size: 1.4rem; font-family: inherit; letter-spacing: .4em; text-align: center; padding: 12px; border-radius: 10px;
                 border: 1px solid var(--line); background: var(--field); color: var(--ink); margin: 6px 0 12px; }
   .err { color: var(--err); min-height: 1.4em; margin: 0 0 8px; }
+  .dsearch { display: flex; gap: 8px; margin: 2px 4px 8px; }
+  .dsearch input { flex: 1; min-width: 0; font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+                   background: var(--field); color: var(--ink); }
+  .dsearch input:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+  .dchips { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 4px 12px; }
+  .dchip { font: inherit; font-size: .85rem; padding: 5px 12px; border-radius: 99px; border: 1px solid var(--line); background: transparent;
+           color: var(--ink); cursor: pointer; }
+  .dchip span { color: var(--muted); margin-left: 4px; }
+  .dchip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .dchip.on span { color: inherit; opacity: .8; }
   .note { text-align: center; color: var(--muted); padding: 30px 0; }
   footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 0 16px 24px; }
   [hidden] { display: none !important; }
@@ -126,6 +136,9 @@ __THEME_TOGGLE__
       <button class="btn" id="alb" hidden>Proceed for album</button>
       <button class="btn" id="all" hidden>↓ Download all</button>
     </div>
+    <form class="dsearch" id="dform" role="search" hidden><input id="dq" type="search" maxlength="100" enterkeyhint="search" autocomplete="off"
+      placeholder="Describe a moment: cake cutting, group photo, mehendi…" aria-label="Describe the photos you're looking for"><button class="btn" id="dgo">Search</button></form>
+    <div class="dchips" id="dchips" hidden></div>
     <div class="filter" id="filter" hidden><span id="ftext"></span><button class="linkbtn" id="clear">Show all photos</button></div>
     <div id="vids" hidden><h2 class="sec" id="vhead">Videos</h2><div class="vgrid" id="vgrid"></div><h2 class="sec" id="phead">Photos</h2></div>
     <div class="grid" id="grid"></div>
@@ -207,7 +220,7 @@ async function start() {
     document.querySelector(".bar").hidden = true;
     return;
   }
-  paintBar(); load(); loadAlbum();
+  paintBar(); load(); loadAlbum(); loadScenes();
 }
 
 $("pform").onsubmit = async e => {
@@ -283,7 +296,9 @@ function toggle(b, p) {
 }
 function paintBar() {
   const av = inAlbumView();
-  $("count").textContent = (av ? plural(photos.length, "photo") + " in your album" : person ? plural(photos.length, "photo") + " of this person" : plural(total, "photo"))
+  const dsc = !!person && person.kind === "describe";
+  $("count").textContent = (av ? plural(photos.length, "photo") + " in your album" : dsc ? plural(photos.length, "photo") + (person.clear ? ` for “${person.q}”` : " that come closest")
+    : person ? plural(photos.length, "photo") + " of this person" : plural(total, "photo"))
     + (person ? "" : $("count").dataset.more || "");
   $("sel").textContent = selecting ? "Cancel" : "Select";
   $("sel").hidden = !total || (av && (album.locked || !photos.length));
@@ -302,9 +317,12 @@ function paintBar() {
   if (av) $("ftext").textContent = album.locked ? `The studio has finalised your album with these ${plural(photos.length, "photo")}.`
     : photos.length ? `These are the photos you sent for your album.${album.note ? " Your note: “" + album.note + "”" : ""}`
     : "Your album is empty. Select photos and tap Proceed for album.";
+  else if (dsc) $("ftext").textContent = person.clear ? `Showing the photos that look like “${person.q}”.`
+    : `No clear matches for “${person.q}”. These ${plural(photos.length, "photo")} come closest; try other words.`;
   else if (person) $("ftext").textContent = person.multiple
     ? `Showing ${plural(photos.length, "photo")} of the biggest face in your photo.`
     : `Showing ${plural(photos.length, "photo")} of the person in your photo.`;
+  document.querySelectorAll(".dchip").forEach(c => c.classList.toggle("on", dsc && c.dataset.q.toLowerCase() === person.q.toLowerCase()));
 }
 function stopSelecting() {
   selecting = false; picked.clear(); $("grid").classList.remove("selecting");
@@ -419,8 +437,39 @@ async function find(file) {
 }
 function findFailed(msg) { $("working").hidden = true; $("ask").hidden = false; $("ferr").textContent = msg; }
 $("clear").onclick = () => {  // back to every photo
-  stopSelecting(); person = null; photos = []; done = false; $("grid").innerHTML = ""; paintBar(); load();
+  $("dq").value = ""; stopSelecting(); person = null; photos = []; done = false; $("grid").innerHTML = ""; paintBar(); load();
 };
+
+/* ---- describe a moment: "cake cutting", "group photo" (matched on the server, by an AI model that runs there) */
+async function loadScenes() {
+  let j;
+  try { const r = await fetch(BASE + "/scenes"); if (!r.ok) return; j = await r.json(); } catch (e) { return; }
+  if (!j.available) return;
+  $("dform").hidden = false;
+  $("dchips").innerHTML = "";
+  j.tags.forEach(t => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "dchip"; b.dataset.q = t.label;
+    b.append(t.label); const n = document.createElement("span"); n.textContent = t.count; b.append(n);
+    b.onclick = () => { $("dq").value = t.label; describe(t.label); };
+    $("dchips").appendChild(b);
+  });
+  $("dchips").hidden = !j.tags.length;
+}
+$("dform").onsubmit = e => { e.preventDefault(); const q = $("dq").value.trim(); if (q) describe(q); else $("dq").focus(); };
+async function describe(q) {
+  const go = $("dgo"); go.disabled = true; go.textContent = "Searching…";
+  let r;
+  try { r = await fetch(`${BASE}/describe?q=${encodeURIComponent(q)}`); }
+  catch (e) { go.disabled = false; go.textContent = "Search"; return say("Can't reach the server. Check your connection and try again.", true); }
+  go.disabled = false; go.textContent = "Search";
+  if (r.status === 401) return location.reload();
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 409 || r.status === 503) { $("dform").hidden = $("dchips").hidden = true; return say(j.message || "Search by description isn't available.", true); }
+  if (!r.ok) return say(j.message || "Something went wrong. Please try again.", true);
+  stopSelecting(); $("dq").blur();
+  person = { kind: "describe", q: j.q, clear: j.clear }; photos = j.photos; redraw(); $("more").hidden = true;
+  window.scrollTo({ top: $("gallery").offsetTop - 8, behavior: "smooth" });
+}
 
 /* ---- full-screen viewer */
 function openLb(i) { cur = i; $("lb").hidden = false; document.body.style.overflow = "hidden"; $("notme").hidden = !person || person.kind !== "face"; paint(); }

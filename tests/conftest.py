@@ -35,6 +35,18 @@ class Sess:
     def delete(self, url, **kw): return self.req("DELETE", url, **kw)
 
 
+@pytest.fixture(autouse=True)
+def no_scene_model(monkeypatch):
+    """Search by description stays off unless a test brings its own engine: the real CLIP model, where it's
+    downloaded, would otherwise index every test's photos in the background (tests/test_scenes.py)."""
+    from studio import scenes
+
+    monkeypatch.setattr(scenes, "installed", lambda: False)
+    scenes.set_engine(None)
+    yield
+    scenes.set_engine(None)
+
+
 @pytest.fixture()
 def app_client(tmp_path, monkeypatch):
     monkeypatch.setattr(config.settings, "public_url", "")

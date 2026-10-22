@@ -1,4 +1,4 @@
-"""Command line: python -m studio run | set-plan | reset-password | create-account | grant-admin | revoke-admin"""
+"""Command line: python -m studio run | set-plan | reset-password | create-account | grant-admin | revoke-admin | get-scene-model"""
 import argparse
 import getpass
 import sys
@@ -42,8 +42,25 @@ def cmd_run(a):
         print(f"Camera upload: FTP on port {config.settings.ftp_port}{tls}")
     if not config.settings.allow_signup:
         print("Sign-ups are closed. Create accounts with: python -m studio create-account")
+    from . import scenes
+
+    if not scenes.installed():
+        print("Search by description is off until its model is downloaded: python -m studio get-scene-model")
     print("Press Ctrl+C to stop.\n")
     uvicorn.run(app, host=a.host, port=a.port, log_level="warning", **ssl)
+
+
+def cmd_get_scene_model(a):
+    from . import scenes
+
+    print(f"Downloading the search-by-description model (about 156 MB, once) to {scenes.MODEL_DIR}")
+    try:
+        scenes.download()
+    except Exception as e:
+        sys.exit(f"Download failed: {e}")
+    if not scenes.installed():
+        sys.exit("The files are here, but onnxruntime or tokenizers is missing: pip install -r requirements.txt")
+    print("Done. Restart the app; photos are indexed in the background.")
 
 
 def _open_db(a):
@@ -150,6 +167,9 @@ def main():
     v = sub.add_parser("revoke-admin", help="remove platform-admin access from a user")
     v.add_argument("email")
     v.set_defaults(fn=lambda a: cmd_admin(a, False))
+
+    m = sub.add_parser("get-scene-model", help="download the model for search by description (about 156 MB, once)")
+    m.set_defaults(fn=cmd_get_scene_model)
 
     a = ap.parse_args()
     a.fn(a)

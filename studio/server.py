@@ -5,6 +5,8 @@ Anyone with the link takes a selfie and sees only the photos they appear in.
 
 Every dashboard query is scoped by account_id: a company can only ever see its own rows.
 """
+import hashlib
+import hmac
 import html
 import io
 import ipaddress
@@ -33,7 +35,7 @@ from . import branding, config, db, google, mailer, roles, security
 from .processing import Processor, VectorIndex, switch_model, upgrade_events
 from .storage import get_storage
 from .camera import CameraServer, mount_camera
-from .client_gallery import mount_client, new_token, unique_names, zip_stream
+from .client_gallery import PIN_RE, PinIn, UnlockIn, mount_client, new_token, unique_names, zip_stream
 from .estimates import mount_estimates
 from .ingest import add_photo, photo_usage, remove_leftovers
 from .team import mount_team, seats_used
@@ -41,6 +43,7 @@ from .videos import mount_videos
 from .inventory import mount_inventory
 from .bookings import mount_bookings
 from .tasks import mount_tasks
+from .scenes import SceneIndexer, mount_scenes
 from .album import mount_album
 from .vendors import mount_vendors
 
@@ -280,6 +283,7 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         config.settings.workers = workers
 
     processor = Processor()
+    scene_indexer = SceneIndexer(busy=lambda: not processor.idle())  # search by description, after face processing
     camera = CameraServer(poke=lambda: processor.poke(), plan_of=plan_of)
     vindex = VectorIndex()
     limiter = security.RateLimiter()
@@ -299,14 +303,17 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         remove_leftovers()  # half-written uploads cut off by the last restart
         upgrade_events()  # events still on an older face engine are re-indexed in the background
         processor.start()
+        scene_indexer.start()
         if config.settings.ftp_port:
             camera.start()  # cameras upload to events over FTP(S)
         yield
         camera.stop()
+        scene_indexer.stop()
         processor.stop()
 
     app = FastAPI(title="Photo Finder Studio", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.processor = processor
+    app.state.scene_indexer = scene_indexer
 
     @app.middleware("http")
     async def headers(request: Request, call_next):
@@ -738,7 +745,7 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
             "tolerance_presets": [[v, LEVEL_LABELS[k]] for k, v in PRESETS.get(r["face_model"], PRESETS["dlib"]).items()],
             "photos": r["n_photos"], "ready": r["n_ready"], "processing": r["n_busy"], "failed": r["n_failed"],
             "videos": r["n_videos"], "album": r["n_album"], "album_locked": bool(r["album_locked"]),
-            "searches": r["n_searches"], "found": r["n_found"],
+            "searches": r["n_searches"], "found": r["n_found"], "guest_has_pin": bool(r["guest_pin"]),
             "client": {"enabled": bool(r["client_enabled"]), "has_pin": bool(r["client_pin"]),
                        "download": bool(r["client_download"]), "views": r["client_views"],
                        "url": f"{public_base(request)}/c/{r['client_token']}" if r["client_token"] else ""},
@@ -812,6 +819,16 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         for k, v in fields.items():  # keys come from the model above, never from the request
             db.run(f"UPDATE events SET {k}=? WHERE id=? AND account_id=?",
                    (v.strip() if isinstance(v, str) else v, eid, u["account_id"]))
+        return event_out(get_event(u, eid), request)
+
+    @app.post("/api/events/{eid}/guest-pin")
+    def set_guest_pin(eid: int, body: PinIn, request: Request, u: dict = Depends(can("events"))):
+        get_event(u, eid)
+        pin = body.pin.strip()
+        if pin and not PIN_RE.match(pin):
+            raise err(422, "The PIN must be 4 to 8 digits.", "pin")
+        db.run("UPDATE events SET guest_pin=? WHERE id=? AND account_id=?",
+               (security.hash_password(pin) if pin else "", eid, u["account_id"]))
         return event_out(get_event(u, eid), request)
 
     @app.delete("/api/events/{eid}")
@@ -932,8 +949,22 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
             raise err(404, "This gallery isn't available.", "unavailable")
         return r
 
-    def guest_photo(slug, pid):
+    def guest_pass(e) -> str:
+        """Cookie value proving the guests' PIN was entered; changing the PIN locks every browser out again."""
+        return hashlib.sha256(f"guest:{e['slug']}:{e['guest_pin']}".encode()).hexdigest()
+
+    def guest_unlocked(request: Request, e) -> bool:
+        return not e["guest_pin"] or hmac.compare_digest(request.cookies.get(f"pf_g{e['id']}", ""), guest_pass(e))
+
+    def guest_open(slug: str, request: Request):
+        """The published event, if this browser may see its photos (no PIN, or the PIN was entered)."""
         e = guest_event(slug)
+        if not guest_unlocked(request, e):
+            raise err(401, "Enter the PIN to find your photos.", "pin")
+        return e
+
+    def guest_photo(slug, pid, request: Request):
+        e = guest_open(slug, request)
         r = db.q1("SELECT * FROM photos WHERE public_id=? AND event_id=? AND status='ready'", (pid, e["id"]))
         if not r:
             raise err(404, "Photo not found.", "not_found")
@@ -956,12 +987,28 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         return HTMLResponse(page, headers={"Cache-Control": "no-store"})
 
     @app.get("/e/{slug}/info")
-    def guest_info(slug: str):
+    def guest_info(slug: str, request: Request):
         e = guest_event(slug)
+        if not guest_unlocked(request, e):  # locked: the name only, nothing about the photos
+            return {"name": e["name"], "has_pin": True, "unlocked": False}
         c = db.q1("""SELECT SUM(status='ready') ready, SUM(status IN ('uploading','uploaded','processing')) busy
                      FROM photos WHERE event_id=?""", (e["id"],))
-        return {"name": e["name"], "ready": c["ready"] or 0, "processing": c["busy"] or 0,
-                "allow_download": bool(e["allow_download"]), "searchable": not e["faces_purged"]}
+        return {"name": e["name"], "has_pin": bool(e["guest_pin"]), "unlocked": True, "ready": c["ready"] or 0,
+                "processing": c["busy"] or 0, "allow_download": bool(e["allow_download"]), "searchable": not e["faces_purged"]}
+
+    @app.post("/e/{slug}/unlock")
+    def guest_unlock(slug: str, body: UnlockIn, request: Request):
+        e = guest_event(slug)
+        ip = client_ip(request)
+        # per visitor and per event, so a 6-digit PIN can't be walked through from many addresses either
+        if not limiter.allow(("gpin", ip, slug), 10, 900) or not limiter.allow(("gpin-all", slug), 300, 3600):
+            raise err(429, "Too many tries. Wait 15 minutes and try again.", "rate")
+        if not e["guest_pin"] or not security.verify_password(body.pin.strip(), e["guest_pin"]):
+            raise err(403, "That PIN isn't right.", "pin")
+        resp = JSONResponse({"ok": True})
+        resp.set_cookie(f"pf_g{e['id']}", guest_pass(e), max_age=30 * 86400, httponly=True, samesite="lax",
+                        secure=https(), path=f"/e/{slug}")
+        return resp
 
     def match_selfie(e, file: UploadFile):
         """The event's photos the biggest face in an uploaded selfie appears in, best match first.
@@ -1000,7 +1047,7 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
 
     @app.post("/e/{slug}/search")
     def guest_search(slug: str, request: Request, file: UploadFile = File(...)):
-        e = guest_event(slug)
+        e = guest_open(slug, request)
         ip = client_ip(request)
         if not limiter.allow(("search", ip, slug), 20, 600) or not limiter.allow(("search-ip", ip), 80, 600):
             raise err(429, "Too many tries. Please wait a few minutes.", "rate")
@@ -1011,18 +1058,18 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         return {"count": len(photos), "multiple_faces": multiple, "photos": photos}
 
     @app.get("/e/{slug}/thumb/{pid}.jpg")
-    def guest_thumb(slug: str, pid: str):
-        _, r = guest_photo(slug, pid)
+    def guest_thumb(slug: str, pid: str, request: Request):
+        _, r = guest_photo(slug, pid, request)
         return file_or_404(get_storage().photo_path(r, "thumb"), headers={"Cache-Control": "private, max-age=3600"})
 
     @app.get("/e/{slug}/web/{pid}.jpg")
-    def guest_web(slug: str, pid: str):
-        _, r = guest_photo(slug, pid)
+    def guest_web(slug: str, pid: str, request: Request):
+        _, r = guest_photo(slug, pid, request)
         return file_or_404(get_storage().photo_path(r, "web"), headers={"Cache-Control": "private, max-age=3600"})
 
     @app.get("/e/{slug}/download/{pid}")
-    def guest_download(slug: str, pid: str):
-        e, r = guest_photo(slug, pid)
+    def guest_download(slug: str, pid: str, request: Request):
+        e, r = guest_photo(slug, pid, request)
         if not e["allow_download"]:
             raise err(403, "Downloads are turned off for this gallery.", "no_download")
         return file_or_404(get_storage().photo_path(r, "orig"), filename=r["orig_name"],
@@ -1030,7 +1077,7 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
 
     @app.post("/e/{slug}/zip")
     def guest_zip(slug: str, request: Request, ids: str = Form(...)):
-        e = guest_event(slug)
+        e = guest_open(slug, request)
         if not e["allow_download"]:
             raise err(403, "Downloads are turned off for this gallery.", "no_download")
         ip = client_ip(request)  # each zip copies up to 1000 originals to disk, so keep it rare per visitor
@@ -1073,6 +1120,8 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
     mount_inventory(app, SimpleNamespace(user_dep=user_dep, can=can, err=err))
     mount_bookings(app, SimpleNamespace(user_dep=user_dep, can=can, err=err))
     mount_tasks(app, SimpleNamespace(user_dep=user_dep, can=can, err=err))
+    mount_scenes(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, get_event=get_event, client_open=app.state.client_open,
+                                      client_ip=client_ip, limiter=limiter))
     mount_album(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, get_event=get_event, client_open=app.state.client_open,
                                      client_ip=client_ip, limiter=limiter))
     mount_vendors(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, get_event=get_event, plan_of=plan_of,

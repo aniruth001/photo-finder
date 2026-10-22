@@ -31,6 +31,15 @@ Guests open the link on their phone, tick the consent box, take a selfie and see
 viewer, "Not me", single download and "Download all" (zip). The page uses your company name and brand colour
 (Settings).
 
+### Guest PIN (optional)
+
+Under **Share with guests**, **Add a PIN** puts a 4 to 8 digit PIN on the guest link. Guests enter it once per phone,
+before the selfie; until then the page shows only the event's name, and the search, photos and downloads are refused.
+Share the PIN with the link: on the invitation, a poster at the venue, or in a separate message ("Share on WhatsApp"
+then adds "(PIN sent separately)"). **Change PIN** locks out every phone that used the old one; **Remove PIN** opens the
+link again. Wrong guesses are limited (10 per 15 minutes per visitor, 300 an hour in total); a 6-digit PIN is harder
+to guess than 4. Only roles that can manage events (owner, admin, manager) can change it.
+
 ### Client gallery: every photo, for your client
 
 Guests only ever see the photos their selfie matches. Your client (the couple, the company) usually wants **all**
@@ -127,6 +136,40 @@ signed up with Google can set a password later in Settings.
 `http://192.168.1.75:8000`, so on a local network use the dashboard at `http://localhost:8000` with
 `--public-url http://localhost:8000` and that redirect URI to try it. For real use, run it on your domain with HTTPS.
 While the consent screen is in "Testing" mode, only the test users you add there can sign in; publish it for everyone.
+
+## Search by description
+
+In the client gallery your client can type what they're looking for, like *cake cutting*, *group photo*, *mehendi*
+or *couple on stage*, and see those photos first, best match first. Under the box are suggestion chips for the
+moments this event actually has, with how many photos each (*Mehendi 10*); a chip appears only when at least two
+photos clearly match it. The same search is on each event's **Photos** card for the studio. It works next to
+**Find a person**: describe the moment, find the face.
+
+When nothing clearly matches (a search for *cake* at an event without a cake) the gallery says so and offers the 12
+closest photos, rather than nothing or a confident wrong answer. It understands English best, and scenes and
+things better than relationships: *grandmother* only works if it is visible in the photo; for one particular person,
+use Find a person.
+
+**How it works, and what it costs.** An open-source AI model (OpenAI's CLIP ViT-B/32, MIT licence, 8-bit ONNX)
+runs **on this server**: photos never leave it, there is no account or API key, and nothing is paid per photo or per
+search. Each photo's thumbnail is looked at once, in the background, after face processing; a 100-photo event is
+ready about a minute after its upload (measured on an 8-core PC), and events uploaded before the model was installed
+are filled in on their own. The Photos card and Settings show the progress.
+
+**Setting it up (once per server).** The model is about 156 MB and isn't in the repository:
+
+```bash
+pip install -r requirements.txt          # adds onnxruntime and tokenizers
+python -m studio get-scene-model         # downloads to models/clip/ and checks each file's checksum
+```
+
+Restart the app. The Docker image downloads it at build time. Without the model nothing changes: the search box
+just isn't shown, and `python -m studio run` prints how to add it.
+
+**Turning it off.** Settings > **Search by description** (owner and admin). Off hides the search and deletes the
+vectors the model made for the studio's photos; on makes them again in the background. The vectors describe what a
+photo looks like (a stage, a group, hands with henna), not who is in it; they are not face data. Deleting a photo or
+an event deletes its vector.
 
 ## Vendor uploads
 

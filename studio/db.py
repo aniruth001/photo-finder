@@ -387,6 +387,17 @@ MIGRATIONS = {
         );
         CREATE INDEX task_log_task ON task_log(task_id);
     """,
+    22: "ALTER TABLE events ADD COLUMN guest_pin TEXT NOT NULL DEFAULT ''",  # scrypt hash of the guests' optional PIN
+    23: """
+        CREATE TABLE photo_scenes (                     -- search by description: one CLIP vector per photo (studio/scenes.py)
+            photo_id INTEGER PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,
+            event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+            vec BLOB NOT NULL,                          -- 512 float32; empty = the thumbnail couldn't be read
+            model TEXT NOT NULL
+        );
+        CREATE INDEX photo_scenes_event ON photo_scenes(event_id, model);
+        ALTER TABLE accounts ADD COLUMN scene_search INTEGER NOT NULL DEFAULT 1;  -- the studio's on/off switch
+    """,
 }
 
 _local = threading.local()

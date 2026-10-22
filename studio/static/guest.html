@@ -54,6 +54,10 @@ __THEME_HEAD__
   #lb .bar.single { grid-template-columns: 1fr; }
   #lb .x { background: none; border: 0; color: #fff; font-size: 1.6rem; cursor: pointer; padding: 4px 8px; }
   .btn.dark { background: #000; color: #fff; border-color: #444; }
+  .pin { width: 100%; padding: 14px; margin-bottom: 4px; font-family: inherit; font-size: 1.4rem; font-weight: 600; letter-spacing: .3em; text-align: center;
+         border: 1.5px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); }
+  .pin:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+  .card #perr { min-height: 1.3em; margin: 6px 0 10px; text-align: center; color: var(--err); }
   .hint { margin: 0; padding: 0 16px 4px; text-align: center; color: var(--muted); font-size: .82rem; }
 </style>
 </head>
@@ -66,7 +70,13 @@ __THEME_TOGGLE__
 
   <div class="banner" id="banner" hidden></div>
 
-  <section id="start" class="card">
+  <section id="lock" class="card" hidden>
+    <p class="center">Enter the <b>PIN</b> you were given with this link.</p>
+    <form id="pform"><input id="pin" class="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="8" pattern="\d{4,8}" required aria-label="PIN">
+      <p class="err" id="perr"></p><button class="btn">Continue</button></form>
+  </section>
+
+  <section id="start" class="card" hidden>
     <p>Your selfie is used <b>only to find your photos</b>. It is not saved, and nobody else sees it.</p>
     <label class="consent"><input type="checkbox" id="consent"> <span>I agree to use my face to find my photos</span></label>
     <button class="btn" id="take" disabled>📷 Take selfie</button>
@@ -117,7 +127,7 @@ const BASE = location.pathname.replace(/\/+$/, "");   // /e/<event>
 let photos = [], cur = 0, canDownload = true, searchable = true;
 if (/iPhone|iPad|iPod/.test(navigator.userAgent)) $("hint").hidden = false;  // iOS saves downloads to Files, not Photos
 
-const show = name => ["start", "busy", "msg", "results"].forEach(s => $(s).hidden = s !== name);
+const show = name => ["lock", "start", "busy", "msg", "results"].forEach(s => $(s).hidden = s !== name);
 const consentOk = () => $("consent").checked;
 try { $("consent").checked = sessionStorage.getItem("consent") === "1"; } catch (e) {}
 function syncConsent() {
@@ -126,9 +136,12 @@ function syncConsent() {
 }
 $("consent").onchange = syncConsent;
 
-(async function init() {
-  try {
-    const j = await (await fetch(BASE + "/info")).json();
+async function init() {
+  let j = null;
+  try { j = await (await fetch(BASE + "/info")).json(); } catch (e) {}
+  if (j && j.has_pin && !j.unlocked) { show("lock"); $("pin").focus(); return; }
+  show("start");
+  if (j) {
     canDownload = j.allow_download; searchable = j.searchable;
     $("all").hidden = !canDownload; $("actions").classList.toggle("single", !canDownload);
     $("dl").hidden = !canDownload; $("bar").classList.toggle("single", !canDownload);
@@ -136,9 +149,21 @@ $("consent").onchange = syncConsent;
     if (!searchable) { b.textContent = "Photo search is switched off for this gallery."; b.hidden = false; }
     else if (j.ready === 0) { b.textContent = "The photos aren't ready yet. Please check back soon."; b.hidden = false; }
     else if (j.processing > 0) { b.textContent = "More photos are still being added. Search again later to see them."; b.hidden = false; }
-  } catch (e) {}
+  }
   syncConsent();
-})();
+}
+init();
+
+$("pform").onsubmit = async e => {
+  e.preventDefault(); $("perr").textContent = "";
+  try {
+    const r = await fetch(BASE + "/unlock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: $("pin").value }) });
+    if (r.ok) return init();
+    const j = await r.json().catch(() => ({}));
+    $("perr").textContent = j.message || "That PIN isn't right.";
+  } catch (err) { $("perr").textContent = "Can't reach the server. Check your connection and try again."; }
+  $("pin").select();
+};
 
 $("take").onclick = () => $("camera").click();
 $("pick").onclick = () => $("gallery").click();
@@ -150,6 +175,7 @@ async function search(file) {
   const fd = new FormData(); fd.append("file", file, "selfie.jpg");
   try {
     const r = await fetch(BASE + "/search", { method: "POST", body: fd });
+    if (r.status === 401) return init();   // the PIN was changed while this page was open
     if (r.status === 422) return fail("We couldn't see a face in that photo. Face the camera in good light and try again.");
     if (r.status === 429) return fail("Too many tries. Please wait a few minutes and try again.");
     if (!r.ok) return fail("Something went wrong. Please try again.");

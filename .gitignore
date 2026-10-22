@@ -3,6 +3,8 @@ data/
 cache/
 .venv/
 __pycache__/
+# search-by-description model, 156 MB: python -m studio get-scene-model
+models/clip/
 *.pyc
 .pytest_cache/
 *.zip

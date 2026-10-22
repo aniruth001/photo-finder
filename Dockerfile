@@ -8,6 +8,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+RUN python -m studio get-scene-model   # search by description (about 156 MB, fetched once at build time)
 VOLUME /data
 EXPOSE 8000 2121 60000-60049
 

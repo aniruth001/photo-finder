@@ -198,6 +198,8 @@
   .ph { position: relative; aspect-ratio: 1; border-radius: 9px; overflow: hidden; background: var(--soft); cursor: pointer; }
   .ph img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; display: block; }
   .ph input { position: absolute; top: 6px; left: 6px; width: 20px; height: 20px; accent-color: var(--brand); }
+  .ph-find { flex-wrap: nowrap; margin-top: 4px; } .ph-find input { min-width: 0; }
+  .linkish { border: 0; background: none; padding: 0; font: inherit; color: var(--ink); text-decoration: underline; cursor: pointer; }
   .vn-list { display: grid; gap: 10px; margin-top: 12px; }
   .vn { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 8px; }
   .vn.off { background: var(--soft); }
@@ -245,9 +247,8 @@
   .ov-none { padding: 14px 4px; }
 
   /* tasks board */
-  main.wide, body:has(main.wide) .bar { max-width: 1440px; }
   .kb { display: flex; gap: 14px; overflow-x: auto; align-items: flex-start; padding-bottom: 12px; scroll-snap-type: x proximity; }
-  .kb-col { flex: 0 0 290px; display: flex; flex-direction: column; min-width: 0; scroll-snap-align: start; }
+  .kb-col { flex: 1 0 210px; display: flex; flex-direction: column; min-width: 0; scroll-snap-align: start; }
   .kb-head { display: flex; align-items: center; gap: 4px; padding: 0 2px; }
   .kb-head h3 { margin: 0; font-size: 1.05rem; flex: 1; }
   .kb-add { border: 0; background: none; font: inherit; font-size: 1.3rem; line-height: 1; padding: 2px 8px; border-radius: 6px; cursor: pointer; color: var(--muted); }
@@ -807,7 +808,7 @@ async function viewEvent(id) {
   AL = { photos: [], count: 0, note: "", locked: false, sent_at: null, sel: new Set(), loaded: false };
   paintTop(); paintShare(); paintClient(); paintUpload(); paintSettings(); paintStatus(); wireMin("photos"); wireMin("videos"); wireMin("album"); wireMin("vendors"); paintCounts();
   VN = { items: [], loaded: false };
-  loadVideos(); loadAlbum(); loadVendors(); await loadPhotos(true);
+  loadVideos(); loadAlbum(); loadVendors(); loadScenes(); await loadPhotos(true);
   startPoll();
 }
 
@@ -823,17 +824,31 @@ function paintTop() {
   };
 }
 
+function pinModal(has, about, save) {  // the client gallery's and the guest link's PIN
+  modal(`<h2>${has ? "Change" : "Add"} the PIN</h2>
+      <p class="muted">4 to 8 digits. ${about} Changing it locks out every device that used the old one.</p>
+      <form id="pf"><label class="f"><span>PIN</span><input name="pin" inputmode="numeric" pattern="\\d{4,8}" maxlength="8" required autocomplete="off"></label>
+      <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Save PIN</button></div></form>`,
+    { onMount: (ov, close) => ov.querySelector("#pf").onsubmit = ev => { ev.preventDefault(); close(); save(new FormData(ev.target).get("pin")); } });
+}
+
 function paintShare() {
-  const e = EV, live = e.status === "published", wa = "https://wa.me/?text=" + encodeURIComponent(`${e.name}: find your photos with a selfie\n${e.url}`);
+  const e = EV, live = e.status === "published", wa = "https://wa.me/?text=" + encodeURIComponent(`${e.name}: find your photos with a selfie\n${e.url}${e.guest_has_pin ? "\n(PIN sent separately)" : ""}`);
   document.getElementById("ev-share").innerHTML = `<div class="card"><h2>Share with guests</h2><div class="share"><div>
       <div class="row"><input class="grow" readonly id="eurl" value="${esc(e.url)}"><button class="btn" id="copy">Copy link</button></div>
       <div class="row" style="margin-top:10px"><a class="btn sm" href="${esc(e.url)}" target="_blank" rel="noopener">Open guest page</a>
         <a class="btn sm" href="${wa}" target="_blank" rel="noopener">Share on WhatsApp</a>
         <a class="btn sm" href="/api/events/${e.id}/qr.png" download="${esc(e.slug)}-qr.png">Download QR</a></div>
       <p class="small ${live ? "muted" : ""}" style="margin:12px 0 0;${live ? "" : "color:var(--warn)"}">${live ? "Guests open the link, take a selfie and see only their own photos." : "Not visible to guests until you publish the event."}</p>
+      <div class="row" style="margin-top:12px" data-need="events">
+        <span class="small">${e.guest_has_pin ? "🔒 <b>PIN is on.</b> Guests enter it once on their phone, before the selfie. Share it with the link: on the invitation, a poster at the venue, or a separate message." : "No PIN: anyone with the link can search for their photos."}</span>
+        <button class="btn sm" id="g-pin">${e.guest_has_pin ? "Change PIN" : "Add a PIN"}</button>${e.guest_has_pin ? `<button class="btn sm" id="g-nopin">Remove PIN</button>` : ""}</div>
       ${e.url.includes("localhost") || e.url.includes("127.0.0.1") ? `<p class="small" style="color:var(--warn);margin:8px 0 0">This link only works on this computer. Open the dashboard using the computer's network address, or set a public URL, so phones can reach it.</p>` : ""}
     </div><img alt="QR code for the event link" src="/api/events/${e.id}/qr.png"></div></div>`;
   document.getElementById("copy").onclick = async () => { try { await navigator.clipboard.writeText(e.url); } catch (x) { document.getElementById("eurl").select(); document.execCommand("copy"); } toast("Link copied."); };
+  const setPin = pin => api("POST", `/api/events/${e.id}/guest-pin`, { pin }).then(r => { EV = r; paintShare(); toast(pin ? "PIN saved. Share it with your guests." : "PIN removed."); }).catch(fail);
+  const pb = document.getElementById("g-pin"); if (pb) pb.onclick = () => pinModal(e.guest_has_pin, "Each guest enters it once per device, before taking the selfie.", setPin);
+  const nb = document.getElementById("g-nopin"); if (nb) nb.onclick = async () => { if (await confirmBox("Remove the PIN?", "Anyone with the link will be able to search for their photos.", "Remove PIN", true)) setPin(""); };
 }
 
 function paintClient() {
@@ -858,11 +873,7 @@ function paintClient() {
   const dl = document.getElementById("cl-dl"); if (dl) dl.onchange = () => save({ client_download: dl.checked }, dl.checked ? "Client can download." : "Downloads turned off for the client.");
   const cp = document.getElementById("cl-copy"); if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(c.url); } catch (x) { document.getElementById("cl-url").select(); document.execCommand("copy"); } toast("Link copied."); };
   const setPin = pin => api("POST", `/api/events/${e.id}/client-pin`, { pin }).then(r => { EV = r; paintClient(); toast(pin ? "PIN saved. Send it to the client." : "PIN removed."); }).catch(fail);
-  const pb = document.getElementById("cl-pin"); if (pb) pb.onclick = () => modal(`<h2>${c.has_pin ? "Change" : "Add"} the PIN</h2>
-      <p class="muted">4 to 8 digits. The client enters it once per device. Changing it locks out every device that used the old one.</p>
-      <form id="pf"><label class="f"><span>PIN</span><input name="pin" inputmode="numeric" pattern="\\d{4,8}" maxlength="8" required autocomplete="off"></label>
-      <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Save PIN</button></div></form>`,
-    { onMount: (ov, close) => ov.querySelector("#pf").onsubmit = ev => { ev.preventDefault(); close(); setPin(new FormData(ev.target).get("pin")); } });
+  const pb = document.getElementById("cl-pin"); if (pb) pb.onclick = () => pinModal(c.has_pin, "The client enters it once per device.", setPin);
   const nb = document.getElementById("cl-nopin"); if (nb) nb.onclick = async () => { if (await confirmBox("Remove the PIN?", "Anyone with the link will see every photo.", "Remove PIN", true)) setPin(""); };
   const rb = document.getElementById("cl-reset"); if (rb) rb.onclick = async () => {
     if (!await confirmBox("Make a new link?", "The current client link stops working straight away. Send the new one to your client.", "New link", true)) return;
@@ -893,7 +904,7 @@ async function refreshEvent(before) {
   try {
     const e = await api("GET", "/api/events/" + EV.id); EV = e; paintStatus(); paintCounts();
     const after = e.ready + "/" + e.failed + "/" + e.processing;
-    if (before === undefined || before !== after) { paintTop(); paintClient(); loadVendors(); await loadPhotos(true); }
+    if (before === undefined || before !== after) { paintTop(); paintClient(); loadVendors(); loadScenes(); await loadPhotos(true); }
     if (!e.processing) { paintUpload(); }
   } catch (x) { /* a transient error: the next poll will try again */ }
 }
@@ -903,6 +914,11 @@ async function loadPhotos(reset) {
   const box = document.getElementById("ev-photos"); if (!box || PH.loading) return;
   PH.loading = true;
   if (reset) { PH.items = []; PH.more = true; }
+  if (PH.filter === "describe") {  // search by description: one answer, best match first
+    try { const r = await api("GET", `/api/events/${EV.id}/describe?q=${encodeURIComponent(PH.q)}`); PH.items = r.photos; PH.clear = r.clear; }
+    catch (x) { fail(x); PH.filter = "all"; PH.loading = false; return loadPhotos(true); }
+    PH.more = false; PH.loading = false; return paintPhotos();
+  }
   try {
     const q = PH.filter === "all" ? "" : PH.filter[0] === "v" ? "&vendor=" + (PH.filter === "vany" ? "any" : PH.filter.slice(1)) : "&status=" + PH.filter;
     const rows = await api("GET", `/api/events/${EV.id}/photos?offset=${PH.items.length}&limit=120${q}`);
@@ -916,7 +932,14 @@ function paintPhotos() {
   const tools = document.getElementById("ev-tools");
   tools.innerHTML = SEL.size ? `<span class="muted small">${SEL.size} selected</span><button class="btn sm danger" id="delsel" data-need="delete_photos">Delete selected</button><button class="btn sm" id="clrsel">Clear</button>` : "";
   const one = PH.filter[0] === "v" && PH.filter !== "vany" ? VN.items.find(v => "v" + v.id === PH.filter) : null;
-  box.innerHTML = `<div class="chips" style="margin-top:10px">${chip("all", "All")}${chip("ready", "Ready")}${chip("busy", "Processing")}${chip("failed", "Failed")}${VN.items.length ? chip("vany", "From vendors") : ""}${one ? chip(PH.filter, "From " + esc(one.name)) : ""}</div>` +
+  const sc = PH.scenes, dsc = PH.filter === "describe";
+  const search = sc && sc.available ? `<form class="row ph-find" id="ph-find" role="search"><input id="ph-q" type="search" maxlength="100" value="${esc(dsc ? PH.q : "")}"
+      placeholder="Describe a moment: cake cutting, group photo, mehendi…" aria-label="Search photos by description"><button class="btn">Search</button></form>
+    <div class="muted small" style="margin-top:6px">${sc.indexed < sc.ready ? `Getting photos ready for search: ${num(sc.indexed)} of ${num(sc.ready)}. ` : ""}${sc.tags.length
+      ? "Try: " + sc.tags.map(t => `<button class="linkish" data-tag="${esc(t.label)}">${esc(t.label)}</button> <span>${num(t.count)}</span>`).join(" · ") : ""}</div>` : "";
+  box.innerHTML = search + (dsc ? `<p class="small" style="margin:10px 0 0">${PH.clear ? `Photos that look like <b>“${esc(PH.q)}”</b>, best match first.`
+      : `No clear matches for <b>“${esc(PH.q)}”</b>. These come closest.`} <button class="linkish" id="ph-noq">Show all photos</button></p>` : "") +
+    `<div class="chips" style="margin-top:10px">${chip("all", "All")}${chip("ready", "Ready")}${chip("busy", "Processing")}${chip("failed", "Failed")}${VN.items.length ? chip("vany", "From vendors") : ""}${one ? chip(PH.filter, "From " + esc(one.name)) : ""}</div>` +
     (PH.items.length ? `<div class="photos">${PH.items.map(p => {
       const ok = p.status === "ready", bad = p.status === "failed";
       return `<div class="ph ${bad ? "bad" : ""}" data-pid="${esc(p.id)}" title="${esc(p.name)}${p.vendor ? " · from " + esc(p.vendor) : ""}${p.error ? " — " + esc(p.error) : ""}">
@@ -925,6 +948,10 @@ function paintPhotos() {
         <input type="checkbox" data-need="delete_photos" data-sel="${esc(p.id)}" ${SEL.has(p.id) ? "checked" : ""} aria-label="Select ${esc(p.name)}"></div>`; }).join("")}</div>
       ${PH.more ? `<div style="text-align:center;margin-top:14px"><button class="btn" id="more">Load more</button></div>` : ""}`
       : `<div class="empty">${PH.filter === "all" ? "<b>No photos yet</b>Drop photos in the box above." : "Nothing here."}</div>`);
+  const find = q => { PH.filter = "describe"; PH.q = q; loadPhotos(true); };
+  const ff = document.getElementById("ph-find"); if (ff) ff.onsubmit = e => { e.preventDefault(); const q = document.getElementById("ph-q").value.trim(); if (q) find(q); };
+  box.querySelectorAll("[data-tag]").forEach(b => b.onclick = () => find(b.dataset.tag));
+  const nq = document.getElementById("ph-noq"); if (nq) nq.onclick = () => { PH.filter = "all"; loadPhotos(true); };
   box.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { PH.filter = b.dataset.filter; loadPhotos(true); });
   box.querySelectorAll("[data-sel]").forEach(c => c.onclick = ev => { ev.stopPropagation(); c.checked ? SEL.add(c.dataset.sel) : SEL.delete(c.dataset.sel); paintPhotos(); });
   box.querySelectorAll(".ph").forEach(t => t.onclick = () => { const p = PH.items.find(x => x.id === t.dataset.pid); if (p && p.status === "ready") viewPhoto(p); });
@@ -935,6 +962,10 @@ function paintPhotos() {
     if (!await confirmBox(`Delete ${SEL.size} photo${SEL.size === 1 ? "" : "s"}?`, "They are removed for good, including from guests' results.", "Delete", true)) return;
     try { const r = await api("POST", `/api/events/${EV.id}/photos/delete`, { ids: [...SEL] }); SEL.clear(); toast(`Deleted ${r.deleted}.`); refreshEvent(); } catch (x) { fail(x); }
   };
+}
+async function loadScenes() {  // is search by description on, and how far is this event's indexing
+  try { PH.scenes = await api("GET", `/api/events/${EV.id}/scenes`); } catch (x) { PH.scenes = null; }
+  paintPhotos();
 }
 function viewPhoto(p) {
   modal(`<img alt="${esc(p.name)}" src="/api/events/${EV.id}/photos/${esc(p.id)}/web">
@@ -1044,6 +1075,7 @@ async function viewSettings() {
         <datalist id="tzlist">${(Intl.supportedValuesOf ? Intl.supportedValuesOf("timeZone") : []).map(z => `<option value="${esc(z)}">`).join("")}</datalist></label></div>
       <button class="btn primary">Save</button></form></div>
     ${logoCard(a)}
+    <div class="card" data-need="company" id="scene-card"></div>
     <div class="card"><h2>Plan: ${esc(a.plan_label)}</h2><div class="stats">${meter("Events", u.events, l.events)}${meter("Photos", u.photos, l.photos)}${meter("Storage", u.storage, l.storage, fmtBytes)}</div>
       <p class="muted small" style="margin-bottom:0">Need more room? Contact us to change your plan.</p></div>
     <div class="card"><h2>${ME.user.has_password ? "Change password" : "Set a password"}</h2>
@@ -1051,7 +1083,7 @@ async function viewSettings() {
       <form id="pform"><div class="two">${ME.user.has_password ? `<label class="f"><span>Current password</span><input name="current" type="password" required autocomplete="current-password"></label>` : ""}
       <label class="f"><span>New password</span><input name="new" type="password" required minlength="8" autocomplete="new-password"></label></div><button class="btn">${ME.user.has_password ? "Change password" : "Set password"}</button> <span class="muted small">Signs out your other devices.</span></form></div>
     <div class="card" data-need="delete_account"><h2>Delete account</h2><p class="muted small" style="margin-top:0">Removes your studio, every client, event and photo, and all face data. This can't be undone.</p><button class="btn danger" id="dela">Delete my account…</button></div>`, "settings");
-  wireLogoCard();
+  wireLogoCard(); paintSceneCard();
   if (can("company")) document.getElementById("aform").onsubmit = async e => { e.preventDefault(); try { ME = await api("PATCH", "/api/account", Object.fromEntries(new FormData(e.target))); applyBrand(ME.account.brand_color); toast("Saved."); viewSettings(); } catch (x) { fail(x); } };
   document.getElementById("pform").onsubmit = async e => { e.preventDefault(); try { await api("POST", "/api/account/password", Object.fromEntries(new FormData(e.target))); e.target.reset(); toast(ME.user.has_password ? "Password changed." : "Password set."); if (!ME.user.has_password) viewSettings(); } catch (x) { fail(x); } };
   if (can("delete_account")) document.getElementById("dela").onclick = () => modal(`<h2>Delete your account?</h2><p class="muted">Everything is erased immediately. ${ME.user.has_password ? "Enter your password to confirm." : "Type your company name to confirm."}</p><form id="df">${ME.user.has_password
@@ -1059,6 +1091,24 @@ async function viewSettings() {
       : `<label class="f"><span>Company name: <b>${esc(a.company)}</b></span><input name="confirm" required autocomplete="off"></label>`}
     <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-close>Cancel</button><button class="btn danger">Delete everything</button></div></form>`,
     { onMount: (ov, close) => ov.querySelector("#df").onsubmit = async e => { e.preventDefault(); try { await api("POST", "/api/account/delete", Object.fromEntries(new FormData(e.target))); close(); ME = null; toast("Account deleted."); location.hash = "#/login"; } catch (x) { fail(x); } } });
+}
+
+async function paintSceneCard() {  // search by description: the studio's switch
+  const el = document.getElementById("scene-card"); if (!el) return;
+  let st; try { st = await api("GET", "/api/scenes"); } catch (x) { return el.remove(); }
+  el.innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">Search by description</h2>
+      ${st.installed ? `<label class="check" style="margin:0"><input type="checkbox" id="sc-on" ${st.enabled ? "checked" : ""}> Turned on</label>` : ""}</div>
+    <p class="small muted" style="margin:8px 0 0">Your clients type what they're looking for, like <i>cake cutting</i>, <i>group photo</i> or <i>mehendi</i>,
+      in the client gallery, and see those photos first. You can search the same way on each event's Photos card.
+      An AI model running <b>on this server</b> looks at each photo once; photos are never sent anywhere else and nothing is paid per search.</p>
+    <p class="small" style="margin:10px 0 0">${!st.installed ? `Not set up on this server yet. Whoever runs it: <code>python -m studio get-scene-model</code>, then restart.`
+      : !st.enabled ? "Off. Turning it off deleted what the model had worked out about your photos; turning it on works it out again."
+      : st.indexed < st.ready ? `Getting your photos ready: ${num(st.indexed)} of ${num(st.ready)} done. New photos follow a few minutes after their upload.`
+      : `On. All ${num(st.ready)} photos are ready for search.`}</p>`;
+  const on = document.getElementById("sc-on"); if (on) on.onchange = async () => {
+    if (!on.checked && !await confirmBox("Turn off search by description?", "Clients won't see the search box, and what the model worked out about your photos is deleted. You can turn it on again later.", "Turn off", true)) { on.checked = true; return; }
+    try { await api("POST", "/api/scenes", { enabled: on.checked }); toast(on.checked ? "Search by description is on. Photos are being prepared." : "Search by description is off."); paintSceneCard(); }
+    catch (x) { fail(x); paintSceneCard(); } };
 }
 
 /* ------------------------------------------------------------------ logo: card in Settings + editor */
@@ -1905,7 +1955,6 @@ async function viewTasks() {
       <div class="row"><select id="tk-client" style="width:auto" aria-label="Client"><option value="">All clients</option>${TK.clients.map(c => `<option value="${c.id}" ${String(c.id) === TK_F.client ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select>
         <input id="tk-q" type="search" class="inv-search" placeholder="Search tasks, people, vendors" value="${esc(TK_F.q)}" aria-label="Search"></div></div>
     <div class="kb" id="kb"></div>`, "tasks");
-  $app.querySelector("main").classList.add("wide");
   paintBoard();
   const add = document.getElementById("tk-new"); if (add) add.onclick = () => taskModal();
   document.getElementById("tk-client").onchange = e => { TK_F.client = e.target.value; paintBoard(); };
