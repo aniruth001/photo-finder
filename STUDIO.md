@@ -179,6 +179,12 @@ brightness, contrast, saturation, hue, temperature), levels, auto contrast, blac
 vignette, noise and more; layers with blend modes; and a history to step back through. Press **?** for the keyboard
 shortcuts.
 
+**Quick edits** on the right put the everyday fixes one click away: Light & colour, Auto fix, Levels, Black & white,
+Sharpen, Vignette, Rotate and Crop. Slider adjustments open in that side panel, next to the photo, never on top
+of it. The photo changes as you drag. **Hold to compare** (or hold `\`) shows the photo as it was before.
+Double-clicking a slider's name resets it, and **Reset all** resets them all. You can still drag and zoom the photo
+while the panel is open. On a phone the panel is a sheet at the bottom, and the photo fits in the space above it.
+
 - **Save as copy** puts the edit back in the event as a new photo, `NAME (edited).jpg`. **The uploaded original is
   never changed.** From then on **Save** updates that copy; **Save as new copy** (Ctrl+Shift+S) makes another. Opening
   an edited copy with Edit goes straight to updating it.

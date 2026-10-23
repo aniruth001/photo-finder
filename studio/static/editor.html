@@ -6,10 +6,11 @@
 <title>Photo editor</title>
 <meta name="robots" content="noindex">
 <style>
-/* Layout: a classic editor shell. Menu + options across the top, tools down the left, layers on the right, the canvas well in the middle. Warm charcoal chrome with a marigold accent. */
+/* Layout: a classic editor shell. Menu + options across the top, tools down the left, quick edits and layers on the right,
+   the photo in the middle. Neutral graphite chrome (it doesn't tint how the photo's colours look) with a blue accent. */
 :root{
-  --chrome:#1c1a17; --panel:#24211d; --raised:#2f2b26; --well:#131210; --line:#3a352f;
-  --fg:#ede7dd; --muted:#a39a8d; --accent:#f2a531; --accent-ink:#231604; --danger:#ef6b5e;
+  --chrome:#1b1d21; --panel:#23262c; --raised:#2c3037; --well:#121316; --line:#363b43;
+  --fg:#e9ebee; --muted:#9ba3ae; --accent:#4c8dff; --accent-ink:#ffffff; --accent-soft:rgba(76,141,255,.14); --danger:#f0645a;
   --ui:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mark:system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono:ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -43,15 +44,15 @@ button{cursor:pointer}
 
 .dropdown{position:fixed;z-index:50;min-width:230px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px;box-shadow:0 14px 40px rgba(0,0,0,.5)}
 .dropdown button{display:flex;width:100%;justify-content:space-between;gap:24px;background:none;border:0;padding:6px 10px;border-radius:5px;text-align:left}
-.dropdown button:hover{background:var(--accent);color:var(--accent-ink)}
-.dropdown button:hover kbd{color:var(--accent-ink)}
+.dropdown button:hover{background:var(--accent-soft)}
+.dropdown button:hover kbd{color:var(--fg)}
 .dropdown kbd{font:400 11px var(--mono);color:var(--muted)}
 .dropdown hr{border:0;border-top:1px solid var(--line);margin:4px 6px}
 .dropdown .sub{font:600 10px var(--ui);text-transform:uppercase;letter-spacing:.12em;color:var(--muted);padding:6px 10px 2px}
 
 /* options bar */
 .options{grid-area:opts;display:flex;align-items:center;gap:16px;min-height:40px;padding:4px 2px;border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap;scrollbar-width:thin}
-.options .tname{font:700 12px var(--ui);color:var(--accent);min-width:max-content}
+.options .tname{font:700 12px var(--ui);color:var(--fg);min-width:max-content}
 .opt{display:flex;align-items:center;gap:7px;color:var(--muted)}
 .opt input[type=range]{width:96px;accent-color:var(--accent)}
 .opt output{font:400 11px var(--mono);color:var(--fg);min-width:38px}
@@ -59,6 +60,7 @@ button{cursor:pointer}
 .opt input[type=checkbox]{accent-color:var(--accent)}
 .btn{background:var(--raised);border:1px solid var(--line);border-radius:6px;padding:4px 10px;white-space:nowrap}
 .btn:hover{border-color:var(--muted)}
+.btn.primary:hover{filter:brightness(1.08)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
 .btn:disabled{opacity:.4;cursor:default}
 .hint{color:var(--muted)}
@@ -67,7 +69,7 @@ button{cursor:pointer}
 .tools{grid-area:tools;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0;border-right:1px solid var(--line);overflow-y:auto}
 .tool{width:34px;height:34px;display:grid;place-items:center;background:none;border:1px solid transparent;border-radius:7px;color:var(--fg);flex:none}
 .tool:hover{background:var(--raised)}
-.tool.on{background:var(--accent);color:var(--accent-ink)}
+.tool.on{background:var(--accent);color:var(--accent-ink);box-shadow:0 2px 8px rgba(76,141,255,.35)}
 .tool svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .tools .sep{width:24px;border-top:1px solid var(--line);margin:4px 0;flex:none}
 .swatches{position:relative;width:36px;height:40px;margin-top:6px;flex:none}
@@ -78,9 +80,9 @@ button{cursor:pointer}
 
 /* stage */
 .stage{grid-area:stage;position:relative;overflow:hidden;background:var(--well);touch-action:none;min-width:0}
-#view{position:absolute;inset:0;display:block;touch-action:none}
+#view{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 .text-entry{position:absolute;z-index:5;background:transparent;border:1px dashed var(--accent);outline:none;padding:0;margin:0;line-height:1;min-width:40px;caret-color:var(--accent)}
-.drop-hint{position:absolute;inset:12px;border:2px dashed var(--accent);border-radius:12px;display:grid;place-items:center;font:700 15px var(--ui);color:var(--accent);background:rgba(242,165,49,.08);pointer-events:none}
+.drop-hint{position:absolute;inset:12px;border:2px dashed var(--accent);border-radius:12px;display:grid;place-items:center;font:700 15px var(--ui);color:var(--accent);background:var(--accent-soft);pointer-events:none}
 
 /* panels */
 .panels{grid-area:panels;border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0;overflow-y:auto;background:var(--chrome)}
@@ -100,7 +102,7 @@ button{cursor:pointer}
 .layer-list{display:flex;flex-direction:column;gap:2px;max-height:260px;overflow-y:auto}
 .layer-row{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;border:1px solid transparent;cursor:pointer}
 .layer-row:hover{background:var(--panel)}
-.layer-row.on{background:var(--raised);border-color:var(--accent)}
+.layer-row.on{background:var(--accent-soft);border-color:var(--accent)}
 .layer-row .eye{background:none;border:0;padding:2px;color:var(--fg);width:22px;flex:none}
 .layer-row .eye.off{color:var(--line)}
 .layer-row canvas{width:44px;height:32px;border-radius:3px;flex:none;background:repeating-conic-gradient(#555 0 25%,#888 0 50%) 0 0/8px 8px;object-fit:contain}
@@ -114,7 +116,7 @@ button{cursor:pointer}
 .history{display:flex;flex-direction:column;gap:1px;max-height:200px;overflow-y:auto}
 .history button{background:none;border:0;text-align:left;padding:4px 8px;border-radius:5px;display:flex;gap:8px}
 .history button:hover{background:var(--panel)}
-.history button.on{background:var(--raised);color:var(--accent);font-weight:600}
+.history button.on{background:var(--accent-soft);color:var(--fg);font-weight:600}
 .history button.future{color:var(--line)}
 .history i{font:normal 400 10px var(--mono);color:var(--muted);width:16px;text-align:right}
 
@@ -157,6 +159,47 @@ button{cursor:pointer}
 }
 @media (prefers-reduced-motion:reduce){.panels{transition:none}}
 
+/* quick edits: the everyday photo fixes, one click away */
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.quick button{display:flex;align-items:center;gap:8px;background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:8px 9px;text-align:left;font-weight:600;font-size:12px}
+.quick button:hover{border-color:var(--accent);background:var(--accent-soft)}
+.quick button.wide{grid-column:1 / -1}
+.quick svg{width:17px;height:17px;flex:none;fill:none;stroke:var(--accent);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.histbar{display:flex;gap:4px;margin-right:4px}
+.back{background:none;border:1px solid var(--line);border-radius:6px;padding:4px 10px;margin-right:12px;color:var(--muted);white-space:nowrap}
+.back:hover{color:var(--fg);border-color:var(--muted)}
+
+/* adjustments with a live preview sit beside the photo, not on top of it */
+.dock-wrap{grid-area:panels;z-index:30;display:flex;flex-direction:column;min-height:0;overflow:hidden;background:var(--chrome);border-left:1px solid var(--line)}
+.dialog.dock{width:100%;max-height:none;border:0;border-radius:0;box-shadow:none;background:none;overflow:visible;display:flex;flex-direction:column;min-height:0;flex:0 1 auto}
+.dialog.dock .body{overflow-y:auto;min-height:0;flex:0 1 auto}   /* only the sliders scroll: the buttons stay in reach */
+.dialog.dock header{padding:14px 14px 2px;display:flex;align-items:center;gap:8px}
+.dialog.dock header::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.dock-hint{margin:0;padding:0 14px 6px;color:var(--muted);font-size:12px;line-height:1.45}
+.dialog.dock .body{padding:6px 14px;gap:14px}
+.dialog.dock .row{grid-template-columns:1fr auto;gap:6px 8px;color:var(--fg)}
+.dialog.dock .row>span:first-child{grid-row:1;cursor:default}
+.dialog.dock .row input[type=range]{grid-row:2;grid-column:1 / -1}
+.dialog.dock .row input[type=number]{grid-row:1;grid-column:2;width:64px;text-align:right}
+.dialog.dock .row.changed>span:first-child{color:var(--accent)}
+.dialog.dock .row .wide{grid-column:2}
+.dock-tools{display:flex;gap:6px;padding:10px 14px 0}
+.dock-tools .btn{flex:1;padding:7px 8px}
+.dock-tools .btn.held{background:var(--accent-soft);border-color:var(--accent)}
+.dialog.dock footer{padding:12px 14px 16px}
+.dialog.dock footer .btn{flex:1;padding:8px 10px}
+.docking .menus,.docking .savebar,.docking .back,.docking .tools,.docking .options{opacity:.4;pointer-events:none}
+.compare-badge{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:rgba(0,0,0,.72);color:#fff;font:700 12px var(--ui);padding:5px 12px;border-radius:99px;pointer-events:none;z-index:4}
+@media (max-width:760px){
+  .dock-wrap{position:fixed;left:0;right:0;bottom:0;max-height:52vh;border-left:0;border-top:1px solid var(--line);box-shadow:0 -16px 40px rgba(0,0,0,.5);z-index:45}
+  .histbar{display:none}
+  .mark{display:none}   /* room for the menus: ← Event says where you are */
+  .back{margin-right:6px;padding:4px 8px}
+  .dock-hint{display:none}
+  .dialog.dock .body{gap:8px}
+  .dialog.dock header{padding-top:10px}
+}
+
 /* the studio: what is being edited, and saving it back */
 .savebar{display:flex;align-items:center;gap:6px;margin-left:10px;flex:none}
 .savebar .btn{padding:5px 12px}
@@ -170,10 +213,11 @@ button{cursor:pointer}
 
 <div class="app" id="app">
   <header class="menubar">
+    <button class="back" data-act="back" title="Back to the event">← Event</button>
     <div class="mark"><b id="markName">Studio</b><span>Photo editor</span></div>
     <nav class="menus" id="menus"></nav>
     <div class="docname" id="docname"></div>
-    <div class="savebar"><span class="tag" id="docTag"></span><button class="btn" data-act="exportImg" title="Save a file to this computer">Download</button><button class="btn primary" id="saveBtn" data-act="save">Save as copy</button></div>
+    <div class="savebar"><span class="histbar"><button class="icon-btn" data-act="undo" title="Undo (Ctrl+Z)" aria-label="Undo"><svg viewBox="0 0 20 20"><path d="M7 5L3 9l4 4M3 9h9a5 5 0 010 10h-2"/></svg></button><button class="icon-btn" data-act="redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><svg viewBox="0 0 20 20"><path d="M13 5l4 4-4 4M17 9H8a5 5 0 000 10h2"/></svg></button></span><span class="tag" id="docTag"></span><button class="btn" data-act="exportImg" title="Save a file to this computer">Download</button><button class="btn primary" id="saveBtn" data-act="save">Save as copy</button></div>
     <button class="panels-toggle" id="panelsToggle">Layers</button>
   </header>
   <div class="options" id="options"></div>
@@ -185,14 +229,8 @@ button{cursor:pointer}
   </main>
   <aside class="panels" id="panels">
     <section class="panel">
-      <h3>Color</h3>
-      <div class="color-row">
-        <div class="hexes">
-          <div>FG <span id="fgHex"></span></div>
-          <div>BG <span id="bgHex"></span></div>
-        </div>
-      </div>
-      <div class="preset-row" id="presets"></div>
+      <h3>Quick edits</h3>
+      <div class="quick"><button data-act="adjust" class="wide"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="3.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.3 4.3l1.4 1.4M14.3 14.3l1.4 1.4M4.3 15.7l1.4-1.4M14.3 5.7l1.4-1.4"/></svg>Light &amp; colour</button><button data-act="autoContrast"><svg viewBox="0 0 20 20"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"/></svg>Auto fix</button><button data-act="levels"><svg viewBox="0 0 20 20"><path d="M3 17h14M5 17V11M9 17V6M13 17V9M17 17v-4"/></svg>Levels</button><button data-act="grayscale"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 000 14z" fill="currentColor" stroke="none"/></svg>Black &amp; white</button><button data-act="sharpen"><svg viewBox="0 0 20 20"><path d="M10 3l6 14H4z"/></svg>Sharpen</button><button data-act="vignette"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="12" rx="2"/><ellipse cx="10" cy="10" rx="4" ry="3"/></svg>Vignette</button><button data-act="rotCW"><svg viewBox="0 0 20 20"><path d="M15 8a6 6 0 10.5 5M15 3v5h-5"/></svg>Rotate</button><button data-act="cropTool" class="wide"><svg viewBox="0 0 20 20"><path d="M6 2v12h12M2 6h12v12"/></svg>Crop</button></div>
     </section>
     <section class="panel">
       <h3>Layers <span id="layerCount"></span></h3>
@@ -213,6 +251,16 @@ button{cursor:pointer}
     <section class="panel">
       <h3>History</h3>
       <div class="history" id="historyList"></div>
+    </section>
+    <section class="panel">
+      <h3>Paint colours</h3>
+      <div class="color-row">
+        <div class="hexes">
+          <div>FG <span id="fgHex"></span></div>
+          <div>BG <span id="bgHex"></span></div>
+        </div>
+      </div>
+      <div class="preset-row" id="presets"></div>
     </section>
   </aside>
   <footer class="status">
@@ -392,9 +440,13 @@ function render(){
 }
 setInterval(()=>{ if(sel){ antsOffset=(antsOffset+1)%8; requestRender(); } },90);
 
+let fitted=false, lastStage=null;
 function resizeView(){
   dpr=window.devicePixelRatio||1; const r=stage.getBoundingClientRect();
   view.width=Math.max(1,Math.round(r.width*dpr)); view.height=Math.max(1,Math.round(r.height*dpr));
+  if(fitted&&doc.layers.length) fit();
+  else if(lastStage){ panX+=(r.width-lastStage.w)/2; panY+=(r.height-lastStage.h)/2; }   // keep what's in the middle there
+  lastStage={w:r.width,h:r.height};
   requestRender();
 }
 new ResizeObserver(resizeView).observe(stage);
@@ -402,9 +454,10 @@ function fit(){
   const r=stage.getBoundingClientRect(); if(r.width<10||r.height<10) return;
   const pad=r.width<500?16:48;
   zoom=clamp(Math.min((r.width-pad)/doc.w,(r.height-pad)/doc.h,1),0.02,32);
-  panX=(r.width-doc.w*zoom)/2; panY=(r.height-doc.h*zoom)/2; updateStatus(); requestRender();
+  panX=(r.width-doc.w*zoom)/2; panY=(r.height-doc.h*zoom)/2; fitted=true; updateStatus(); requestRender();
 }
 function zoomAt(f,sx,sy){
+  fitted=false;
   const r=stage.getBoundingClientRect(); if(sx==null){ sx=r.width/2; sy=r.height/2; }
   const nz=clamp(zoom*f,0.02,32); panX=sx-(sx-panX)*(nz/zoom); panY=sy-(sy-panY)*(nz/zoom); zoom=nz; updateStatus(); requestRender();
 }
@@ -599,22 +652,26 @@ const F = {
 function applyInstant(fn,label){
   const l=editable(); if(!l) return; const r=region();
   const img=l.ctx.getImageData(r.x,r.y,r.w,r.h); fn(img,{},r); l.ctx.putImageData(img,r.x,r.y); touch(l); commit(label);
+  toast(label+' applied. Ctrl+Z undoes it.');
 }
 function liveFilter(title,fields,fn){
   const l=editable(); if(!l) return; const r=region();
   const orig=l.ctx.getImageData(r.x,r.y,r.w,r.h);
   const apply=v=>{ const img=new ImageData(new Uint8ClampedArray(orig.data),orig.width,orig.height); fn(img,v,r); l.ctx.putImageData(img,r.x,r.y); requestRender(); };
-  openDialog({ title, fields, okText:'Apply', preview:apply,
+  const compare=(on,v)=>{ if(on){ l.ctx.putImageData(orig,r.x,r.y); requestRender(); } else apply(v); };
+  openDialog({ title, fields, okText:'Apply', preview:apply, compare,
     onCancel:()=>{ l.ctx.putImageData(orig,r.x,r.y); requestRender(); },
     onOk:v=>{ apply(v); touch(l); commit(title); } });
 }
 
 /* ============================== dialogs ============================== */
 let dialogOpen=false;
-function openDialog({title,fields=[],okText='OK',cancelText='Cancel',preview,onOk,onCancel,onChange,html,noCancel}){
+function openDialog({title,fields=[],okText='OK',cancelText='Cancel',preview,compare,onOk,onCancel,onChange,html,noCancel}){
   closeMenus(); dialogOpen=true;
-  const scrim=el('div','scrim'), box=el('div','dialog'); box.setAttribute('role','dialog'); box.setAttribute('aria-label',title);
+  const dock=!!preview;   // a live preview: the panel sits beside the photo, so you see every change
+  const scrim=el('div',dock?'dock-wrap':'scrim'), box=el('div','dialog'+(dock?' dock':'')); box.setAttribute('role','dialog'); box.setAttribute('aria-label',title);
   box.appendChild(el('header','',esc(title)));
+  if(dock){ box.appendChild(el('p','dock-hint','The photo changes as you drag. Double-click a name to put it back.')); document.body.classList.add('docking'); $('#panels').classList.remove('show'); }
   const body=el('div','body'); box.appendChild(body);
   if(html) body.appendChild(el('div','',html));
   const inputs={};
@@ -632,23 +689,44 @@ function openDialog({title,fields=[],okText='OK',cancelText='Cancel',preview,onO
       const n=el('input'); n.type='number'; n.min=f.min; n.max=f.max; n.step=f.step||1; n.value=f.value; n.setAttribute('aria-label',f.label);
       rg.addEventListener('input',()=>{ n.value=rg.value; }); n.addEventListener('input',()=>{ rg.value=n.value; rg.dispatchEvent(new Event('input',{bubbles:true})); });
       row.appendChild(rg); row.appendChild(n); inputs[f.key]=rg;
+      row.firstChild.title='Double-click to reset';
+      const mark=()=>row.classList.toggle('changed',parseFloat(rg.value)!==f.value); rg.addEventListener('input',mark);
+      row.addEventListener('dblclick',e=>{ if(e.target===rg||e.target===n) return; rg.value=n.value=f.value; mark(); schedule(); });
     }
     body.appendChild(row);
   });
   const vals=()=>{ const o={}; fields.forEach(f=>{ const i=inputs[f.key]; o[f.key]= f.type==='checkbox'?i.checked : f.type==='select'?i.value : parseFloat(i.value)||0; }); return o; };
-  const setVal=(k,v)=>{ const i=inputs[k]; if(!i) return; i.value=v; const n=i.nextSibling; if(n&&n.type==='number') n.value=v; };
+  const setVal=(k,v)=>{ const i=inputs[k]; if(!i) return; if(i.type==='checkbox'){ i.checked=!!v; return; } i.value=v; const n=i.nextSibling; if(n&&n.type==='number') n.value=v; const row=i.closest('.row'); if(row) row.classList.remove('changed'); };
   let timer=null;
   const schedule=()=>{ if(!preview) return; clearTimeout(timer); timer=setTimeout(()=>preview(vals()),40); };
   body.addEventListener('input',e=>{ if(onChange) onChange(vals(),setVal,e.target); schedule(); });
   body.addEventListener('change',()=>schedule());
+  let comparing=false, badge=null, cmp=null;
+  const hold=on=>{ if(!compare||on===comparing) return; comparing=on; clearTimeout(timer); compare(on,vals());
+    if(on){ badge=el('div','compare-badge','Before'); $('#stage').appendChild(badge); } else if(badge){ badge.remove(); badge=null; }
+    if(cmp) cmp.classList.toggle('held',on); };
+  if(dock){
+    const bar=el('div','dock-tools'), rs=el('button','btn','Reset all'); rs.title='Put every slider back';
+    rs.onclick=()=>{ fields.forEach(f=>setVal(f.key,f.value)); schedule(); }; bar.appendChild(rs);
+    if(compare){ cmp=el('button','btn','Hold to compare'); cmp.title='Hold to see the photo before this change (or hold the \\ key)';
+      cmp.addEventListener('pointerdown',e=>{ e.preventDefault(); cmp.setPointerCapture(e.pointerId); hold(true); });
+      ['pointerup','pointercancel','lostpointercapture'].forEach(t=>cmp.addEventListener(t,()=>hold(false))); bar.appendChild(cmp); }
+    box.appendChild(bar);
+  }
   const foot=el('footer'); const ok=el('button','btn primary',esc(okText));
   if(!noCancel){ const cancel=el('button','btn',esc(cancelText)); cancel.onclick=()=>close(false); foot.appendChild(cancel); }
-  foot.appendChild(ok); box.appendChild(foot); scrim.appendChild(box); document.body.appendChild(scrim);
-  function close(accept){ clearTimeout(timer); scrim.remove(); dialogOpen=false; document.removeEventListener('keydown',keys,true);
+  foot.appendChild(ok); box.appendChild(foot); scrim.appendChild(box); (dock?$('#app'):document.body).appendChild(scrim);
+  const sheet=dock&&innerWidth<=760;   // a phone: the panel is a sheet at the bottom, so the photo fits in the space above it
+  if(sheet){ const r=stage.getBoundingClientRect(), vis=Math.min(r.height,innerHeight-scrim.offsetHeight-r.top);
+    if(vis>60){ zoom=clamp(Math.min((r.width-16)/doc.w,(vis-16)/doc.h,1),0.02,32); panX=(r.width-doc.w*zoom)/2; panY=(vis-doc.h*zoom)/2; fitted=false; updateStatus(); requestRender(); } }
+  function close(accept){ if(comparing) hold(false); clearTimeout(timer); scrim.remove(); dialogOpen=false; document.body.classList.remove('docking'); if(sheet) fit();
+    document.removeEventListener('keydown',keys,true); document.removeEventListener('keyup',keyup,true);
     if(accept){ onOk&&onOk(vals()); } else { onCancel&&onCancel(); } }
   ok.onclick=()=>close(true);
-  scrim.addEventListener('pointerdown',e=>{ if(e.target===scrim) close(false); });
-  function keys(e){ if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); close(false); } else if(e.key==='Enter'&&e.target.tagName!=='SELECT'&&e.target.tagName!=='BUTTON'){ e.preventDefault(); e.stopPropagation(); close(true); } }
+  scrim.addEventListener('pointerdown',e=>{ if(!dock&&e.target===scrim) close(false); });
+  function keyup(e){ if(e.key==='\\') hold(false); }
+  document.addEventListener('keyup',keyup,true);
+  function keys(e){ if(e.key==='\\'&&e.target.tagName!=='INPUT'){ e.preventDefault(); hold(true); return; } if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); close(false); } else if(e.key==='Enter'&&e.target.tagName!=='SELECT'&&e.target.tagName!=='BUTTON'){ e.preventDefault(); e.stopPropagation(); close(true); } }
   document.addEventListener('keydown',keys,true);
   if(preview) preview(vals());
   setTimeout(()=>{ const first=box.querySelector('input,select'); (first||ok).focus(); },0);
@@ -731,6 +809,7 @@ const A = {
   fillFg(){ fillWith(fg,'Fill with foreground'); },
   fillBg(){ fillWith(bg,'Fill with background'); },
   clear: clearSelection,
+  cropTool(){ setTool('crop'); toast('Drag on the photo to choose the crop, then press Enter.'); },
   cropSel(){ if(!sel){ toast('Make a selection first'); return; } const r=sel; sel=null; cropTo(r); },
   rotCW(){ rotateDoc(90); }, rotCCW(){ rotateDoc(-90); }, rot180(){ rotateDoc(180); },
   flipH(){ flipDoc(true); }, flipV(){ flipDoc(false); },
@@ -931,7 +1010,9 @@ function abortOp(){
   op=null; requestRender();
 }
 view.addEventListener('pointerdown',e=>{
-  if(dialogOpen) return; closeMenus();
+  if(dialogOpen){ if(!document.body.classList.contains('docking')||e.button>1) return;
+    view.setPointerCapture(e.pointerId); op={type:'pan',sx:e.clientX,sy:e.clientY,px:panX,py:panY}; return; }
+  closeMenus();
   if(textBox){ commitText(); if(tool==='text'){ e.preventDefault(); return; } }
   view.setPointerCapture(e.pointerId); pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pointers.size===2){ abortOp(); const [a,b]=[...pointers.values()]; const r=view.getBoundingClientRect();
@@ -965,7 +1046,7 @@ view.addEventListener('pointermove',e=>{
   const p=toDoc(e); hover=p; updateStatus(p);
   if(!op){ requestRender(); return; }
   switch(op.type){
-    case 'pan': panX=op.px+(e.clientX-op.sx); panY=op.py+(e.clientY-op.sy); break;
+    case 'pan': panX=op.px+(e.clientX-op.sx); panY=op.py+(e.clientY-op.sy); fitted=false; break;
     case 'stroke': { const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e]; (evs.length?evs:[e]).forEach(ev=>strokeTo(toDoc(ev))); break; }
     case 'move': op.l.dx=Math.round(p.x-op.start.x); op.l.dy=Math.round(p.y-op.start.y); break;
     case 'moveSel': op.dx=Math.round(p.x-op.start.x); op.dy=Math.round(p.y-op.start.y); sel={x:op.r.x+op.dx,y:op.r.y+op.dy,w:op.r.w,h:op.r.h}; break;
@@ -1000,7 +1081,7 @@ view.addEventListener('pointerleave',()=>{ hover=null; updateStatus(); requestRe
 view.addEventListener('wheel',e=>{
   e.preventDefault(); const r=view.getBoundingClientRect();
   if(e.ctrlKey||e.metaKey||e.altKey||tool==='zoom'){ zoomAt(Math.exp(-e.deltaY*(e.ctrlKey&&Math.abs(e.deltaY)<20?0.01:0.0025)),e.clientX-r.left,e.clientY-r.top); }
-  else { panX-=e.deltaX; panY-=e.deltaY; requestRender(); }
+  else { panX-=e.deltaX; panY-=e.deltaY; fitted=false; requestRender(); }
 },{passive:false});
 
 /* ============================== keyboard ============================== */
