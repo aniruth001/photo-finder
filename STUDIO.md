@@ -85,10 +85,11 @@ The dashboard and every share link now use that address, so the iPhone opens the
 | `python -m studio set-plan a@b.com pro` | Move a company to another plan |
 | `python -m studio reset-password a@b.com` | Set a new password for someone who is locked out |
 | `python -m studio grant-admin you@yourcompany.com` | Give a user the product-owner dashboard at `/admin` (`revoke-admin` removes it) |
+| `python -m studio get-ai-models` | Download the editor's AI models once (about 435 MB): background removal, object eraser, upscaling, select sky, eyes-closed check |
 | `python -m studio --data /path run` | Use another data folder (also `PF_DATA`) |
 
 Settings that can come from the environment: `PF_DATA` (data folder), `PF_PUBLIC_URL` (address in share links),
-`PF_ALLOW_SIGNUP=0` (close public sign-up), `PF_TRUST_PROXY` (`auto` by default: the visitor's address is read from a reverse proxy on this machine or a private network, such as nginx or Docker; `0` never, `1` always),
+`PF_ALLOW_SIGNUP=0` (close public sign-up), `PF_MAX_FILE_MB` (largest photo, 100 by default), `PF_TRUST_PROXY` (`auto` by default: the visitor's address is read from a reverse proxy on this machine or a private network, such as nginx or Docker; `0` never, `1` always),
 `PF_GOOGLE_CLIENT_ID` and `PF_GOOGLE_CLIENT_SECRET` (Google sign-in, see below), `PF_SMTP_*` and `PF_MAIL_FROM`
 (email, see "Forgot password").
 
@@ -179,11 +180,70 @@ brightness, contrast, saturation, hue, temperature), levels, auto contrast, blac
 vignette, noise and more; layers with blend modes; and a history to step back through. Press **?** for the keyboard
 shortcuts.
 
-**Quick edits** on the right put the everyday fixes one click away: Light & colour, Auto fix, Levels, Black & white,
-Sharpen, Vignette, Rotate and Crop. Slider adjustments open in that side panel, next to the photo, never on top
+**Quick edits** on the right put the everyday fixes one click away, in three groups:
+
+- **Light & colour:** Light & colour (exposure, brightness, contrast, saturation, hue, temperature); **Auto fix**
+  (colour, contrast and brightness in one click, brightening for the faces it finds); **Light & shadows**
+  (highlights, shadows, whites, blacks, clarity); **Curves** (RGB or one channel at a time, over the histogram);
+  **Colour mixer** (hue, saturation and luminance of eight colour ranges: orange for skin, blue for sky);
+  **White balance** (temperature and tint, or click something that should be white or grey); Levels; Black & white;
+  and **Look (.cube)**, which loads a colour look exported from Lightroom, Photoshop or DaVinci, with a strength slider.
+- **Detail & frame:** Sharpen, Vignette, **Straighten** (any angle, with a grid; **Auto** levels the horizon from the
+  photo's straight lines and trims the edges so no empty corners show), **Crop** (free, or a shape: 1:1, 4:5 for
+  Instagram, 3:2, 16:9, 9:16 stories, 12×36 and 12×24 album spreads…), Rotate, and **Watermark** (your logo from
+  Settings, or text, in any corner, with size and opacity).
+- **Retouch:** **Spot heal** (paint over a spot, a blemish or dust: it is replaced from nearby and blended in),
+  **Clone stamp** (Alt-click, or Set source, where to copy from, then paint), and two AI tools that run on your own
+  server: **Remove background** (the subject is cut out onto its own layer; the background becomes the photo
+  blurred, white, a colour, or transparent) and **Erase object** (paint over a passer-by, a pole or a wire; it is
+  filled in from what's around it, in a few seconds).
+
+Slider adjustments open in that side panel, next to the photo, never on top
 of it. The photo changes as you drag. **Hold to compare** (or hold `\`) shows the photo as it was before.
 Double-clicking a slider's name resets it, and **Reset all** resets them all. You can still drag and zoom the photo
-while the panel is open. On a phone the panel is a sheet at the bottom, and the photo fits in the space above it.
+while the panel is open (drag, or hold Space and drag, or scroll). On a phone the panel is a sheet at the bottom, and
+the photo fits in the space above it.
+
+The sliders stay quick on big photos: while you drag, only the part of the photo on screen is worked out, at the
+screen's resolution (about a megapixel, instead of 24 for a 6000 × 4000 photo); when you pan or zoom, that part is
+redone. **Apply** then does the whole photo at full size, once (a few seconds for a 24-megapixel photo, with a
+message while it works). On a 24-megapixel photo a slider now answers in 40 to 200 ms instead of 0.7 to 6 seconds.
+
+### Editing only part of the photo (masks)
+
+Every adjustment panel (Light & colour, Light & shadows, Curves, Colour mixer, White balance, Levels, Sharpen, Blur,
+Noise, a look) starts with **Where**:
+
+- **Whole**: the whole photo (as before).
+- **Subject** and **Background**: the people or main subject, or everything but them, found by the AI.
+- **Sky**: the sky, found by the AI (a few seconds; it says so when a photo has none).
+- **Gradient**: drag on the photo; the full effect where you start, fading to none where you let go (darken a sky,
+  brighten the foreground).
+- **Radial**: drag from the centre outwards (Shift keeps it round), with a softness slider (light up a face, darken
+  the corners).
+- **Brush**: paint where it should apply, with a brush size; Alt-drag paints it away; Clear strokes starts again.
+
+**Invert** swaps the inside and outside, and **Show mask** tints the area in red. Quick edits has shortcuts:
+**Subject**, **Sky**, **Background**, **Blur background** (a portrait-mode look), **Paint an edit** and **Gradient**.
+The mask is saved with the step, so it can be changed later like any step. In presets and batches, Subject, Background
+and Sky are found again on each photo, so a preset like "brighten the people, darken the sky" works on a whole event;
+brushed edits only fit their own photo and are left out of presets.
+
+### Camera RAW files
+
+RAW files from the camera (Canon CR2/CR3, Nikon NEF, Sony ARW, Adobe DNG, Fujifilm RAF, Olympus ORF, Panasonic RW2,
+Pentax PEF, Samsung SRW and more) upload like JPEGs, from the dashboard, a vendor link or the camera over FTP. They
+are read with LibRaw (`pip install rawpy`, free); without it RAW uploads are refused with a message saying so.
+
+- **Your client and guests get a JPEG**: the camera's own full-size JPEG inside the RAW file (exactly what the camera
+  showed), or, if the camera didn't store one, the RAW developed with the camera's white balance. Downloads and zips
+  are named `IMG_0001.jpg`.
+- **The studio keeps the RAW**: the photo viewer's **Download RAW** gives the original file.
+- **The editor develops the RAW itself** (camera white balance, full resolution): flatter than the camera's JPEG, with
+  the detail of the raw data. Start with **Auto fix** or your preset. Saved edits are JPEG copies, as always.
+- Thumbnails and face search use the RAW's embedded preview, so a RAW is processed about as fast as a JPEG.
+- Photos can be up to 100 MB each (lossless RAWs from 45-megapixel cameras are 60–80 MB); set `PF_MAX_FILE_MB` to
+  change that. RAW files count toward the plan's storage like any photo.
 
 - **Save as copy** puts the edit back in the event as a new photo, `NAME (edited).jpg`. **The uploaded original is
   never changed.** From then on **Save** updates that copy; **Save as new copy** (Ctrl+Shift+S) makes another. Opening
@@ -193,9 +253,76 @@ while the panel is open. On a phone the panel is a sheet at the bottom, and the 
   filter chip; the viewer says which photo they came from), in the client gallery (tile and viewer), and on the guest
   page when a selfie matches them. They are in face search, search by description and zips, and both the client and
   the studio can add them to the album. Deleting the original keeps the copy.
-- The editor works on the photo at up to 6,000 pixels on the long side (a 24-megapixel photo at full size; bigger ones
-  are scaled to that), the right way up, and HEIC photos open too. With very large photos it keeps fewer undo steps.
+- The editor opens the **original file at its full size**: a JPEG, PNG or WebP exactly as uploaded (the status bar shows
+  its size, format and file size), HEIC and camera RAW converted at full size. Edits are saved **in the original's
+  format**: a PNG copy stays a PNG with its transparency, a WebP a WebP, everything else JPEG; Download offers the same
+  format first. Only a photo bigger than the browser can hold is scaled down, and it says so (over 16,384 pixels a side,
+  or over about 16 megapixels on an iPhone or iPad). With very large photos it keeps fewer undo steps.
 - Owners, admins, managers and photographers save edits; viewers can open the editor and download, not save.
+
+### Steps you can change later
+
+Every change to the whole photo (the adjustments above, a look, Straighten, Crop, Rotate, Watermark) is listed under
+**Steps**. Click ✎ on a step to change it, with its sliders where you left them, or ✕ to remove it: the photo is
+rebuilt from the original. A copy saved with its steps opens again the same way, even days later, so a client's
+"a bit warmer, please" is one slider. Painting, text, extra layers or Remove background can't be replayed step by
+step; after those, Undo still works but the steps can't be changed one by one.
+
+### Presets and many photos at once
+
+**Save look as preset** (Presets panel) keeps the adjustments you made (not crops or rotations) under a name, for the
+whole team. Click a preset to apply it to the photo you're editing. To do a whole batch, select photos on the event
+page and choose **✎ Apply preset**: the editor opens in a new tab and works through them, saving an edited copy of
+each (the originals don't change). Keep that tab open until it says done. Auto fix in a preset is worked out for
+each photo, so every photo gets its own brightness and colour.
+
+### Upscale for print
+
+In the event's photo viewer, **⤢ Upscale** makes a 2× or 4× larger copy with AI that adds fine detail, for big prints
+and album spreads (at most 8,000 pixels on the long side). It runs on the server in the background, a minute or so
+for a phone photo, and is saved as an edited copy, `NAME (upscaled 2x).jpg`. The editor's File menu has it too.
+
+### The AI models
+
+Background removal and Subject/Background masks (IS-Net, Apache-2.0), the object eraser (LaMa, Apache-2.0), upscaling
+(Real-ESRGAN, BSD-3-Clause), Sky masks (Facebook's DETR panoptic model, Apache-2.0, refined from the photo's own colours
+and edges) and the eyes-closed check (Intel's open-closed-eye-0001, Apache-2.0) are open-source models that run on
+this server with onnxruntime: photos never leave it and nothing is paid per photo. Download them once with
+`python -m studio get-ai-models` (about 435 MB, each file checked against a pinned checksum) and restart. Without
+them those buttons are hidden and everything else works. They use the server's CPU: a cut-out takes about 2 seconds,
+an erase about 4, and the first use after a restart a few seconds more while the model loads.
+
+## Live updates
+
+Open dashboards update themselves: no need to refresh. When a teammate changes something, photos finish processing,
+a camera or a vendor uploads, a client picks album photos or opens the gallery, or a guest searches, the page you're
+on (Overview, Events, Clients, Tasks, Calendar, an event's page…) fetches its data again within a second or two,
+keeping your place. It waits while you type in a form, have a dialog open or drag a task, and a tab in the background
+catches up when you come back to it. Settings and an estimate you are editing aren't refreshed under you.
+
+This works like SignalR does in .NET apps, here with Server-Sent Events (`/api/live`): each open tab keeps one quiet
+HTTP connection, which the browser reconnects by itself. The server only sends a nudge ("photos changed in event 12"),
+never data, so the page asks the API again and the usual permissions apply. Behind nginx it works as is (the response
+turns off proxy buffering); keep the proxy's read timeout above 20 seconds.
+
+**Uploads keep going while you use the rest of the app.** A chip in the corner shows the progress on every page and
+links back to the event, the event's upload card shows it again when you return, and a message says when it is done.
+Keep the tab open: closing or reloading it stops the upload, and the browser asks first.
+
+## Culling: blurry, eyes closed, similar shots
+
+Every photo is checked while it's processed (photos uploaded before this existed are checked in the background), and
+the Photos card gets three extra chips:
+
+- **Blurry**: soft or out of focus. The check compares the photo with a blurred copy of itself and looks at its most
+  detailed part, so a sharp subject in front of a soft background counts as sharp, and a plain wall doesn't count as
+  blurry.
+- **Check eyes**: someone in the main group may have their eyes shut or be looking down (needs the AI models). It's a
+  hint, so the chip says "check".
+- **Similar shots**: bursts and repeats, grouped, with the best of each marked **★ Best** (eyes open, then the sharpest,
+  then the largest). **Select all but the best** selects the rest, ready to delete or leave out.
+
+Nothing is changed or hidden automatically: these only help you choose.
 
 ## Vendor uploads
 
@@ -521,6 +648,7 @@ accounts start on `free`. There is no payment system yet; you move a company bet
 ```
 data/studio.db        SQLite: companies, users, clients, events, photo records, face vectors
 data/files/...        originals, thumbnails and web copies, grouped by company and event
+models/               face models (in the repo); models/clip and models/ai are downloaded (see above)
 ```
 
 Back up the whole `data/` folder (stop the app or use `sqlite3 data/studio.db ".backup copy.db"` for the database).

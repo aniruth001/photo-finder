@@ -219,7 +219,7 @@ function closeLb() { view.stop(); $("lb").hidden = true; document.body.style.ove
 function paint() {
   const p = photos[cur];
   view.reset();
-  $("big").src = `${BASE}/web/${p.id}.jpg`; $("dl").href = `${BASE}/download/${p.id}`; $("dl").setAttribute("download", p.name);
+  $("big").src = `${BASE}/web/${p.id}.jpg`; $("dl").href = `${BASE}/download/${p.id}`; $("dl").setAttribute("download", p.name.replace(/\.(cr2|cr3|nef|nrw|arw|srf|sr2|dng|raf|orf|rw2|pef|srw|3fr|iiq)$/i, ".jpg"));   // camera RAW files come as JPEG
   $("pos").textContent = `${cur + 1} / ${photos.length}${p.edited ? "  ·  ✎ Edited" : ""}`;
 }
 const step = d => { cur = (cur + d + photos.length) % photos.length; paint(); };

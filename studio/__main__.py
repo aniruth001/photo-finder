@@ -1,4 +1,4 @@
-"""Command line: python -m studio run | set-plan | reset-password | create-account | grant-admin | revoke-admin | get-scene-model"""
+"""Command line: python -m studio run | set-plan | reset-password | create-account | grant-admin | revoke-admin | get-scene-model | get-ai-models"""
 import argparse
 import getpass
 import sys
@@ -46,6 +46,10 @@ def cmd_run(a):
 
     if not scenes.installed():
         print("Search by description is off until its model is downloaded: python -m studio get-scene-model")
+    from . import ai
+
+    if not all(ai.installed(k) for k in ai.MODELS):
+        print("Some AI editing tools are off until their models are downloaded: python -m studio get-ai-models")
     print("Press Ctrl+C to stop.\n")
     uvicorn.run(app, host=a.host, port=a.port, log_level="warning", **ssl)
 
@@ -61,6 +65,17 @@ def cmd_get_scene_model(a):
     if not scenes.installed():
         sys.exit("The files are here, but onnxruntime or tokenizers is missing: pip install -r requirements.txt")
     print("Done. Restart the app; photos are indexed in the background.")
+
+
+def cmd_get_ai_models(a):
+    from . import ai
+
+    print(f"Downloading the AI editing models (about 435 MB, once) to {ai.MODEL_DIR}")
+    try:
+        ai.download()
+    except Exception as e:
+        sys.exit(f"Download failed: {e}")
+    print("Done. Restart the app: background removal, subject and sky masks, the object eraser, upscaling and the eyes-closed check are on.")
 
 
 def _open_db(a):
@@ -170,6 +185,8 @@ def main():
 
     m = sub.add_parser("get-scene-model", help="download the model for search by description (about 156 MB, once)")
     m.set_defaults(fn=cmd_get_scene_model)
+    m = sub.add_parser("get-ai-models", help="download the AI editing models: background removal, sky masks, eraser, upscaling, eyes check (about 435 MB, once)")
+    m.set_defaults(fn=cmd_get_ai_models)
 
     a = ap.parse_args()
     a.fn(a)

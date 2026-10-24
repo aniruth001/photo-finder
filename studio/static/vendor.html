@@ -60,7 +60,7 @@ __THEME_TOGGLE__
       <b>Drag photos and videos here</b>
       <span class="muted small" id="limits">JPG, PNG, WebP, HEIC · MP4, MOV, WebM</span>
       <div class="row"><button class="btn" id="pickf">Choose files</button><button class="btn ghost" id="pickd">Choose a folder</button></div>
-      <input type="file" id="fin" multiple accept="image/*,.heic,.heif,video/mp4,video/quicktime,video/webm,.mp4,.m4v,.mov,.webm" hidden>
+      <input type="file" id="fin" multiple accept="image/*,.heic,.heif,.cr2,.cr3,.nef,.nrw,.arw,.srf,.sr2,.dng,.raf,.orf,.rw2,.pef,.srw,.3fr,.iiq,video/mp4,video/quicktime,video/webm,.mp4,.m4v,.mov,.webm" hidden>
       <input type="file" id="din" webkitdirectory multiple hidden>
     </div>
     <div id="prog" hidden>
@@ -80,7 +80,7 @@ __THEME_TOGGLE__
 <script>
 const $ = id => document.getElementById(id);
 const BASE = location.pathname.replace(/\/+$/, "");   // /v/<link>
-const VIDEO_RE = /\.(mp4|m4v|mov|webm)$/i, PHOTO_RE = /\.(jpe?g|png|webp|heic|heif)$/i;
+const VIDEO_RE = /\.(mp4|m4v|mov|webm)$/i, PHOTO_RE = /\.(jpe?g|png|webp|heic|heif|cr2|cr3|nef|nrw|arw|srf|sr2|dng|raf|orf|rw2|pef|srw|3fr|iiq)$/i;
 let INFO = null, busy = false;
 const plural = (n, w) => `${n.toLocaleString()} ${w}${n === 1 ? "" : "s"}`;
 const mb = b => b >= 1073741824 ? (b / 1073741824).toFixed(1) + " GB" : Math.max(1, Math.round(b / 1048576)) + " MB";

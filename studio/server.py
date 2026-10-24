@@ -31,9 +31,9 @@ from pydantic import BaseModel, Field
 
 from faces import LIMITS, PRESETS
 
-from . import branding, config, db, google, mailer, roles, security
+from . import branding, config, culling, db, google, live, mailer, roles, security
 from .processing import Processor, VectorIndex, switch_model, upgrade_events
-from .storage import get_storage
+from .storage import delivery_name, get_storage
 from .camera import CameraServer, mount_camera
 from .client_gallery import PIN_RE, PinIn, UnlockIn, mount_client, new_token, unique_names, zip_stream
 from .estimates import mount_estimates
@@ -46,6 +46,7 @@ from .tasks import mount_tasks
 from .scenes import SceneIndexer, mount_scenes
 from .clips import mount_clips
 from .editing import mount_editing
+from .ai import mount_ai
 from .album import mount_album
 from .vendors import mount_vendors
 
@@ -327,10 +328,12 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         upgrade_events()  # events still on an older face engine are re-indexed in the background
         processor.start()
         scene_indexer.start()
+        app.state.ai_jobs.start()  # upscaling, in the background
         if config.settings.ftp_port:
             camera.start()  # cameras upload to events over FTP(S)
         yield
         camera.stop()
+        app.state.ai_jobs.stop()
         scene_indexer.stop()
         processor.stop()
 
@@ -348,7 +351,22 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         resp.headers.setdefault("Content-Security-Policy", csp(request.state.nonce))
         if request.url.path.startswith("/api/") and "cache-control" not in resp.headers:
             resp.headers["Cache-Control"] = "no-store"
+        aid = getattr(request.state, "account_id", None)
+        if aid and request.method in ("POST", "PUT", "PATCH", "DELETE") and resp.status_code < 400:
+            nudge(aid, request)   # open dashboards of this company refresh what they show (studio/live.py)
         return resp
+
+    def nudge(aid, request):
+        path = request.url.path
+        if path.startswith(("/api/auth/", "/api/live", "/api/ai/")):
+            return
+        parts = path.split("/")   # ["", "api", "events", "12", ...]
+        area = parts[2] if len(parts) > 2 else ""
+        topic = {"events": "event", "clients": "clients", "tasks": "tasks", "calendar": "calendar", "bookings": "calendar",
+                 "inventory": "inventory", "estimates": "billing", "invoices": "billing", "team": "team",
+                 "account": "account", "edit-presets": "presets"}.get(area, "change")
+        extra = {"event": int(parts[3])} if area == "events" and len(parts) > 3 and parts[3].isdigit() else {}
+        live.publish(aid, topic, tab=request.headers.get("x-pf-tab", "")[:40], by=getattr(request.state, "user_id", None), **extra)
 
     @app.exception_handler(HTTPException)
     async def http_err(request: Request, exc: HTTPException):
@@ -384,6 +402,7 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
             raise err(403, SUSPENDED, "suspended")
         if request.method not in ("GET", "HEAD") and request.headers.get("x-pf") != "1":
             raise err(403, "Missing X-PF header.", "csrf")  # a custom header can't be sent cross-site without CORS
+        request.state.account_id, request.state.user_id = u["account_id"], u["user_id"]   # for live updates
         return u
 
     def can(perm: str):
@@ -894,12 +913,15 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
     # ---------------------------------------------------------------- photos (dashboard side)
     @app.get("/api/events/{eid}/photos")
     def list_photos(eid: int, status: Optional[str] = None, vendor: Optional[str] = None, album: Optional[str] = None,
-                    edited: Optional[str] = None, offset: int = 0, limit: int = 120, u: dict = Depends(user_dep)):
+                    edited: Optional[str] = None, cull: Optional[str] = None, offset: int = 0, limit: int = 120,
+                    u: dict = Depends(user_dep)):
         """status: busy | ready | failed. vendor: "any" (sent through any vendor link) or one vendor link's id.
-        album: "any" (in the album list), "client" (chosen by the client, alone or with the studio) or "studio" (likewise)."""
+        album: "any" (in the album list), "client" (chosen by the client, alone or with the studio) or "studio" (likewise).
+        cull: "blurry", "eyes" (eyes may be shut) or "similar" (near-duplicates, grouped, the best of each first)."""
         get_event(u, eid)
         limit = max(1, min(limit, 500))
-        sql, args = """SELECT p.public_id, p.orig_name, p.size, p.status, p.error, p.edited, p.edited_at, src.orig_name AS source,
+        sql, args = """SELECT p.id, p.public_id, p.orig_name, p.size, p.status, p.error, p.edited, p.edited_at, p.blur, p.eyes_shut,
+                              src.orig_name AS source,
                               src.public_id AS source_id, v.name AS vendor, a.picked_by AS album FROM photos p
                        LEFT JOIN photos src ON src.id=p.edited_of
                        LEFT JOIN vendor_links v ON v.id=p.vendor_id LEFT JOIN album_picks a ON a.photo_id=p.id AND a.event_id=p.event_id
@@ -922,11 +944,35 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         elif album in ("client", "studio"):
             sql += "AND a.picked_by IN (?, 'both') "
             args.append(album)
-        rows = db.q(sql + "ORDER BY p.id DESC LIMIT ? OFFSET ?", args + [limit, max(0, offset)])
-        return [{"id": r["public_id"], "name": r["orig_name"], "size": r["size"], "status": r["status"],
+        groups = {}
+        if cull == "blurry":
+            sql += f"AND p.blur >= {culling.BLURRY} "
+        elif cull == "eyes":
+            sql += "AND p.eyes_shut > 0 "
+        elif cull == "similar":
+            groups = culling.similar(eid)
+            sql += f"AND p.id IN ({','.join(str(i) for i in groups) or 'NULL'}) "
+        if cull == "similar":  # group by group, the best of each first
+            rows = sorted(db.q(sql, args), key=lambda r: (groups[r["id"]][0], not groups[r["id"]][1]))[max(0, offset):max(0, offset) + limit]
+        else:
+            rows = db.q(sql + "ORDER BY p.id DESC LIMIT ? OFFSET ?", args + [limit, max(0, offset)])
+        out = []
+        for r in rows:
+            o = {"id": r["public_id"], "name": r["orig_name"], "size": r["size"], "status": r["status"],
                  "error": r["error"], "vendor": r["vendor"], "album": r["album"], "edited": bool(r["edited"]),
                  "source": {"id": r["source_id"], "name": r["source"]} if r["source_id"] else None,
-                 "v": r["edited_at"] or 0} for r in rows]
+                 "v": r["edited_at"] or 0, "blurry": r["blur"] is not None and r["blur"] >= culling.BLURRY,
+                 "eyes": r["eyes_shut"] or 0}
+            if r["id"] in groups:
+                o["group"], o["best"] = groups[r["id"]]
+            out.append(o)
+        return out
+
+    @app.get("/api/events/{eid}/culling")
+    def event_culling(eid: int, u: dict = Depends(user_dep)):
+        """Counts for the Photos card's culling chips: blurry, eyes may be shut, near-duplicates beyond the best."""
+        get_event(u, eid)
+        return culling.summary(eid)
 
     @app.post("/api/events/{eid}/photos")
     def upload_photos(eid: int, files: List[UploadFile] = File(...), u: dict = Depends(can("upload"))):
@@ -1096,6 +1142,7 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         photos = [{"id": r["public_id"], "name": r["orig_name"], "edited": bool(r["edited"])} for r in rows]
         db.run("INSERT INTO guest_searches(event_id, created_at, matches) VALUES(?,?,?)",
                (e["id"], int(time.time()), len(photos)))  # a count only: no selfie, no face data
+        live.publish_event(e["id"], "guests")
         return {"count": len(photos), "multiple_faces": multiple, "photos": photos}
 
     @app.get("/e/{slug}/thumb/{pid}.jpg")
@@ -1113,7 +1160,7 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         e, r = guest_photo(slug, pid, request)
         if not e["allow_download"]:
             raise err(403, "Downloads are turned off for this gallery.", "no_download")
-        return file_or_404(get_storage().photo_path(r, "orig"), filename=r["orig_name"],
+        return file_or_404(get_storage().delivery_path(r), filename=delivery_name(r["orig_name"], r["ext"]),
                            content_disposition_type="attachment")
 
     @app.post("/e/{slug}/zip")
@@ -1133,7 +1180,7 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         if not rows:
             raise err(400, "No photos selected.", "empty")
         store = get_storage()
-        files = [(store.photo_path(r, "orig"), name) for r, name in unique_names(rows)]
+        files = [(store.delivery_path(r), name) for r, name in unique_names(rows)]
         fname = re.sub(r"[^A-Za-z0-9]+", "-", e["name"]).strip("-").lower() or "photos"
         return StreamingResponse(zip_stream(files), media_type="application/zip",
                                  headers={"Content-Disposition": f'attachment; filename="{fname}-my-photos.zip"'})
@@ -1165,6 +1212,9 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
     mount_tasks(app, SimpleNamespace(user_dep=user_dep, can=can, err=err))
     mount_editing(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, get_event=get_event, plan_of=plan_of,
                                        poke=lambda: processor.poke()))
+    live.mount_live(app, SimpleNamespace(user_dep=user_dep))
+    app.state.ai_jobs = mount_ai(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, get_event=get_event, plan_of=plan_of,
+                                                      poke=lambda: processor.poke()))
     mount_clips(app, SimpleNamespace(err=err, client_open=app.state.client_open, client_ip=client_ip, limiter=limiter))
     mount_scenes(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, get_event=get_event, client_open=app.state.client_open,
                                       client_ip=client_ip, limiter=limiter))

@@ -217,6 +217,18 @@
   .alb-who { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; } .alb-badge.lock { background: var(--soft); color: var(--muted); }
   .ph .pnm { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 6px 4px; font-size: .7rem; color: #fff;
              background: linear-gradient(transparent, rgba(0,0,0,.65)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ph .culls { position: absolute; right: 6px; bottom: 6px; display: flex; gap: 4px; pointer-events: none; }
+  .ph .cull { font-size: .66rem; font-weight: 700; padding: 2px 7px; border-radius: 99px; background: #fff3d6; color: #8a5a00;
+              box-shadow: 0 1px 3px rgba(0,0,0,.25); white-space: nowrap; }
+  .ph .cull.best { background: #dff5e3; color: #1d6b32; }
+  .grp-head { grid-column: 1 / -1; font-size: .8rem; font-weight: 700; color: var(--muted); margin: 6px 0 -2px; display: flex; gap: 8px; align-items: center; }
+  .grp-head::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+  .cull-note { margin: 10px 0 0; font-size: .82rem; }
+  .preset-pick { display: grid; gap: 8px; margin-top: 12px; max-height: 50vh; overflow: auto; }
+  .preset-pick label { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+  .preset-pick label:has(input:checked) { border-color: var(--brand); background: var(--soft); }
+  .preset-pick input { width: auto; margin-top: 3px; }
+  .pv-job { color: #ddd; font-size: .82rem; }
   .ph .st { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 8px; font-size: .78rem; font-weight: 600; color: var(--muted); }
   .ph.bad .st { color: var(--danger); background: #fbeeeb; }
   details.card > summary { cursor: pointer; font-weight: 700; font-size: 1.05rem; list-style: none; }
@@ -272,6 +284,11 @@
              display: grid; gap: 6px; min-width: 0; }
   .kb-card:hover { box-shadow: 0 2px 10px rgba(40,30,0,.08); }
   .kb-card.dragging { opacity: .4; }
+  #up-pill-slot { position: fixed; left: 16px; bottom: 16px; z-index: 40; }
+  .up-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 99px; background: var(--card);
+             border: 1px solid var(--line); box-shadow: 0 6px 20px rgba(0,0,0,.14); font-size: .82rem; font-weight: 700; color: var(--ink); text-decoration: none; white-space: nowrap; }
+  .up-pill i { display: block; width: 46px; height: 5px; border-radius: 99px; background: var(--line); overflow: hidden; }
+  .up-pill i b { display: block; height: 100%; background: var(--brand); }
   .kb-card[draggable] { cursor: grab; }
   .kb-title { font-weight: 700; overflow-wrap: anywhere; }
   .kb-sub { overflow-wrap: anywhere; margin-top: -4px; }
@@ -356,6 +373,7 @@ __VIEWER__
 "use strict";
 const $app = document.getElementById("app");
 let ME = null, pollTimer = null, NOTICE = "", PROVIDERS = null;
+const TAB = Math.random().toString(36).slice(2, 12);   // this browser tab (live updates skip its own changes)
 const GOOGLE_ERRORS = {
   cancelled: "Google sign-in was cancelled.", state: "That sign-in expired or was started in another browser. Try again.",
   exchange: "Couldn't reach Google. Try again in a moment.", token: "Google sign-in failed. Try again.", error: "Google sign-in failed. Try again.",
@@ -381,7 +399,7 @@ new MutationObserver(() => $app.querySelectorAll("[data-need]").forEach(el => { 
   .observe($app, { childList: true, subtree: true });  // signed-out pages: no redirect
 class ApiError extends Error { constructor(status, message, code) { super(message); this.status = status; this.code = code; } }
 async function api(method, url, body) {
-  const opt = { method, headers: { "X-PF": "1" }, credentials: "same-origin" };
+  const opt = { method, headers: { "X-PF": "1", "X-PF-Tab": TAB }, credentials: "same-origin" };
   if (body !== undefined) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
   const r = await fetch(url, opt);
   let data = null; try { data = await r.json(); } catch (e) {}
@@ -443,9 +461,18 @@ function shell(inner, active) {
       <a class="logo" href="#/" title="${esc(a.company)}">${a.logo_url ? `<img class="hdrlogo" src="${esc(a.logo_url)}" alt="${esc(a.company)}" style="${a.logo_badge_light ? BADGE(26, false) + "height:26px" : ""}">` : `<i>${init}</i><span>${esc(a.company)}</span>`}</a>
       <nav>${link("#/", "Overview", "home")}${link("#/clients", "Clients", "clients")}${link("#/events", "Events", "events")}${link("#/calendar", "Calendar", "calendar")}${link("#/tasks", "Tasks", "tasks")}${link("#/billing", "Billing", "billing")}${link("#/team", "Team", "team")}${link("#/settings", "Settings", "settings")}${ME.user.platform_admin ? `<a href="/admin">Admin</a>` : ""}</nav>
       <div class="who">${ME.user.role !== "owner" ? `<span class="badge" title="Your role">${esc(ME.user.role_label)}</span>` : ""}<span class="badge">${esc(a.plan_label)} plan</span><button class="btn sm" id="logout">Sign out</button></div>
-    </div></header><main>${inner}</main>`;
-  document.getElementById("logout").onclick = async () => { try { await api("POST", "/api/auth/logout"); } catch (e) {} ME = null; location.hash = "#/login"; };
+    </div></header><main>${inner}</main><div id="up-pill-slot">${upPill()}</div>`;
+  document.getElementById("logout").onclick = async () => {
+    if (UP && UP.active && !await confirmBox("Stop the upload and sign out?", "Photos already sent stay in the event; the rest aren't uploaded.", "Sign out", true)) return;
+    try { await api("POST", "/api/auth/logout"); } catch (e) {} ME = null; liveStop(); location.hash = "#/login"; };
 }
+function upPill() {   // "Uploading 12 of 40": in the header on every page while an upload runs
+  if (!UP || !UP.active) return "";
+  return `<a class="up-pill" href="#/events/${UP.eid}" title="Uploading to ${esc(UP.eventName)}. It keeps going while you use the rest of the app; don't close this tab.">
+    ↑ Uploading ${num(UP.done)} of ${num(UP.files)}<i><b style="width:${UP.pct || 0}%"></b></i>${UP.pct || 0}%</a>`;
+}
+function paintUpPill() { const el = document.getElementById("up-pill-slot"); if (el) el.innerHTML = upPill(); }
+window.addEventListener("beforeunload", e => { if (UP && UP.active) { e.preventDefault(); e.returnValue = ""; } });   // closing the tab would stop it
 const emptyState = (title, text, btn) => `<div class="card empty"><b>${esc(title)}</b>${esc(text)}${btn ? `<div style="margin-top:14px">${btn}</div>` : ""}</div>`;
 
 /* ------------------------------------------------------------------ login / signup */
@@ -942,6 +969,7 @@ async function loadPhotos(reset) {
   }
   try {
     const q = PH.filter === "all" ? "" : PH.filter === "edited" ? "&edited=1" : PH.filter.startsWith("alb-") ? "&album=" + PH.filter.slice(4)
+      : PH.filter.startsWith("c-") ? "&cull=" + PH.filter.slice(2)
       : PH.filter[0] === "v" ? "&vendor=" + (PH.filter === "vany" ? "any" : PH.filter.slice(1)) : "&status=" + PH.filter;
     const rows = await api("GET", `/api/events/${EV.id}/photos?offset=${PH.items.length}&limit=120${q}`);
     PH.items = PH.items.concat(rows); PH.more = rows.length === 120;
@@ -956,6 +984,7 @@ function paintPhotos() {
   tools.innerHTML = SEL.size ? `<span class="muted small">${SEL.size} selected</span>
     <button class="btn sm primary" id="albsel" data-need="events" title="Add the selected photos to the album selection, as the studio's picks">♥ Add to album</button>
     ${inAlb ? `<button class="btn sm" id="unalbsel" data-need="events">Remove from album (${inAlb})</button>` : ""}
+    <button class="btn sm" id="presetsel" data-need="upload" title="Apply a saved look from the editor to every selected photo (each gets an edited copy)">✎ Apply preset</button>
     <button class="btn sm danger" id="delsel" data-need="delete_photos">Delete selected</button><button class="btn sm" id="clrsel">Clear</button>` : "";
   const one = PH.filter[0] === "v" && PH.filter !== "vany" ? VN.items.find(v => "v" + v.id === PH.filter) : null;
   const sc = PH.scenes, dsc = PH.filter === "describe";
@@ -966,12 +995,14 @@ function paintPhotos() {
   box.innerHTML = search + (dsc ? `<p class="small" style="margin:10px 0 0">${PH.clear ? `Photos that look like <b>“${esc(PH.q)}”</b>, best match first.`
       : `No clear matches for <b>“${esc(PH.q)}”</b>. These come closest.`} <button class="linkish" id="ph-noq">Show all photos</button></p>` : "") +
     `<div class="chips" style="margin-top:10px">${chip("all", "All")}${chip("ready", "Ready")}${chip("busy", "Processing")}${chip("failed", "Failed")}${VN.items.length ? chip("vany", "From vendors") : ""}${one ? chip(PH.filter, "From " + esc(one.name)) : ""}${EV.edited || PH.filter === "edited" ? chip("edited", "✎ Edited") : ""}${AL.count
-      ? chip("alb-any", "♥ In album") + (AL.by.client + AL.by.both ? chip("alb-client", "Client's picks") : "") + (AL.by.studio + AL.by.both ? chip("alb-studio", "Studio's picks") : "") : ""}</div>` +
-    (PH.items.length ? `<div class="photos">${PH.items.map(p => {
+      ? chip("alb-any", "♥ In album") + (AL.by.client + AL.by.both ? chip("alb-client", "Client's picks") : "") + (AL.by.studio + AL.by.both ? chip("alb-studio", "Studio's picks") : "") : ""}${cullChips()}</div>` + cullNote() +
+    (PH.items.length ? `<div class="photos">${PH.items.map((p, i) => {
       const ok = p.status === "ready", bad = p.status === "failed";
-      return `<div class="ph ${bad ? "bad" : ""}" data-pid="${esc(p.id)}" title="${esc(p.name)}${p.vendor ? " · from " + esc(p.vendor) : ""}${p.edited ? " · edited copy" + (p.source ? " of " + esc(p.source.name) : "") + " (clients and guests see it tagged Edited)" : ""}${p.error ? " — " + esc(p.error) : ""}">
+      const head = PH.filter === "c-similar" && (i === 0 || PH.items[i - 1].group !== p.group)
+        ? `<div class="grp-head">${PH.items.filter(x => x.group === p.group).length} similar shots</div>` : "";
+      return head + `<div class="ph ${bad ? "bad" : ""}" data-pid="${esc(p.id)}" title="${esc(p.name)}${p.vendor ? " · from " + esc(p.vendor) : ""}${p.edited ? " · edited copy" + (p.source ? " of " + esc(p.source.name) : "") + " (clients and guests see it tagged Edited)" : ""}${p.error ? " — " + esc(p.error) : ""}">
         ${ok ? `<img loading="lazy" alt="" src="/api/events/${EV.id}/photos/${esc(p.id)}/thumb?v=${p.v || 0}">` : `<div class="st">${bad ? "Failed<br>" + esc(p.error || "") : "Processing…"}</div>`}
-        ${p.vendor ? `<span class="pnm">${esc(p.vendor)}</span>` : ""}${p.edited ? `<span class="edtag">✎ Edited</span>` : ""}${albBadge(p.album)}
+        ${p.vendor ? `<span class="pnm">${esc(p.vendor)}</span>` : ""}${p.edited ? `<span class="edtag">✎ Edited</span>` : ""}${albBadge(p.album)}${cullBadges(p)}
         <input type="checkbox" data-need="delete_photos" data-sel="${esc(p.id)}" ${SEL.has(p.id) ? "checked" : ""} aria-label="Select ${esc(p.name)}"></div>`; }).join("")}</div>
       ${PH.more ? `<div style="text-align:center;margin-top:14px"><button class="btn" id="more">Load more</button></div>` : ""}`
       : `<div class="empty">${PH.filter === "all" ? "<b>No photos yet</b>Drop photos in the box above." : "Nothing here."}</div>`);
@@ -980,6 +1011,8 @@ function paintPhotos() {
   box.querySelectorAll("[data-tag]").forEach(b => b.onclick = () => find(b.dataset.tag));
   const nq = document.getElementById("ph-noq"); if (nq) nq.onclick = () => { PH.filter = "all"; loadPhotos(true); };
   box.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { PH.filter = b.dataset.filter; loadPhotos(true); });
+  const sab = document.getElementById("cull-sel"); if (sab) sab.onclick = () => {   // the near-duplicates that aren't the best of their group, or everything shown
+    PH.items.filter(p => p.status === "ready" && (PH.filter !== "c-similar" || !p.best)).forEach(p => SEL.add(p.id)); paintPhotos(); };
   box.querySelectorAll("[data-sel]").forEach(c => c.onclick = ev => { ev.stopPropagation(); c.checked ? SEL.add(c.dataset.sel) : SEL.delete(c.dataset.sel); paintPhotos(); });
   box.querySelectorAll(".ph").forEach(t => t.onclick = () => { const p = PH.items.find(x => x.id === t.dataset.pid); if (p && p.status === "ready") viewPhoto(p, "photos"); });
   const m = document.getElementById("more"); if (m) m.onclick = () => loadPhotos(false);
@@ -991,6 +1024,7 @@ function paintPhotos() {
     const ids = PH.items.filter(p => SEL.has(p.id) && p.album).map(p => p.id);
     if (!await confirmBox(`Take ${ids.length} photo${ids.length === 1 ? "" : "s"} out of the album?`, "They stay in the event; they're only taken out of the album selection, whoever chose them.", "Remove")) return;
     try { Object.assign(AL, await api("POST", `/api/events/${EV.id}/album/remove`, { ids })); SEL.clear(); toast(`Removed ${ids.length} from the album.`); paintAlbum(); loadPhotos(true); } catch (x) { fail(x); } };
+  const ps = document.getElementById("presetsel"); if (ps) ps.onclick = () => applyPresetTo(PH.items.filter(p => SEL.has(p.id) && p.status === "ready"));
   const ds = document.getElementById("delsel"), cs = document.getElementById("clrsel");
   if (cs) cs.onclick = () => { SEL.clear(); paintPhotos(); };
   if (ds) ds.onclick = async () => {
@@ -998,9 +1032,76 @@ function paintPhotos() {
     try { const r = await api("POST", `/api/events/${EV.id}/photos/delete`, { ids: [...SEL] }); SEL.clear(); toast(`Deleted ${r.deleted}.`); refreshEvent(); } catch (x) { fail(x); }
   };
 }
-async function loadScenes() {  // is search by description on, and how far is this event's indexing
-  try { PH.scenes = await api("GET", `/api/events/${EV.id}/scenes`); } catch (x) { PH.scenes = null; }
+/* culling: blurry, eyes shut, near-duplicates (studio/culling.py) */
+function cullChips() {
+  const c = PH.cull; if (!c) return "";
+  const chip = (k, t, n) => n || PH.filter === k ? `<button class="chip ${PH.filter === k ? "on" : ""}" data-filter="${k}">${t} · ${num(n)}</button>` : "";
+  return chip("c-blurry", "Blurry", c.blurry) + chip("c-eyes", "Check eyes", c.eyes) + chip("c-similar", "Similar shots", c.similar + c.groups);
+}
+function cullNote() {
+  const c = PH.cull; if (!c) return "";
+  const help = { "c-blurry": "Soft or out of focus: worth a look before the client sees them.",
+    "c-eyes": "Someone may have their eyes shut or be looking down. It's a hint: check each photo.",
+    "c-similar": "Bursts and repeats, grouped. The best of each (eyes open, sharpest) is marked ★ Best." }[PH.filter];
+  const busy = c.analyzed < c.photos ? `Checking photos for blur, closed eyes and repeats: ${num(c.analyzed)} of ${num(c.photos)}.` : "";
+  if (!help && !busy) return "";
+  const sel = help && PH.items.length && can("delete_photos")
+    ? ` <button class="linkish" id="cull-sel">${PH.filter === "c-similar" ? "Select all but the best" : "Select all shown"}</button>` : "";
+  return `<p class="muted cull-note">${help ? help + sel : ""}${help && busy ? " " : ""}${busy}</p>`;
+}
+function cullBadges(p) {
+  const b = [];
+  if (p.best) b.push(`<span class="cull best" title="The best of these similar shots">★ Best</span>`);
+  if (p.blurry) b.push(`<span class="cull" title="Looks soft or out of focus">Blurry</span>`);
+  if (p.eyes) b.push(`<span class="cull" title="Someone may have their eyes shut">Eyes?</span>`);
+  return b.length ? `<span class="culls">${b.join("")}</span>` : "";
+}
+
+/* Apply preset: a look saved in the editor, onto many photos. The editor opens in a new tab and works through them. */
+async function applyPresetTo(photos) {
+  if (!photos.length) return toast("Select photos that have finished processing.");
+  let presets = [];
+  try { presets = await api("GET", "/api/edit-presets"); } catch (x) { return fail(x); }
+  if (!presets.length) return modal(`<h2>No presets yet</h2><p class="muted">Open a photo with ✎ Edit, make the adjustments you like, then choose
+      <b>Save look as preset</b> in the editor's Presets panel. It will be listed here for every photo.</p>
+      <div class="row" style="justify-content:flex-end;margin-top:18px"><button class="btn primary" data-close>OK</button></div>`);
+  const close = modal(`<h2>Apply a preset to ${num(photos.length)} photo${photos.length === 1 ? "" : "s"}</h2>
+    <p class="muted">Each photo gets an edited copy, tagged Edited; the originals don't change. The editor opens in a new tab and does the work there: keep it open until it says done.</p>
+    <div class="preset-pick">${presets.map((p, i) => `<label><input type="radio" name="pp" value="${p.id}" ${i ? "" : "checked"}>
+      <span><b>${esc(p.name)}</b><br><span class="muted small">${esc(p.recipe.steps.map(st => ({ adjust: "Light & colour", levels: "Levels", curves: "Curves", hsl: "Colour mixer", tone: "Light & shadows", wb: "White balance", autofix: "Auto fix", autoContrast: "Auto contrast", grayscale: "Black & white", sepia: "Sepia", invert: "Invert", blur: "Blur", sharpen: "Sharpen", noise: "Noise", vignette: "Vignette", lut: "Look", watermark: "Watermark" })[st.op] || st.op).join(", "))}</span></span></label>`).join("")}</div>
+    <div class="row" style="justify-content:flex-end;margin-top:18px"><button class="btn" data-close>Cancel</button><button class="btn primary" id="pp-go">Apply</button></div>`,
+    { onMount: ov => { ov.querySelector("#pp-go").onclick = () => {
+      const id = +ov.querySelector("input[name=pp]:checked").value, preset = presets.find(p => p.id === id);
+      const key = Math.random().toString(36).slice(2, 10);
+      try { localStorage.setItem("pf-batch-" + key, JSON.stringify({ preset, ids: photos.map(p => ({ id: p.id, name: p.name, edited: !!p.edited })) })); }
+      catch (x) { return toast("This browser blocked local storage, so the editor can't be handed the photos."); }
+      close(); SEL.clear(); paintPhotos(); window.open(`/editor?e=${EV.id}&batch=${key}`, "_blank");
+      toast("The editor opened in a new tab. The edited copies appear here as they're saved."); }; } });
+}
+
+let AIS = null;   // which AI tools the server has (models downloaded)
+async function aiStatus() { if (!AIS) { try { AIS = await api("GET", "/api/ai"); } catch (x) { AIS = {}; } } return AIS; }
+
+async function loadScenes() {  // is search by description on, and how far is this event's indexing; and the culling counts
+  const [sc, cu] = await Promise.all([api("GET", `/api/events/${EV.id}/scenes`).catch(() => null), api("GET", `/api/events/${EV.id}/culling`).catch(() => null)]);
+  PH.scenes = sc; PH.cull = cu;
   paintPhotos();
+}
+const UPJ = {};   // upscaling jobs started from the viewer, by photo id
+let upTimer = null;
+function watchUpscale() {
+  if (upTimer) return;
+  upTimer = setInterval(async () => {
+    if (!EV) { clearInterval(upTimer); upTimer = null; return; }
+    let jobs = []; try { jobs = await api("GET", `/api/events/${EV.id}/ai-jobs`); } catch (x) { return; }
+    let open = 0;
+    jobs.forEach(j => { const prev = UPJ[j.photo]; if (!prev || prev.id !== j.id) return;
+      if ((prev.status === "queued" || prev.status === "running") && j.status === "done") { toast(`Upscaled: ${j.result ? j.result.name : "saved"} is in the event.`); refreshEvent(); }
+      if ((prev.status === "queued" || prev.status === "running") && j.status === "failed") toast(j.error || "Upscaling failed.");
+      UPJ[j.photo] = j; if (j.status === "queued" || j.status === "running") open++; });
+    const t = document.querySelector(".dash-view .pv-job"); if (t && t.textContent.startsWith("Upscaling")) { const j = Object.values(UPJ).find(x => x.status === "running"); if (j) t.textContent = `Upscaling… ${Math.round(j.progress * 100)}%`; }
+    if (!open) { clearInterval(upTimer); upTimer = null; }
+  }, 2500);
 }
 function viewPhoto(p, from = "photos") {  // one photo, zoom/pan/rotate, then previous and next through the list it came from
   // from: "photos" (the Photos card, as filtered now) or "album" (the Selected for album card, as filtered now)
@@ -1013,7 +1114,7 @@ function viewPhoto(p, from = "photos") {  // one photo, zoom/pan/rotate, then pr
     <div class="stage"><button class="nav prev" id="pv-prev" aria-label="Previous photo" title="Previous (←)">‹</button>
       <img alt="" id="pv-img"><button class="nav next" id="pv-next" aria-label="Next photo" title="Next (→)">›</button></div>
     <div class="foot"><span class="small" style="color:#aaa">Rotating here only changes the view; the photo itself isn't changed.</span>
-      <span class="row"><span id="pv-alb" class="row"></span>${can("upload") ? `<button class="btn sm" id="pv-edit" title="Open in the photo editor (a new tab)">✎ Edit</button>` : ""}<a class="btn sm" id="pv-dl" href="#">Download original</a><button class="btn sm" data-close>Close</button></span></div></div>`,
+      <span class="row"><span id="pv-alb" class="row"></span>${can("upload") ? `<span id="pv-upbox" class="row"></span><button class="btn sm" id="pv-edit" title="Open in the photo editor (a new tab)">✎ Edit</button>` : ""}<a class="btn sm" id="pv-dl" href="#">Download original</a><button class="btn sm" data-close>Close</button></span></div></div>`,
     { wide: true, onMount: ov => {
       const box = ov.querySelector(".dash-view"), stage = box.querySelector(".stage"), img = box.querySelector("#pv-img");
       const view = pfViewer({ lb: box, stage, img, top: box.querySelector(".top"), close: box.querySelector(".x"), onSwipe: d => go(d), slides: false });
@@ -1044,16 +1145,32 @@ function viewPhoto(p, from = "photos") {  // one photo, zoom/pan/rotate, then pr
         view.reset();
         img.src = `/api/events/${EV.id}/photos/${encodeURIComponent(q.id)}/web?v=${q.v || 0}`; img.alt = q.name;
         const ed = box.querySelector("#pv-edit"); if (ed) ed.onclick = () => window.open(`/editor?e=${EV.id}&p=${encodeURIComponent(q.id)}`, "_blank", "noopener");
+        paintUp(q);
         box.querySelector("#pv-name").textContent = `${q.edited ? "✎ Edited · " : ""}${q.name}${q.size ? " · " + fmtBytes(q.size) : ""}`;
         box.querySelector("#pv-name").title = q.name;
         const more = from === "photos" && PH.more;
         box.querySelector("#pv-pos").textContent = l.length > 1 || more ? `${cur + 1} / ${num(l.length)}${more ? "+" : ""}` : "";
         box.querySelector("#pv-dl").href = `/api/events/${EV.id}/photos/${encodeURIComponent(q.id)}/orig`;
-        box.querySelector("#pv-dl").textContent = q.edited ? "Download" : "Download original";
+        box.querySelector("#pv-dl").textContent = q.edited ? "Download" : /\.(cr2|cr3|nef|nrw|arw|srf|sr2|dng|raf|orf|rw2|pef|srw|3fr|iiq)$/i.test(q.name) ? "Download RAW" : "Download original";
         box.querySelectorAll(".nav").forEach(b => b.hidden = l.length < 2 && !more);
         paintAlb(q);
         if (more && cur >= l.length - 3) loadPhotos(false);   // near the end of what's loaded: fetch the next page
         const nx = l[(cur + 1) % l.length]; if (nx && nx !== q) (new Image()).src = `/api/events/${EV.id}/photos/${encodeURIComponent(nx.id)}/web`;
+      };
+      const paintUp = async (q, open) => {  // ⤢ Upscale: 2x or 4x, done on the server in the background, saved as an edited copy
+        const el = box.querySelector("#pv-upbox"); if (!el) return;
+        const ai = await aiStatus(); if (!ai.upscale) { el.innerHTML = ""; return; }
+        const job = (UPJ[q.id] || null);
+        if (job && (job.status === "queued" || job.status === "running")) {
+          el.innerHTML = `<span class="pv-job">Upscaling… ${Math.round((job.progress || 0) * 100)}%</span>`; return; }
+        if (!open) { el.innerHTML = `<button class="btn sm" id="pv-up" title="A larger copy for big prints and album spreads (AI on your server)">⤢ Upscale</button>`;
+          el.querySelector("#pv-up").onclick = () => paintUp(q, true); return; }
+        el.innerHTML = `<span class="pv-job">Upscale:</span><button class="btn sm" data-up="2">2×</button><button class="btn sm" data-up="4">4×</button><button class="btn sm" id="pv-upx">✕</button>`;
+        el.querySelector("#pv-upx").onclick = () => paintUp(q);
+        el.querySelectorAll("[data-up]").forEach(b => b.onclick = async () => {
+          try { UPJ[q.id] = await api("POST", `/api/events/${EV.id}/photos/${encodeURIComponent(q.id)}/upscale`, { scale: +b.dataset.up });
+            toast("Upscaling started on the server. The larger copy appears in the event when it's done."); paintUp(q); watchUpscale(); }
+          catch (x) { fail(x); paintUp(q); } });
       };
       const go = d => { cur += d; show(); };
       const close = () => box.querySelector("[data-close]").click();
@@ -1076,10 +1193,10 @@ try { new BroadcastChannel("pf-photos").onmessage = m => { if (EV && m.data && m
 
 /* upload */
 function paintUpload() {
-  const el = document.getElementById("ev-upload"); if (!el || (UP && UP.active)) return;
-  el.innerHTML = `<div class="drop" id="drop"><b>Drag photos here</b><span class="muted">JPG, PNG, WebP or HEIC · up to ${ME.max_file_mb || 60} MB each</span>
+  const el = document.getElementById("ev-upload"); if (!el) return;
+  el.innerHTML = `<div class="drop" id="drop"><b>Drag photos here</b><span class="muted">JPG, PNG, WebP, HEIC or camera RAW (CR3, NEF, ARW, DNG…) · up to ${ME.max_file_mb || 60} MB each</span>
       <div class="row" style="justify-content:center;margin-top:14px"><button class="btn primary" id="pickf">Choose photos</button><button class="btn" id="pickd">Choose a folder</button></div>
-      <input type="file" id="fin" multiple accept="image/*,.heic,.heif" hidden><input type="file" id="din" webkitdirectory multiple hidden></div>
+      <input type="file" id="fin" multiple accept="image/*,.heic,.heif,.cr2,.cr3,.nef,.nrw,.arw,.srf,.sr2,.dng,.raf,.orf,.rw2,.pef,.srw,.3fr,.iiq" hidden><input type="file" id="din" webkitdirectory multiple hidden></div>
     <div class="prog" id="prog"></div>`;
   const drop = document.getElementById("drop"), fin = document.getElementById("fin"), din = document.getElementById("din");
   document.getElementById("pickf").onclick = () => fin.click(); document.getElementById("pickd").onclick = () => din.click();
@@ -1087,11 +1204,13 @@ function paintUpload() {
   ["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
   ["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
   drop.addEventListener("drop", e => startUpload([...e.dataTransfer.files]));
-  if (UP && !UP.active) showUploadSummary();
+  if (UP && UP.active && UP.eid === EV.id) { drop.style.opacity = .5; UP.draw(); }   // back on the event while it uploads
+  else if (UP && UP.active) document.getElementById("prog").innerHTML = `<div class="msg" style="margin:0">An upload to <a href="#/events/${UP.eid}">${esc(UP.eventName)}</a> is running (${num(UP.done)} of ${num(UP.files)}). Start this one when it's done.</div>`;
+  else if (UP && UP.eid === EV.id) showUploadSummary();
 }
 function postBatch(eid, batch, onProgress) {
   return new Promise(resolve => {
-    const x = new XMLHttpRequest(); x.open("POST", `/api/events/${eid}/photos`); x.setRequestHeader("X-PF", "1");
+    const x = new XMLHttpRequest(); x.open("POST", `/api/events/${eid}/photos`); x.setRequestHeader("X-PF", "1"); x.setRequestHeader("X-PF-Tab", TAB);
     x.upload.onprogress = e => onProgress(e.loaded);
     x.onload = () => { let b = null; try { b = JSON.parse(x.responseText); } catch (e) {} resolve({ status: x.status, body: b }); };
     x.onerror = () => resolve({ status: 0, body: null });
@@ -1100,16 +1219,20 @@ function postBatch(eid, batch, onProgress) {
 }
 async function startUpload(all) {
   if (UP && UP.active) return toast("An upload is already running.", true);
-  const ok = all.filter(f => /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name));
+  const ok = all.filter(f => /\.(jpe?g|png|webp|heic|heif|cr2|cr3|nef|nrw|arw|srf|sr2|dng|raf|orf|rw2|pef|srw|3fr|iiq)$/i.test(f.name));
   if (!ok.length) return toast("No photos found in that selection.", true);
   const eid = EV.id, BATCH = 6, CONC = 3, total = ok.reduce((s, f) => s + f.size, 0);
-  UP = { active: true, eid, files: ok.length, skipped: all.length - ok.length, done: 0, queued: 0, dup: 0, rejected: [], failedBatches: 0 };
+  UP = { active: true, eid, eventName: EV.name, files: ok.length, skipped: all.length - ok.length, done: 0, queued: 0, dup: 0, rejected: [], failedBatches: 0, pct: 0 };
   const loaded = new Map(); let finishedBytes = 0, next = 0;
   const batches = []; for (let i = 0; i < ok.length; i += BATCH) batches.push(ok.slice(i, i + BATCH));
-  const draw = () => {
+  const draw = () => {   // finds its elements each time: you may have left the event and come back
     const bytes = finishedBytes + [...loaded.values()].reduce((a, b) => a + b, 0), pct = Math.min(100, Math.round(bytes / total * 100));
-    const p = document.getElementById("prog"); if (p) p.innerHTML = `<div class="row small" style="justify-content:space-between"><span><b>Uploading</b> ${UP.done} of ${UP.files} photos</span><span>${pct}%</span></div><div class="meter"><div style="width:${pct}%"></div></div>`;
+    UP.pct = pct; paintUpPill();
+    if (!EV || EV.id !== eid) return;
+    const p = document.getElementById("prog"); if (p) p.innerHTML = `<div class="row small" style="justify-content:space-between"><span><b>Uploading</b> ${UP.done} of ${UP.files} photos</span><span>${pct}%</span></div><div class="meter"><div style="width:${pct}%"></div></div>
+      <div class="muted small" style="margin-top:6px">You can use the rest of the app meanwhile; keep this tab open.</div>`;
   };
+  UP.draw = draw;
   const drop = document.getElementById("drop"); if (drop) drop.style.opacity = .5;
   draw();
   async function worker() {
@@ -1124,8 +1247,9 @@ async function startUpload(all) {
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONC, batches.length) }, worker));
-  UP.active = false;
-  if (EV && EV.id === eid) { await refreshEvent(); paintUpload(); startPoll(); }
+  UP.active = false; paintUpPill();
+  if (EV && EV.id === eid && document.getElementById("ev-upload")) { await refreshEvent(); paintUpload(); startPoll(); }
+  else toast(`Upload to ${UP.eventName} finished: ${num(UP.queued)} added${UP.dup ? `, ${num(UP.dup)} already there` : ""}${UP.rejected.length ? `, ${num(UP.rejected.length)} not added` : ""}.`, !!UP.rejected.length);
 }
 function showUploadSummary() {
   const p = document.getElementById("prog"); if (!p || !UP) return;
@@ -2443,6 +2567,49 @@ function wire() {
 }
 let LAST_HASH = location.hash;
 window.addEventListener("beforeunload", e => { if (EST_DIRTY) { e.preventDefault(); e.returnValue = ""; } });
+/* ------------------------------------------------------------------ live updates
+   The server nudges this tab (Server-Sent Events, /api/live) when something changes: a teammate's edit, photos finishing
+   processing, a camera or vendor upload, a client's album picks, a guest search. The page on screen asks for its data
+   again, a moment later, without moving you: it waits while you type in a form, have a dialog open or drag a card. */
+let LIVE = null, LIVE_Q = [], LIVE_T = null, LIVE_LAST = 0;
+function liveStart() {
+  if (LIVE || !window.EventSource) return;
+  LIVE = new EventSource("/api/live");
+  LIVE.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (x) { return; }
+    if (m.tab && m.tab === TAB) return;   // this tab made the change: it has already shown it
+    LIVE_Q.push(m); liveSchedule(800); };
+  LIVE.addEventListener("full", () => liveStop());
+}
+function liveStop() { if (LIVE) { LIVE.close(); LIVE = null; } clearTimeout(LIVE_T); LIVE_Q = []; }
+function liveSchedule(ms) { clearTimeout(LIVE_T); LIVE_T = setTimeout(liveRefresh, Math.max(ms, LIVE_LAST + 2500 - Date.now())); }
+function liveBusy() {   // something the user is in the middle of: refreshing now would get in the way
+  const a = document.activeElement;
+  return document.hidden || !!document.querySelector("#modal-root .ov, .kb-card.dragging") ||
+    (a && a !== document.body && a.matches && a.matches("input:not([type=checkbox]):not([type=radio]), textarea, select, [contenteditable]"));
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden && LIVE_Q.length) liveSchedule(200); });
+async function liveRefresh() {
+  if (!LIVE_Q.length || !ME) return;
+  if (liveBusy()) return liveSchedule(2000);
+  const msgs = LIVE_Q; LIVE_Q = []; LIVE_LAST = Date.now();
+  const parts = (location.hash || "#/").slice(1).split("?")[0].split("/").filter(Boolean), y = window.scrollY;
+  try {
+    if (parts[0] === "events" && parts[1] && EV && String(EV.id) === parts[1]) {   // the event page: just its parts
+      if (!msgs.some(m => !m.event || m.event === EV.id)) return;
+      const t = new Set(msgs.map(m => m.topic));
+      await refreshEvent();
+      if (t.has("album") || t.has("event")) loadAlbum();
+      if (t.has("event") || t.has("photos")) { loadVendors(); loadVideos(); }
+      return;
+    }
+    if (["settings"].includes(parts[0]) || (parts[0] === "billing" || parts[0] === "estimates") && parts[1]) return;   // forms you are filling in
+    if (parts[0] === "tasks" && !msgs.some(m => ["tasks", "clients", "event", "change", "team"].includes(m.topic))) return;
+    if (parts[0] === "calendar" && !msgs.some(m => ["calendar", "event", "change", "clients"].includes(m.topic))) return;
+    await route();
+    window.scrollTo(0, y);
+  } catch (e) { /* the next nudge will try again */ }
+}
+
 async function route() {
   if (EST_DIRTY) {  // leaving an estimate or invoice with unsaved changes: stay put and ask in the app's own dialog
     const target = location.hash;
@@ -2468,8 +2635,9 @@ async function route() {
   try {
     if (!ME) { try { ME = await api("GET", "/api/auth/me"); } catch (e) { ME = null; } }
     if (!ME && parts[0] === "google-finish") return await viewGoogleFinish();
-    if (!ME) return viewLogin(parts[0] === "signup" ? "signup" : "login");
+    if (!ME) { liveStop(); return viewLogin(parts[0] === "signup" ? "signup" : "login"); }
     applyBrand(ME.account.brand_color);
+    liveStart();
     if (!ME.account.timezone && browserTz() && can("company")) {  // accounts made before time zones existed: adopt this browser's
       try { ME = await api("PATCH", "/api/account", { timezone: browserTz() }); } catch (e) {}
     }

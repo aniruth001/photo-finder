@@ -1,8 +1,9 @@
 """Background photo processing and per-event face search.
 
 Uploads only save the original and mark the photo 'uploaded'. A single dispatcher thread hands those to a pool
-of worker processes (thumbnail + web copy + face vectors) and writes the results back, so a big upload never
-slows the web server down and a restart resumes where it stopped.
+of worker processes (thumbnail + web copy + face vectors + culling measures) and writes the results back, so a big
+upload never slows the web server down and a restart resumes where it stopped. When nothing is waiting, the same
+pool measures photos that were processed before culling existed (studio/culling.py), from their web copies.
 """
 import multiprocessing
 import threading
@@ -12,7 +13,7 @@ from concurrent.futures.process import BrokenProcessPool
 
 import numpy as np
 
-from . import config, db
+from . import config, db, live
 from .storage import get_storage
 
 THUMB_SIDE = 480
@@ -44,31 +45,73 @@ def _save_jpeg(im, side, path):
     c.save(path, "JPEG", quality=82, optimize=True)
 
 
+def _analyze(path):
+    """Runs in a worker process: culling measures for a photo processed before they existed."""
+    from . import culling
+
+    return culling.analyze_file(path)
+
+
 def _process(job):
-    """Runs in a worker process. Returns (width, height, [face vector bytes]).
+    """Runs in a worker process. Returns (width, height, [face vector bytes], culling measures).
 
     JPEGs are decoded at reduced size (PIL draft mode, up to 8x faster than a full decode); thumbnails, web copies
     and face detection all work from that image, which is never smaller than the detection size.
     """
     from PIL import Image, ImageOps
 
-    orig, thumb, web, detect_side, model = job
-    im = Image.open(orig)
-    ow, oh = im.size
-    rot = im.getexif().get(274)
-    if im.format == "JPEG":
-        im.draft("RGB", (detect_side, detect_side))  # picks a scale that stays >= detect_side on the long edge
-    im = ImageOps.exif_transpose(im).convert("RGB")
-    if rot in (5, 6, 7, 8):
-        ow, oh = oh, ow  # EXIF rotation swaps the axes
-    w, h = ow, oh
+    orig, thumb, web, detect_side, model = job[:5]
+    full = job[5] if len(job) > 5 else None
+    from faces import is_raw
+
+    if is_raw(orig):  # a camera RAW file: its embedded preview for thumbnails and faces, a full-size JPEG for clients
+        from faces import open_raw, raw_preview, raw_size
+
+        from faces import raw_camera_jpeg
+
+        w, h = raw_size(orig)
+        cam = raw_camera_jpeg(orig)
+        if full and cam and max(cam[1]) >= 0.9 * max(w, h):   # the camera's own full-size JPEG: as is, no recompression
+            with open(full, "wb") as f:
+                f.write(cam[0])
+            im = raw_preview(orig, detect_side)
+        elif full:   # no usable JPEG inside: develop the RAW
+            im = open_raw(orig)
+            im.save(full, "JPEG", quality=92, subsampling=0)
+            im.thumbnail((detect_side, detect_side))
+        else:
+            im = raw_preview(orig, detect_side)
+    else:
+        im = Image.open(orig)
+        ow, oh = im.size
+        rot = im.getexif().get(274)
+        if im.format == "JPEG":
+            im.draft("RGB", (detect_side, detect_side))  # picks a scale that stays >= detect_side on the long edge
+        im = ImageOps.exif_transpose(im).convert("RGB")
+        if rot in (5, 6, 7, 8):
+            ow, oh = oh, ow  # EXIF rotation swaps the axes
+        w, h = ow, oh
     _save_jpeg(im, THUMB_SIDE, thumb)
     _save_jpeg(im, WEB_SIDE, web)
-    return w, h, [v.astype(np.float32).tobytes() for _, v in _engine_for(model).faces(im, detect_side=detect_side)]
+    vecs = [v.astype(np.float32).tobytes() for _, v in _engine_for(model).faces(im, detect_side=detect_side)]
+    try:
+        from . import culling
+
+        cull = culling.analyze(im)
+    except Exception:  # a hint, never a reason to fail the photo
+        cull = None
+    return w, h, vecs, cull
+
+
+def _is_cull(r) -> bool:
+    """An in-flight job that only measures an already processed photo (see Processor._backfill)."""
+    return isinstance(r, dict) and r.get("cull") is True
 
 
 def _friendly(e: BaseException) -> str:
     name = type(e).__name__
+    if name.startswith("LibRaw"):  # rawpy: a camera it doesn't know, or a damaged file
+        return "We couldn't read this RAW file (a camera model LibRaw doesn't support yet, or a damaged file). Upload the JPEG instead."
     if name in ("UnidentifiedImageError", "DecompressionBombError", "SyntaxError", "OSError"):
         return "We couldn't read this image (corrupt or unsupported)."
     return f"{name}: {str(e)[:150]}"
@@ -129,26 +172,41 @@ class Processor:
         s = get_storage()
         s.ensure(r["account_id"], r["event_id"])
         return (str(s.photo_path(r, "orig")), str(s.photo_path(r, "thumb")), str(s.photo_path(r, "web")),
-                config.settings.detect_side, r["face_model"])
+                config.settings.detect_side, r["face_model"], str(s.photo_path(r, "full")))
+
+    def _backfill(self, n, busy):
+        """Ready photos without culling measures (processed before they existed), not already being measured."""
+        rows = db.q("""SELECT id, account_id, event_id, public_id, ext FROM photos
+                       WHERE blur IS NULL AND status='ready' ORDER BY id DESC LIMIT ?""", (n + len(busy),))
+        return [r for r in rows if r["id"] not in busy][:n]
 
     def _loop(self):
         inflight = {}
         while not self.stop_flag.is_set():
             try:
                 free = self.capacity - len(inflight)
-                if free > 0:
-                    for r in self._claim(free):
-                        inflight[self.pool.submit(_process, self._job(r))] = r
+                claimed = self._claim(free) if free > 0 else []
+                for r in claimed:
+                    inflight[self.pool.submit(_process, self._job(r))] = r
+                free = self.capacity - len(inflight)
+                if free > 0 and not claimed and all(_is_cull(r) for r in inflight.values()):  # new photos always first
+                    busy = {r["id"] for r in inflight.values()}
+                    for r in self._backfill(min(free, 4), busy):
+                        inflight[self.pool.submit(_analyze, str(get_storage().photo_path(r, "web")))] = {**dict(r), "cull": True}
                 if not inflight:
                     self.wake.wait(2)
                     self.wake.clear()
                     continue
                 done, _ = wait(list(inflight), timeout=1, return_when=FIRST_COMPLETED)
                 for f in done:
-                    self._finish(inflight.pop(f), f)
+                    r = inflight.pop(f)
+                    (self._finish_cull if _is_cull(r) else self._finish)(r, f)
             except BrokenProcessPool:
                 # a worker died (for example out of memory): fail what was running, start a fresh pool
                 for r in inflight.values():
+                    if _is_cull(r):
+                        db.run("UPDATE photos SET blur=-1 WHERE id=?", (r["id"],))  # measured once; never retried in a loop
+                        continue
                     db.run("UPDATE photos SET status='failed', error=? WHERE id=?",
                            ("Processing crashed on this file. Try Retry, or upload a smaller copy.", r["id"]))
                 inflight.clear()
@@ -159,15 +217,30 @@ class Processor:
                 traceback.print_exc()
                 self.stop_flag.wait(1)
 
+    def _finish_cull(self, r, fut):
+        from . import culling
+
+        try:
+            res = fut.result()
+        except BrokenProcessPool:
+            raise
+        except Exception:
+            res = None
+        with db.tx() as c:
+            culling.save(c, r["id"], res)
+
     def _finish(self, r, fut):
         s = get_storage()
         try:
-            w, h, vecs = fut.result()
+            res = fut.result()
+            w, h, vecs = res[:3]
+            cull = res[3] if len(res) > 3 else None
         except BrokenProcessPool:
             raise
         except Exception as e:
             db.run("UPDATE photos SET status='failed', error=? WHERE id=? AND status='processing'",
                    (_friendly(e), r["id"]))
+            live.publish(r["account_id"], "photos", event=r["event_id"])
             return
         with db.tx() as c:
             alive = c.execute("""SELECT e.faces_purged FROM photos p JOIN events e ON e.id=p.event_id
@@ -179,9 +252,15 @@ class Processor:
                 c.executemany("INSERT INTO faces(event_id, photo_id, vec, model) VALUES(?,?,?,?)",
                               [(r["event_id"], r["id"], v, r["face_model"]) for v in vecs])
                 c.execute("UPDATE photos SET status='ready', width=?, height=?, error=NULL WHERE id=?", (w, h, r["id"]))
+                if cull is not None:
+                    from . import culling
+
+                    culling.save(c, r["id"], cull)
         if not alive:  # the photo or its event was deleted while we worked: don't leave files behind
-            for kind in ("thumb", "web"):
+            for kind in ("thumb", "web", "full"):
                 s.photo_path(r, kind).unlink(missing_ok=True)
+        else:
+            live.publish(r["account_id"], "photos", event=r["event_id"])   # open dashboards show it as ready
 
 
 def switch_model(event_id, old_model, old_tolerance, new_model):

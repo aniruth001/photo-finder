@@ -84,7 +84,8 @@ def test_what_gets_refused(studio, make_user, app_client, anon):
     s, _, ev = studio
     e, cpath, gpath, ids = setup(s, ev)
     orig = ids["IMG_0.jpg"]
-    assert save_copy(s, ev["id"], orig, b"\x89PNG\r\n\x1a\n" + b"x" * 100).json()["error"] == "not_jpeg"
+    assert save_copy(s, ev["id"], orig, b"GIF89a" + b"x" * 100).json()["error"] == "not_jpeg"            # JPEG, PNG or WebP only
+    assert save_copy(s, ev["id"], orig, b"\x89PNG\r\n\x1a\n" + b"x" * 100).json()["error"] == "bad_image"  # a PNG that doesn't open
     assert save_copy(s, ev["id"], orig, b"\xff\xd8\xff" + b"garbage" * 50).json()["error"] == "bad_image"
     assert save_copy(s, ev["id"], orig, jpeg_bytes(seed=900)).json()["error"] == "duplicate"   # identical to a photo there
     from test_inventory import member

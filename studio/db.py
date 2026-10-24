@@ -408,6 +408,37 @@ MIGRATIONS = {
         ALTER TABLE photos ADD COLUMN edited_at INTEGER;                  -- last saved from the editor (also busts cached thumbnails)
     """,
     26: "UPDATE photos SET status='uploaded' WHERE edited=1 AND status='ready'",  # edited copies now get face data: redo them
+    27: """
+        ALTER TABLE photos ADD COLUMN blur REAL;          -- culling (studio/culling.py): 0 crisp .. 1 soft; -1 = couldn't tell; NULL = not yet
+        ALTER TABLE photos ADD COLUMN dhash INTEGER;      -- 64-bit picture fingerprint: near-duplicates
+        ALTER TABLE photos ADD COLUMN eyes_shut INTEGER;  -- main faces with eyes shut (NULL: not checked)
+        ALTER TABLE photos ADD COLUMN edit_recipe TEXT;   -- edited copies: the editor's steps (JSON), so they can be re-edited
+        CREATE INDEX photos_unculled ON photos(status) WHERE blur IS NULL;
+        CREATE TABLE edit_presets (                       -- the editor's saved looks, shared by the team
+            id INTEGER PRIMARY KEY,
+            account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            recipe TEXT NOT NULL,                         -- JSON: the steps (studio/static/editor.html, RECIPE_OPS)
+            created_by TEXT NOT NULL DEFAULT '',
+            created_at INTEGER NOT NULL,
+            UNIQUE(account_id, name)
+        );
+        CREATE TABLE ai_jobs (                            -- slow AI work done in the background (upscaling)
+            id INTEGER PRIMARY KEY,
+            account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+            event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+            photo_id INTEGER REFERENCES photos(id) ON DELETE CASCADE,
+            kind TEXT NOT NULL,                           -- upscale2 | upscale4
+            status TEXT NOT NULL DEFAULT 'queued',        -- queued | running | done | failed
+            progress REAL NOT NULL DEFAULT 0,
+            result_photo_id INTEGER REFERENCES photos(id) ON DELETE SET NULL,
+            error TEXT,
+            created_by TEXT NOT NULL DEFAULT '',
+            created_at INTEGER NOT NULL,
+            finished_at INTEGER
+        );
+        CREATE INDEX ai_jobs_open ON ai_jobs(status, id);
+    """,
 }
 
 _local = threading.local()

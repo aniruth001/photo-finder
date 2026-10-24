@@ -15,3 +15,4 @@ reportlab         # estimate PDFs (studio/estimates.py; fonts in studio/fonts)
 onnxruntime       # search by description: runs CLIP on this server (studio/scenes.py; model: python -m studio get-scene-model)
 tokenizers        # turns a typed description into CLIP's word ids
 imageio-ffmpeg    # bundles ffmpeg: clients cut clips from event videos (studio/clips.py)
+rawpy             # camera RAW files (CR2/CR3, NEF, ARW, DNG, RAF, ORF, RW2…), via LibRaw; without it RAW uploads are refused

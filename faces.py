@@ -31,8 +31,82 @@ PRESETS = {
 LIMITS = {"sface": (0.8, 1.15), "dlib": (0.35, 0.65)}  # allowed tolerance range per engine
 
 
+# camera RAW files (decoded with rawpy / LibRaw when it is installed)
+RAW_EXTS = {".cr2", ".cr3", ".nef", ".nrw", ".arw", ".srf", ".sr2", ".dng", ".raf", ".orf", ".rw2", ".pef", ".srw", ".3fr", ".iiq"}
+
+
+def raw_supported() -> bool:
+    try:
+        import rawpy  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def is_raw(source) -> bool:
+    return isinstance(source, (str, Path)) and Path(source).suffix.lower() in RAW_EXTS
+
+
+def open_raw(path, half: bool = False) -> Image.Image:
+    """Develop a RAW file: the camera's white balance, sRGB, 8 bits, turned the right way up (LibRaw does that).
+    half=True is 4x quicker (half the width and height): plenty for thumbnails and face search."""
+    import rawpy
+
+    with rawpy.imread(str(path)) as r:
+        rgb = r.postprocess(use_camera_wb=True, output_bps=8, half_size=half, no_auto_bright=False, bright=1.0)
+    return Image.fromarray(rgb)
+
+
+def raw_preview(path, min_side: int) -> Image.Image:
+    """The JPEG the camera embedded in the RAW file when it is big enough (instant), else a quick half-size develop."""
+    import io
+
+    import rawpy
+
+    try:
+        with rawpy.imread(str(path)) as r:
+            th = r.extract_thumb()
+            if th.format == rawpy.ThumbFormat.JPEG:
+                im = ImageOps.exif_transpose(Image.open(io.BytesIO(th.data))).convert("RGB")
+                if max(im.size) >= min_side:
+                    return im
+    except Exception:
+        pass
+    return open_raw(path, half=True)
+
+
+def raw_camera_jpeg(path):
+    """The camera's own JPEG inside the RAW file (bytes, (w, h)) when it is there, else None. Most cameras store one at
+    full size: it is exactly what the photographer saw on the camera's screen."""
+    import io
+
+    import rawpy
+
+    try:
+        with rawpy.imread(str(path)) as r:
+            th = r.extract_thumb()
+        if th.format != rawpy.ThumbFormat.JPEG:
+            return None
+        with Image.open(io.BytesIO(th.data)) as im:
+            im = ImageOps.exif_transpose(im)
+            return bytes(th.data), im.size
+    except Exception:
+        return None
+
+
+def raw_size(path):
+    """(width, height) of the developed RAW, the right way up."""
+    import rawpy
+
+    with rawpy.imread(str(path)) as r:
+        w, h, flip = r.sizes.width, r.sizes.height, r.sizes.flip
+    return (h, w) if flip in (5, 6) else (w, h)
+
+
 def open_image(source) -> Image.Image:
-    """Open a path or file object, apply the EXIF rotation, return RGB."""
+    """Open a path or file object (a camera RAW file too, by path), apply the EXIF rotation, return RGB."""
+    if is_raw(source):
+        return open_raw(source)
     im = Image.open(source)
     im = ImageOps.exif_transpose(im)
     return im.convert("RGB")

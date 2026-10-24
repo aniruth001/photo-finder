@@ -18,6 +18,12 @@ PLANS = {
 }
 CURRENCY = "INR"  # "price" is per month in this currency; used only for the admin revenue estimate
 ALLOWED_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
+RAW_EXTS = {".cr2", ".cr3", ".nef", ".nrw", ".arw", ".srf", ".sr2", ".dng", ".raf", ".orf", ".rw2", ".pef", ".srw", ".3fr", ".iiq"}
+try:  # camera RAW files are accepted when rawpy (LibRaw) is installed: pip install rawpy
+    import rawpy  # noqa: F401
+    ALLOWED_EXTS |= RAW_EXTS
+except Exception:
+    pass
 DEFAULT_BRAND = "#f0c52f"
 
 
@@ -25,7 +31,7 @@ DEFAULT_BRAND = "#f0c52f"
 class Settings:
     data_dir: Path = field(default_factory=lambda: Path(os.environ.get("PF_DATA", ROOT / "data")))
     public_url: str = os.environ.get("PF_PUBLIC_URL", "").rstrip("/")  # e.g. https://photos.example.com
-    max_file_mb: int = 60
+    max_file_mb: int = int(os.environ.get("PF_MAX_FILE_MB", "100"))  # per photo: camera RAW files from 45-megapixel cameras run to 60-80 MB
     max_video_mb: int = int(os.environ.get("PF_MAX_VIDEO_MB", "4096"))  # per video (studio/videos.py)
     max_files_per_request: int = 20
     session_days: int = 14

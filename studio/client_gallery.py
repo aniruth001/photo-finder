@@ -16,8 +16,8 @@ from fastapi import Depends, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from . import branding, db, security
-from .storage import get_storage
+from . import branding, db, live, security
+from .storage import delivery_name, get_storage
 
 STATIC = Path(__file__).parent / "static"
 PIN_RE = re.compile(r"^\d{4,8}$")
@@ -82,9 +82,11 @@ def zip_stream(files):
 
 
 def unique_names(rows):
+    """(row, file name) with no name twice; a camera RAW file is named as the JPEG it is delivered as."""
     used = set()
     for r in rows:
-        name = r["orig_name"]
+        ext = r["ext"] if "ext" in r.keys() else Path(r["orig_name"]).suffix
+        name = delivery_name(r["orig_name"], ext)
         if name.lower() in used:
             stem, dot, ext = name.rpartition(".")
             name = f"{stem or name}-{r['public_id'][:6]}{dot}{ext}" if dot else f"{name}-{r['public_id'][:6]}"
@@ -154,6 +156,7 @@ def mount_client(app, h):
         except Exception:
             return HTMLResponse((STATIC / "unavailable.html").read_text(encoding="utf-8"), status_code=404)
         db.run("UPDATE events SET client_views=client_views+1 WHERE id=?", (e["id"],))
+        live.publish_event(e["id"], "client")
         out = branding.render((STATIC / "client.html").read_text(encoding="utf-8"), e, h.ink_for(e["brand_color"]),
                               {"__TITLE__": e["name"], "__SUBTITLE__": e["subtitle"] or "", "__COMPANY__": e["company"]},
                               nonce=request.state.nonce)
@@ -220,7 +223,7 @@ def mount_client(app, h):
         if not e["client_download"]:
             raise err(403, "Downloads are turned off for this gallery.", "no_download")
         r = photo(e, pid)
-        return file_or_404(get_storage().photo_path(r, "orig"), filename=r["orig_name"],
+        return file_or_404(get_storage().delivery_path(r), filename=delivery_name(r["orig_name"], r["ext"]),
                            content_disposition_type="attachment")
 
     @app.post("/c/{token}/zip")
@@ -243,7 +246,7 @@ def mount_client(app, h):
         if not rows:
             raise err(400, "No photos to download.", "empty")
         store = get_storage()
-        files = [(store.photo_path(r, "orig"), name) for r, name in unique_names(rows)]
+        files = [(store.delivery_path(r), name) for r, name in unique_names(rows)]
         fname = re.sub(r"[^A-Za-z0-9]+", "-", e["name"]).strip("-").lower() or "photos"
         return StreamingResponse(zip_stream(files), media_type="application/zip",
                                  headers={"Content-Disposition": f'attachment; filename="{fname}-all-photos.zip"'})

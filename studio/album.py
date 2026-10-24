@@ -18,7 +18,7 @@ from fastapi import Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from . import db
+from . import db, live
 from .client_gallery import unique_names, zip_stream
 from .storage import get_storage
 
@@ -117,12 +117,14 @@ def mount_album(app, h):
             note = body.note.strip()
             c.execute("UPDATE events SET album_sent_at=?, album_note=CASE WHEN ?='' THEN album_note ELSE ? END WHERE id=?",
                       (now, note, note, e["id"]))
+        live.publish_event(e["id"], "album")   # the studio sees the client's picks straight away
         return {**state(fresh(e["id"])), "added": len(ids)}
 
     @app.post("/c/{token}/album/remove")
     def client_remove(token: str, body: AlbumIds, request: Request):
         e = client_event(token, request)
         n = remove(e["id"], body.ids)
+        live.publish_event(e["id"], "album")
         return {**state(fresh(e["id"])), "removed": n}
 
     # ------------------------------------------------------------------ the studio (dashboard)
@@ -159,7 +161,7 @@ def mount_album(app, h):
         if not rows:
             raise err(400, "No photos have been chosen for the album yet.", "empty")
         store = get_storage()
-        files = [(store.photo_path(r, "orig"), name) for r, name in unique_names(rows)]
+        files = [(store.delivery_path(r), name) for r, name in unique_names(rows)]
         fname = re.sub(r"[^A-Za-z0-9]+", "-", e["name"]).strip("-").lower() or "event"
         return StreamingResponse(zip_stream(files), media_type="application/zip",
                                  headers={"Content-Disposition": f'attachment; filename="{fname}-album-selection.zip"'})

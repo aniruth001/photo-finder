@@ -628,7 +628,7 @@ function paint() {
   const p = photos[cur];
   view.reset();
   $("big").src = `${BASE}/web/${encodeURIComponent(p.id)}.jpg`; $("big").alt = p.name;
-  $("dl").href = `${BASE}/download/${encodeURIComponent(p.id)}`; $("dl").setAttribute("download", p.name);
+  $("dl").href = `${BASE}/download/${encodeURIComponent(p.id)}`; $("dl").setAttribute("download", p.name.replace(/\.(cr2|cr3|nef|nrw|arw|srf|sr2|dng|raf|orf|rw2|pef|srw|3fr|iiq)$/i, ".jpg"));   // camera RAW files come as JPEG
   $("pos").textContent = `${cur + 1} / ${viewCount()}  ·  ${p.name}${p.edited ? "  ·  ✎ Edited" : ""}`;
   const ia = album.ids.has(p.id);
   const by = album.by.get(p.id);

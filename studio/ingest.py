@@ -53,7 +53,8 @@ def add_photo(account_id: int, event_id: int, plan: dict, name: str, stream, use
     ext = Path(name).suffix.lower()
     res = {"name": name, "status": "rejected", "error": ""}
     if ext not in config.ALLOWED_EXTS:
-        res["error"] = "Unsupported file type (use JPG, PNG, WebP or HEIC)."
+        res["error"] = ("Camera RAW files need rawpy on the server (pip install rawpy)." if ext in config.RAW_EXTS
+                        else "Unsupported file type (use JPG, PNG, WebP, HEIC or camera RAW).")
         return res
     if used is None:
         used = photo_usage(account_id)
@@ -122,4 +123,7 @@ def add_photo(account_id: int, event_id: int, plan: dict, name: str, stream, use
     used["photos"] += 1
     used["storage"] += size
     res.update(status="queued", error="", id=pub)
+    from .live import publish   # dashboards show the new photo (camera and vendor uploads too)
+
+    publish(account_id, "photos", event=event_id)
     return res
