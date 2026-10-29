@@ -4,7 +4,7 @@ A guest landing page that opens with a short **blooper story** of the couple (ch
 
 1. **How the first one was made.** The decisions and why each was made, so you know what to keep and what to change.
 2. **The prompt.** Copy it into Claude (Claude Code, opened in this repo) at the start of each client. It tells Claude what to ask you and which steps to follow.
-3. **Adding the story section to this repo.** The guest page (`studio/static/guest.html`, served at `/e/<slug>`) has **no story section yet**. Part 3 describes what to build, once, before the first story can go live.
+3. **The story section in this repo.** Built: the event page's **Landing page story** builder (see STUDIO.md). Part 3 records what was built and the checklist before guests see a story.
 
 ---
 
@@ -122,8 +122,8 @@ STEP 6: Write the story in my chosen tone (format in the playbook):
   - captions: one line, add the joke the photo sets up, affectionate never humiliating
   Show me the full story as text first.
 
-STEP 7: If the guest page has no story section yet, follow Part 3 of the playbook: propose the
-  change and wait for my OK before editing any code. Preview the page at phone width before guests
+STEP 7: Write the story as story.json (format above, photos by file name) so I can paste it into
+  the event page's Landing page story builder with Import JSON; don't edit any code. Preview the page at phone width before guests
   can see it.
 
 Rules: no new software or packages without asking me first. Never put a PIN, password, token or
@@ -180,9 +180,9 @@ The first version kept the story in a `story.json` file next to the chosen photo
 
 ---
 
-## Part 3: Adding the story section to this repo (one-time)
+## Part 3: The story section in this repo
 
-This repo doesn't show a story yet. What the first version needed, translated to Studio:
+Built in `studio/story.py`, `studio/static/_story.html` and the event page's **Landing page story** builder. What it covers:
 
 - **Storage:** one story per event, the JSON above with photo references by `public_id`, saved with the event (a column or a small table) and editable by roles that can manage events.
 - **Guest API:** an endpoint such as `GET /e/<slug>/story` that applies the **same guest-PIN check** as the search and returns the story, or 404 when there is none. Story photos are served only if the story names them, through the existing photo-serving path, so nothing else in the event becomes reachable.

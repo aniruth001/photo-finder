@@ -94,6 +94,18 @@
   .badge { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: .75rem; font-weight: 700; background: var(--soft); color: var(--muted); }
   .badge.pub { background: #dff3e6; color: var(--ok); } .badge.busy { background: #fbefd0; color: var(--warn); }
   .badge.bad { background: #fbe4df; color: var(--danger); }
+  .dlperm { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; }
+  .dlperm + .dlperm { margin-top: 8px; }
+  .dlrow { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+  .dlrow input { width: 20px; height: 20px; flex: none; accent-color: var(--brand); margin: 0; }
+  .dlrow > span:nth-of-type(1) { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .dlrow .badge { flex: none; }
+  .dlsizes { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0 32px; }
+  .dlsizes label { cursor: pointer; position: relative; }
+  .dlsizes input { position: absolute; left: 0; top: 0; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+  .dlsizes span { display: inline-block; padding: 6px 12px; border-radius: 99px; border: 1px solid var(--line); font-size: .85rem; font-weight: 600; }
+  .dlsizes input:checked + span { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+  .dlsizes input:focus-visible + span { outline: 2px solid var(--brand); outline-offset: 2px; }
   .empty { text-align: center; padding: 44px 16px; color: var(--muted); }
   .empty b { display: block; color: var(--ink); font-size: 1.05rem; margin-bottom: 4px; }
   .meter { height: 8px; background: var(--soft); border-radius: 9px; overflow: hidden; margin: 6px 0 4px; }
@@ -361,6 +373,40 @@
   #toasts { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 30; display: grid; gap: 8px; width: min(440px, 92vw); }
   .toast { background: var(--ink); color: #fff; padding: 11px 15px; border-radius: 10px; font-size: .9rem; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
   .toast.err { background: var(--danger); }
+  /* landing-page story builder */
+  .sb { display: grid; grid-template-columns: minmax(0, 1fr) 410px; gap: 20px; align-items: start; }
+  .sb-side { position: sticky; top: 12px; }
+  @media (max-width: 1080px) { .sb { grid-template-columns: minmax(0, 1fr); } .sb-side { position: static; } }
+  .sb-phone { width: 390px; max-width: 100%; height: min(780px, calc(100vh - 130px)); min-height: 480px; margin: 0 auto; border: 9px solid #15130f; border-radius: 30px; overflow: hidden; background: #000; }
+  .sb-phone iframe { width: 100%; height: 100%; border: 0; display: block; }
+  #modal-root .dlg.sb-pv { max-width: 460px; }
+  #modal-root .dlg.sb-pick { max-width: 940px; }
+  .sb .f { display: block; margin-bottom: 12px; font-weight: 600; font-size: .85rem; } .sb .f .lbl { display: block; margin-bottom: 6px; }
+  .sb .f small { font-weight: 400; color: var(--muted); }
+  .sb-chhead { display: flex; gap: 8px; align-items: center; }
+  .sb-lab { width: 120px; flex: none; font-size: .85rem; } .sb-ttl { font-weight: 700; }
+  .sb-it { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 12px 0 0; margin-top: 12px; border-top: 1px solid var(--line); }
+  .sb-it.pair { grid-template-columns: minmax(0, 1fr) auto; }
+  .sb-tools { display: flex; flex-direction: column; gap: 4px; } .sb-chhead .sb-tools { flex-direction: row; flex-wrap: nowrap; }
+  .sb-th { width: 84px; height: 84px; border-radius: 8px; object-fit: cover; display: block; background: var(--soft); }
+  .sb-none { display: grid; place-items: center; font-size: .7rem; color: var(--muted); }
+  .sb-thb { padding: 0; border: 0; background: none; cursor: pointer; border-radius: 8px; }
+  .sb-name { margin-top: 4px; overflow-wrap: anywhere; }
+  .sb-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .sb-fpw { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 6px; }
+  .sb-fp { position: relative; display: inline-block; line-height: 0; cursor: crosshair; }
+  .sb-fp img { max-width: 100%; max-height: 150px; border-radius: 6px; user-select: none; }
+  .sb-fp i { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; border: 2px solid #fff; background: var(--brand); box-shadow: 0 0 0 1px rgba(0,0,0,.55); pointer-events: none; }
+  .sb-pcap { grid-column: 1 / -1; } .sb-hint { grid-column: 1 / -1; margin: 0; }
+  .sb-addch { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 0 0 16px; }
+  .sb-tips { margin: 10px 0 0; padding-left: 18px; } .sb-tips li { margin-bottom: 6px; }
+  .sb-pk { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; max-height: 62vh; overflow: auto; }
+  .sb-pk .ph { border: 0; padding: 0; }
+  .sb-pk .ph.on { outline: 3px solid var(--brand); outline-offset: -3px; }
+  .sb-pk .pk-n { position: absolute; top: 6px; left: 6px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 99px; background: var(--brand); color: var(--brand-ink); display: grid; place-items: center; font-size: .78rem; }
+  .sb-pk .pk-in { position: absolute; top: 6px; right: 6px; font-size: .66rem; font-weight: 700; padding: 2px 7px; border-radius: 99px; background: #fff; color: var(--ink); }
+  @media (max-width: 560px) { .sb-it { grid-template-columns: auto minmax(0, 1fr); } .sb-it > .sb-tools { grid-column: 1 / -1; flex-direction: row; }
+    .sb-it.pair { grid-template-columns: minmax(0, 1fr); } .sb-lab { width: 90px; } .sb-chhead { flex-wrap: wrap; } }
 </style>
 </head>
 <body>
@@ -369,6 +415,7 @@
 <div id="toasts"></div>
 
 __VIEWER__
+<!--ORIGCACHE-->
 <script>
 "use strict";
 const $app = document.getElementById("app");
@@ -464,7 +511,7 @@ function shell(inner, active) {
     </div></header><main>${inner}</main><div id="up-pill-slot">${upPill()}</div>`;
   document.getElementById("logout").onclick = async () => {
     if (UP && UP.active && !await confirmBox("Stop the upload and sign out?", "Photos already sent stay in the event; the rest aren't uploaded.", "Sign out", true)) return;
-    try { await api("POST", "/api/auth/logout"); } catch (e) {} ME = null; liveStop(); location.hash = "#/login"; };
+    try { await api("POST", "/api/auth/logout"); } catch (e) {} ME = null; liveStop(); if (window.PFOriginal) PFOriginal.clear(); location.hash = "#/login"; };
 }
 function upPill() {   // "Uploading 12 of 40": in the header on every page while an upload runs
   if (!UP || !UP.active) return "";
@@ -658,6 +705,12 @@ async function viewGoogleFinish() {
 }
 
 /* ------------------------------------------------------------------ overview */
+function storageMeter(u, l) {   // storage is allocated to the company by the platform admin, not by the plan
+  if (l.storage) return meter("Storage", u.storage, l.storage, fmtBytes);
+  return `<div class="card" style="margin:0"><div class="muted small">Storage</div>
+    <div style="font-size:1.1rem;font-weight:700">Not allocated yet</div>
+    <div class="muted small">Ask the platform administrator to allocate storage. Until then photos and videos can't be uploaded.</div></div>`;
+}
 function meter(label, used, limit, fmt = num) {
   const pct = limit ? Math.min(100, Math.round(used / limit * 100)) : 0;
   return `<div class="card" style="margin:0"><div class="muted small">${label}</div>
@@ -739,7 +792,7 @@ async function viewHome() {
       </div></div>
     <h2>Recent events</h2>${events.length ? eventTable(events.slice(0, 6)) : emptyState("No events yet", "Add a client, then create an event for them and upload the photos.",
       `<button class="btn primary" data-act="new-event" data-need="events">Create your first event</button>`)}
-    <h2 style="margin-top:24px">Your plan</h2><div class="stats">${meter("Events", u.events, l.events)}${meter("Photos", u.photos, l.photos)}${meter("Storage", u.storage, l.storage, fmtBytes)}</div>`, "home");
+    <h2 style="margin-top:24px">Your plan</h2><div class="stats">${meter("Events", u.events, l.events)}${meter("Photos", u.photos, l.photos)}${storageMeter(u, l)}</div>`, "home");
   wire();
   const nt = document.getElementById("ov-task"); if (nt) nt.onclick = () => taskModal();
   $app.querySelectorAll("[data-open-task]").forEach(a => a.onclick = e => { e.preventDefault(); taskDetail(+a.dataset.openTask); });
@@ -836,6 +889,7 @@ async function viewEvent(id) {
   shell(`<div id="ev-top"></div>
     <div id="ev-share"></div>
     <div id="ev-client"></div>
+    <div id="ev-story" data-need="events"></div>
     <div id="ev-camera" data-need="events"></div>
     <div class="card" data-need="upload"><h2>Upload photos</h2><div id="ev-upload"></div></div>
     <div class="card fold" id="vendors-card" data-need="events"><div class="row fold-head"><h2 style="margin:0">Vendor uploads <span class="muted small" style="font-weight:400" id="vn-count"></span></h2>
@@ -856,7 +910,7 @@ async function viewEvent(id) {
   AL = freshAlbum();
   paintTop(); paintShare(); paintClient(); paintUpload(); paintSettings(); paintStatus(); wireMin("photos"); wireMin("videos"); wireMin("album"); wireMin("vendors"); paintCounts();
   VN = { items: [], loaded: false };
-  loadVideos(); loadAlbum(); loadVendors(); loadScenes(); await loadPhotos(true);
+  loadVideos(); loadAlbum(); loadVendors(); loadScenes(); paintStoryCard(); await loadPhotos(true);
   startPoll();
 }
 
@@ -891,12 +945,41 @@ function paintShare() {
       <div class="row" style="margin-top:12px" data-need="events">
         <span class="small">${e.guest_has_pin ? "🔒 <b>PIN is on.</b> Guests enter it once on their phone, before the selfie. Share it with the link: on the invitation, a poster at the venue, or a separate message." : "No PIN: anyone with the link can search for their photos."}</span>
         <button class="btn sm" id="g-pin">${e.guest_has_pin ? "Change PIN" : "Add a PIN"}</button>${e.guest_has_pin ? `<button class="btn sm" id="g-nopin">Remove PIN</button>` : ""}</div>
+      <div style="margin-top:14px">${dlBlock("guest")}</div>
       ${e.url.includes("localhost") || e.url.includes("127.0.0.1") ? `<p class="small" style="color:var(--warn);margin:8px 0 0">This link only works on this computer. Open the dashboard using the computer's network address, or set a public URL, so phones can reach it.</p>` : ""}
     </div><img alt="QR code for the event link" src="/api/events/${e.id}/qr.png"></div></div>`;
+  wireDl("guest", paintShare);
   document.getElementById("copy").onclick = async () => { try { await navigator.clipboard.writeText(e.url); } catch (x) { document.getElementById("eurl").select(); document.execCommand("copy"); } toast("Link copied."); };
   const setPin = pin => api("POST", `/api/events/${e.id}/guest-pin`, { pin }).then(r => { EV = r; paintShare(); toast(pin ? "PIN saved. Share it with your guests." : "PIN removed."); }).catch(fail);
   const pb = document.getElementById("g-pin"); if (pb) pb.onclick = () => pinModal(e.guest_has_pin, "Each guest enters it once per device, before taking the selfie.", setPin);
   const nb = document.getElementById("g-nopin"); if (nb) nb.onclick = async () => { if (await confirmBox("Remove the PIN?", "Anyone with the link will be able to search for their photos.", "Remove PIN", true)) setPin(""); };
+}
+
+/* Downloads, inside the guest card and the client gallery card: whether they may download, and which sizes
+   (both, original only, smaller only; the smaller size is a JPEG up to 2,048 pixels). */
+const DL = {
+  guest: { on: e => e.allow_download, sizes: e => e.download_sizes, onKey: "allow_download", sizeKey: "guest_dl_sizes", who: "Guests",
+           text: () => "Guests who find their photos with a selfie: one at a time or all at once." },
+  client: { on: e => e.client.download, sizes: e => e.client.download_sizes, onKey: "client_download", sizeKey: "client_dl_sizes", who: "The client",
+            text: e => `${esc(e.client_name)}: any photo, or every photo as one zip.` },
+};
+const DL_SIZES = [["both", "Original and smaller size"], ["original", "Original only"], ["small", "Smaller size only"]];
+function dlBlock(who) {
+  const d = DL[who], e = EV, on = d.on(e), cur = d.sizes(e) || "both";
+  return `<div class="dlperm" data-need="events" data-dl="${who}"><label class="dlrow"><input type="checkbox" class="dl-on" ${on ? "checked" : ""}>
+      <span><b>${who === "guest" ? "Guests can download" : "Client can download"}</b><span class="small muted">${d.text(e)}</span></span>
+      <span class="badge ${on ? "pub" : ""}">${on ? "Allowed" : "Off"}</span></label>
+    ${on ? `<div class="dlsizes" role="radiogroup" aria-label="Sizes offered">${DL_SIZES.map(([v, t]) =>
+      `<label><input type="radio" name="${d.sizeKey}" value="${v}" ${cur === v ? "checked" : ""}><span>${t}</span></label>`).join("")}</div>
+      <p class="small muted" style="margin:8px 0 0 32px">Smaller size: a JPEG up to 2,048 pixels, several times smaller, fine for phones and social media.</p>` : ""}</div>`;
+}
+function wireDl(who, repaint) {
+  const d = DL[who], box = document.querySelector(`[data-dl="${who}"]`); if (!box) return;
+  const SAID = { both: "the original or a smaller size", original: "the original only", small: "a smaller size only" };
+  const save = async (fields, msg) => { try { EV = await api("PATCH", "/api/events/" + EV.id, fields); repaint(); toast(msg); } catch (x) { fail(x); repaint(); } };
+  box.querySelector(".dl-on").onchange = ev => save({ [d.onKey]: ev.target.checked },
+    ev.target.checked ? `${d.who} can download.` : `Downloads turned off for ${who === "guest" ? "guests" : "the client"}.`);
+  box.querySelectorAll(".dlsizes input").forEach(r => r.onchange = () => save({ [d.sizeKey]: r.value }, `${d.who} can download ${SAID[r.value]}.`));
 }
 
 function paintClient() {
@@ -909,16 +992,15 @@ function paintClient() {
       <div class="row"><input class="grow" readonly id="cl-url" value="${esc(c.url)}"><button class="btn" id="cl-copy">Copy link</button></div>
       <div class="row" style="margin-top:10px"><a class="btn sm" href="${esc(c.url)}" target="_blank" rel="noopener">Open client gallery</a>
         <a class="btn sm" href="${wa}" target="_blank" rel="noopener">Share on WhatsApp</a></div>
-      <div class="row" style="margin-top:14px;gap:16px" data-need="events">
-        <label class="check" style="margin:0"><input type="checkbox" id="cl-dl" ${c.download ? "checked" : ""}> Client can download (single photos and "Download all")</label></div>
+      <div style="margin-top:14px">${dlBlock("client")}</div>
       <div class="row" style="margin-top:10px" data-need="events">
         <span class="small">${c.has_pin ? "🔒 <b>PIN is on.</b> Send it to the client separately from the link." : "No PIN: anyone with the link can see every photo."}</span>
         <button class="btn sm" id="cl-pin">${c.has_pin ? "Change PIN" : "Add a PIN"}</button>${c.has_pin ? `<button class="btn sm" id="cl-nopin">Remove PIN</button>` : ""}
         <button class="btn sm danger" id="cl-reset">New link</button></div>`
     : `<p class="small muted" style="margin:8px 0 0">Turn on to give your client a private link to <b>all</b> the photos of this event, separate from the guests' selfie search.</p>`}</div>`;
   const save = async (fields, msg) => { try { EV = await api("PATCH", "/api/events/" + e.id, fields); paintClient(); toast(msg); } catch (x) { fail(x); paintClient(); } };
+  wireDl("client", paintClient);
   const on = document.getElementById("cl-on"); if (on) on.onchange = () => save({ client_enabled: on.checked }, on.checked ? "Client gallery is on." : "Client gallery is off. The link stops working.");
-  const dl = document.getElementById("cl-dl"); if (dl) dl.onchange = () => save({ client_download: dl.checked }, dl.checked ? "Client can download." : "Downloads turned off for the client.");
   const cp = document.getElementById("cl-copy"); if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(c.url); } catch (x) { document.getElementById("cl-url").select(); document.execCommand("copy"); } toast("Link copied."); };
   const setPin = pin => api("POST", `/api/events/${e.id}/client-pin`, { pin }).then(r => { EV = r; paintClient(); toast(pin ? "PIN saved. Send it to the client." : "PIN removed."); }).catch(fail);
   const pb = document.getElementById("cl-pin"); if (pb) pb.onclick = () => pinModal(c.has_pin, "The client enters it once per device.", setPin);
@@ -1118,6 +1200,7 @@ function viewPhoto(p, from = "photos") {  // one photo, zoom/pan/rotate, then pr
     { wide: true, onMount: ov => {
       const box = ov.querySelector(".dash-view"), stage = box.querySelector(".stage"), img = box.querySelector("#pv-img");
       const view = pfViewer({ lb: box, stage, img, top: box.querySelector(".top"), close: box.querySelector(".x"), onSwipe: d => go(d), slides: false });
+      let pfT = null;
       const paintAlb = q => {  // ♥ Add to album, or who chose it and Remove
         const el = box.querySelector("#pv-alb");
         if (!can("events")) { const by = albumBy(q.id); el.innerHTML = by ? `<span class="albby ${by}" style="position:static">${ALB_BY[by]}</span>` : ""; return; }
@@ -1144,7 +1227,11 @@ function viewPhoto(p, from = "photos") {  // one photo, zoom/pan/rotate, then pr
         const q = l[cur];
         view.reset();
         img.src = `/api/events/${EV.id}/photos/${encodeURIComponent(q.id)}/web?v=${q.v || 0}`; img.alt = q.name;
-        const ed = box.querySelector("#pv-edit"); if (ed) ed.onclick = () => window.open(`/editor?e=${EV.id}&p=${encodeURIComponent(q.id)}`, "_blank", "noopener");
+        // the original starts downloading while you look (it's often big and the line slow), so Edit opens it at once
+        const src = `/api/events/${EV.id}/photos/${encodeURIComponent(q.id)}/editor/source?v=${q.v || 0}`, PFO = window.PFOriginal;
+        const ed = box.querySelector("#pv-edit");
+        if (ed) ed.onclick = () => { if (PFO) PFO.load(src).catch(() => {}); window.open(`/editor?e=${EV.id}&p=${encodeURIComponent(q.id)}`, "_blank", "noopener"); };
+        clearTimeout(pfT); if (ed && PFO) pfT = setTimeout(() => { if (document.body.contains(stage)) PFO.prefetch(src); }, 1500);
         paintUp(q);
         box.querySelector("#pv-name").textContent = `${q.edited ? "✎ Edited · " : ""}${q.name}${q.size ? " · " + fmtBytes(q.size) : ""}`;
         box.querySelector("#pv-name").title = q.name;
@@ -1174,6 +1261,7 @@ function viewPhoto(p, from = "photos") {  // one photo, zoom/pan/rotate, then pr
       };
       const go = d => { cur += d; show(); };
       const close = () => box.querySelector("[data-close]").click();
+      box.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => { clearTimeout(pfT); if (window.PFOriginal) PFOriginal.cancelPrefetch(); }));
       box.querySelector("#pv-prev").onclick = () => go(-1);
       box.querySelector("#pv-next").onclick = () => go(1);
       const keys = e => {  // ← → + - 0 R while it's open; it lets go when the dialog closes
@@ -1269,7 +1357,6 @@ function paintSettings() {
       <label class="f"><span>Event date</span><input type="date" name="event_date" value="${esc(e.event_date || "")}"></label>
       <label class="f"><span>Link expires on <small>(optional)</small></span><input type="date" name="expires_at" value="${esc(e.expires_at || "")}"></label></div>
       <label class="f"><span>Match strictness</span><select name="tolerance">${TOL.map(t => `<option value="${t[0]}" ${t[0] === tol ? "selected" : ""}>${t[1]}</option>`).join("")}</select></label>
-      <label class="check"><input type="checkbox" name="allow_download" ${e.allow_download ? "checked" : ""}> Let guests download their photos</label>
       <button class="btn primary">Save settings</button></form>
     <hr style="border:0;border-top:1px solid var(--line);margin:22px 0">
     <h2>Privacy and data</h2>
@@ -1279,7 +1366,7 @@ function paintSettings() {
   document.getElementById("sform").onsubmit = async ev => {
     ev.preventDefault(); const f = new FormData(ev.target);
     try { EV = await api("PATCH", "/api/events/" + e.id, { name: f.get("name"), subtitle: f.get("subtitle"), event_date: f.get("event_date"), expires_at: f.get("expires_at"),
-      tolerance: parseFloat(f.get("tolerance")), allow_download: f.get("allow_download") === "on" }); toast("Settings saved."); paintTop(); paintShare(); paintStatus(); document.title = EV.name + " · Photo Finder Studio"; } catch (x) { fail(x); }
+      tolerance: parseFloat(f.get("tolerance")) }); toast("Settings saved."); paintTop(); paintShare(); paintStatus(); document.title = EV.name + " · Photo Finder Studio"; } catch (x) { fail(x); }
   };
   document.getElementById("reindex").onclick = async () => { if (!await confirmBox("Rebuild the face index?", "Every photo is processed again. Guest search works as photos finish.", "Rebuild")) return; try { EV = await api("POST", `/api/events/${e.id}/reindex`); toast("Rebuilding."); paintStatus(); startPoll(); refreshEvent(); } catch (x) { fail(x); } };
   document.getElementById("purge").onclick = async () => { if (!await confirmBox("Delete all face data for this event?", "Guest search stops working until you rebuild the face index. Your photos are kept.", "Delete face data", true)) return; try { EV = await api("POST", `/api/events/${e.id}/purge-faces`); toast("Face data deleted."); paintStatus(); } catch (x) { fail(x); } };
@@ -1301,7 +1388,7 @@ async function viewSettings() {
       <button class="btn primary">Save</button></form></div>
     ${logoCard(a)}
     <div class="card" data-need="company" id="scene-card"></div>
-    <div class="card"><h2>Plan: ${esc(a.plan_label)}</h2><div class="stats">${meter("Events", u.events, l.events)}${meter("Photos", u.photos, l.photos)}${meter("Storage", u.storage, l.storage, fmtBytes)}</div>
+    <div class="card"><h2>Plan: ${esc(a.plan_label)}</h2><div class="stats">${meter("Events", u.events, l.events)}${meter("Photos", u.photos, l.photos)}${storageMeter(u, l)}</div>
       <p class="muted small" style="margin-bottom:0">Need more room? Contact us to change your plan.</p></div>
     <div class="card"><h2>${ME.user.has_password ? "Change password" : "Set a password"}</h2>
       ${ME.user.google ? `<p class="small muted" style="margin-top:0">${G_LOGO.replace("<svg", '<svg style="width:14px;height:14px;vertical-align:-2px"')} Google sign-in is connected for ${esc(ME.user.email)}.${ME.user.has_password ? "" : " Set a password to also sign in with your email."}</p>` : ""}
@@ -1642,18 +1729,18 @@ async function viewEstimates() {
 
 let EST = null, EST_DIRTY = false, EST_SAVE = null;
 function leaveDialog() {  // resolves true to leave (after saving, or discarding), false to keep editing
-  const noun = EST && EST.kind === "invoice" ? "invoice" : "estimate";
+  const story = STORY_DIRTY, noun = story ? "story" : EST && EST.kind === "invoice" ? "invoice" : "estimate", SAVE = story ? STORY_SAVE : EST_SAVE;
   return new Promise(res => {
     let done = false; const end = v => { if (!done) { done = true; res(v); } };
     const close = modal(`<h2>Unsaved changes</h2><p class="muted">This ${noun} has changes you haven't saved yet.</p>
       <div class="row" style="justify-content:flex-end;margin-top:18px">
         <button class="btn" data-close>Keep editing</button><button class="btn danger" id="lv-discard">Discard changes</button>
-        ${can("clients") && EST_SAVE ? `<button class="btn primary" id="lv-save">Save and leave</button>` : ""}</div>`,
+        ${can(story ? "events" : "clients") && SAVE ? `<button class="btn primary" id="lv-save">Save and leave</button>` : ""}</div>`,
       { onMount: ov => {
         ov.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => end(false)));
         ov.querySelector("#lv-discard").onclick = () => { close(); end(true); };
         const sv = ov.querySelector("#lv-save");
-        if (sv) sv.onclick = async () => { sv.disabled = true; const r = await EST_SAVE(true); close(); end(!!r); };
+        if (sv) sv.onclick = async () => { sv.disabled = true; const r = await SAVE(true); close(); end(!!r); };
       } });
     const root = document.getElementById("modal-root"); if (root) new MutationObserver((m, o) => { if (!root.firstChild) { o.disconnect(); end(false); } }).observe(root, { childList: true });
   });
@@ -1932,6 +2019,296 @@ function paintAlbum() {
   };
 
 }
+
+/* ------------------------------------------------------------------ landing-page story (studio/story.py)
+   A short story of the couple (hero, chapters of photos with captions, a thank-you note) on the guest page after the
+   PIN and on the client gallery above the photos. The studio edits a draft here and publishes it. See
+   docs/landing-page-playbook.md for how a story is made. */
+let SB = null, STORY_DIRTY = false, STORY_SAVE = null;
+const storyPhotos = s => !s ? 0 : (s.cover ? 1 : 0) + (s.chapters || []).reduce((n, c) => n + (c.items || []).reduce((m, it) => m + (it.pair ? 2 : 1), 0), 0);
+const plural = (n, w) => `${num(n)} ${w}${n === 1 ? "" : "s"}`;
+const sbAgo = t => { const m = Math.round((Date.now() / 1000 - t) / 60); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : new Date(t * 1000).toLocaleDateString(undefined, { day: "numeric", month: "short" }); };
+
+async function paintStoryCard() {  // on the event page
+  const el = document.getElementById("ev-story"); if (!el || !EV) return;
+  const eid = EV.id;
+  let st; try { st = await api("GET", `/api/events/${eid}/story`); } catch (x) { return; }
+  if (!EV || EV.id !== eid || !document.getElementById("ev-story")) return;
+  const d = st.draft, pub = !!st.published, n = storyPhotos(d), where = [st.for_guests && "the guest page", st.for_client && "the client gallery"].filter(Boolean);
+  const badge = !d ? "" : pub ? `<span class="badge pub">Published</span>${st.changed ? ` <span class="badge busy">Unpublished changes</span>` : ""}` : `<span class="badge">Draft</span>`;
+  el.innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Landing page story ${badge}</h2>
+      <div class="row">${d ? `<button class="btn sm" id="st-prev">Preview</button>` : ""}<a class="btn sm ${d ? "" : "primary"}" href="#/events/${eid}/story">${d ? "Edit story" : "Create a story"}</a></div></div>
+    <p class="small muted" style="margin:8px 0 0">${d
+      ? `${plural(n, "photo")} in ${plural(d.chapters.length, "chapter")}. ${pub ? (where.length ? `Shown on ${where.join(" and ")}.` : "Published, but switched off on both pages.") : "Guests and the client don't see it until you publish it."}`
+      : `A short story of the couple: chapters of photos with captions and a thank-you note. Guests see it after the PIN, before the selfie search; the client sees it above their photos.`}</p></div>`;
+  const pv = document.getElementById("st-prev"); if (pv) pv.onclick = () => storyPreview(eid);
+}
+
+const storyFrame = (eid, page) => `<div class="sb-phone"><iframe id="sb-frame" title="Story preview" src="/api/events/${eid}/story/preview?page=${page}"></iframe></div>`;
+const pageChips = page => `<div class="chips" role="radiogroup" aria-label="Page"><button class="chip ${page === "guest" ? "on" : ""}" data-pg="guest">Guest page</button><button class="chip ${page === "client" ? "on" : ""}" data-pg="client">Client gallery</button></div>`;
+function storyPreview(eid) {
+  modal(`<div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Preview</h2><button class="btn sm" data-close>Close</button></div>
+    <div style="margin-bottom:10px">${pageChips("guest")}</div>${storyFrame(eid, "guest")}
+    <p class="small muted" style="margin:10px 0 0">The saved draft at phone width, as it will look once published.</p>`, {
+    cls: "sb-pv", onMount: ov => ov.querySelectorAll("[data-pg]").forEach(b => b.onclick = () => {
+      ov.querySelector("#sb-frame").src = `/api/events/${eid}/story/preview?page=${b.dataset.pg}`;
+      ov.querySelectorAll("[data-pg]").forEach(x => x.classList.toggle("on", x === b));
+    }),
+  });
+}
+
+function normStory(s) {  // every field present, so the builder can bind to it
+  s = s || {};
+  const str = v => typeof v === "string" ? v : "";
+  const shot = p => ({ file: str(p && p.file), caption: str(p && p.caption), focus: str(p && p.focus) });
+  return { title: str(s.title), intro: str(s.intro), cover: str(s.cover), thanks: str(s.thanks), cta: str(s.cta), signoff: str(s.signoff),
+    chapters: (Array.isArray(s.chapters) ? s.chapters : []).map(c => ({ label: str(c && c.label), title: str(c && c.title),
+      items: (Array.isArray(c && c.items) ? c.items : []).filter(it => it && (it.file || Array.isArray(it.pair))).map(it => Array.isArray(it.pair)
+        ? { pair: [shot(it.pair[0]), shot(it.pair[1])], caption: str(it.caption) } : { file: str(it.file), caption: str(it.caption), focus: str(it.focus) }) })) };
+}
+
+async function viewStory(id) {
+  stopPoll();
+  const [ev, st] = await Promise.all([api("GET", "/api/events/" + id), api("GET", `/api/events/${id}/story`)]);
+  EV = ev; document.title = "Story · " + ev.name + " · Photo Finder Studio";
+  SB = { eid: ev.id, ev, st, s: normStory(st.draft), dims: {}, names: {}, page: "guest" };
+  const learn = ph => Object.entries(ph || {}).forEach(([k, v]) => { SB.names[k] = v.name; SB.dims[k] = { w: v.w, h: v.h }; });
+  learn(st.photos); SB.learn = learn;
+  STORY_DIRTY = false;
+  shell(`<div class="crumbs"><a href="#/clients">Clients</a> / <a href="#/clients/${ev.client_id}">${esc(ev.client_name)}</a> / <a href="#/events/${ev.id}">${esc(ev.name)}</a> /</div>
+    <div class="head"><div><h1>Landing page story</h1><div class="muted small" id="sb-state" style="margin-top:4px"></div></div><div class="row" id="sb-acts"></div></div>
+    <div class="sb"><div id="sb-edit"></div>
+      <aside class="sb-side"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b>Preview</b><span id="sb-chips">${pageChips("guest")}</span></div>
+        ${storyFrame(ev.id, "guest")}<p class="small muted" style="text-align:center;margin:8px 0 0">At phone width. Changes show here as you type.</p></aside></div>`, "events");
+  STORY_SAVE = saveStory;
+  paintStoryChips();
+  paintSB();
+}
+function paintStoryChips() {
+  document.getElementById("sb-chips").innerHTML = pageChips(SB.page);
+  document.querySelectorAll("#sb-chips [data-pg]").forEach(b => b.onclick = () => {
+    SB.page = b.dataset.pg; paintStoryChips(); document.getElementById("sb-frame").src = `/api/events/${SB.eid}/story/preview?page=${SB.page}`; });
+}
+let SB_T = 0;
+function postPreview() {  // the framed preview draws the story as it is in the builder, saved or not
+  clearTimeout(SB_T);
+  SB_T = setTimeout(() => { const f = document.getElementById("sb-frame"); if (f && f.contentWindow) f.contentWindow.postMessage({ type: "pf-story", story: SB.s, photos: SB.dims }, location.origin); }, 120);
+}
+window.addEventListener("message", e => { if (e.origin === location.origin && e.data && e.data.type === "pf-story-ready" && SB && document.getElementById("sb-edit")) postPreview(); });
+
+function paintSBState() {
+  const st = SB.st, edit = can("events"), el = document.getElementById("sb-state"); if (!el) return;
+  el.innerHTML = [STORY_DIRTY ? `<b style="color:var(--warn)">Unsaved changes</b>` : st.updated_at ? `Draft saved ${sbAgo(st.updated_at)}${st.updated_by ? " by " + esc(st.updated_by) : ""}` : "Not saved yet",
+    st.published ? `Published ${sbAgo(st.published_at)}${st.changed || STORY_DIRTY ? " (the draft has changes guests don't see yet)" : ""}` : "Not published"].join(" · ");
+  const pub = !!st.published, behind = STORY_DIRTY || st.changed;
+  document.getElementById("sb-acts").innerHTML = !edit ? "" : `<button class="btn sm" id="sb-imp">Import JSON</button><button class="btn sm" id="sb-exp">Export JSON</button>
+    ${st.exists ? `<button class="btn sm danger" id="sb-del">Delete</button>` : ""}
+    ${pub ? `<button class="btn" id="sb-unpub">Unpublish</button>` : ""}
+    <button class="btn ${STORY_DIRTY && pub ? "" : STORY_DIRTY ? "primary" : ""}" id="sb-save" ${STORY_DIRTY ? "" : "disabled"}>Save draft</button>
+    <button class="btn ${pub && !behind ? "" : "primary"}" id="sb-pub" ${pub && !behind ? "disabled" : ""}>${pub ? (behind ? "Publish changes" : "Published") : "Publish"}</button>`;
+  const on = (id, f) => { const b = document.getElementById(id); if (b) b.onclick = f; };
+  on("sb-save", () => saveStory());
+  on("sb-pub", publishStory);
+  on("sb-unpub", async () => {
+    if (!await confirmBox("Unpublish the story?", "Guests and the client stop seeing it. The draft stays here.", "Unpublish")) return;
+    try { SB.st = await api("POST", `/api/events/${SB.eid}/story/unpublish`); paintSBState(); toast("Unpublished."); } catch (x) { fail(x); } });
+  on("sb-del", async () => {
+    if (!await confirmBox("Delete the story?", "The draft and the published story are removed. The photos stay in the event.", "Delete", true)) return;
+    try { SB.st = await api("DELETE", `/api/events/${SB.eid}/story`); SB.s = normStory(null); STORY_DIRTY = false; paintSB(); toast("Story deleted."); } catch (x) { fail(x); } });
+  on("sb-exp", () => {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(SB.s, null, 2)], { type: "application/json" }));
+    a.download = (SB.ev.slug || "story") + "-story.json"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); });
+  on("sb-imp", importStory);
+}
+
+async function saveStory(quiet) {
+  const b = document.getElementById("sb-save"); if (b) b.disabled = true;
+  try {
+    const st = await api("PUT", `/api/events/${SB.eid}/story`, { story: SB.s });
+    SB.st = st; SB.learn(st.photos); SB.s = normStory(st.draft); STORY_DIRTY = false;
+    if (document.getElementById("sb-edit")) { paintSB(); if (!quiet) toast("Draft saved. Publish it when it's ready for guests."); }
+    return st;
+  } catch (x) { fail(x); if (b) b.disabled = false; return null; }
+}
+async function publishStory() {
+  if (!SB.s.title && !storyPhotos(SB.s)) return toast("Add a title or some photos first.", true);
+  const where = [SB.st.for_guests && "guests (after the PIN)", SB.st.for_client && "the client"].filter(Boolean);
+  if (!SB.st.published && !await confirmBox("Publish the story?", where.length ? `It will be shown to ${where.join(" and ")}. Check the preview at phone width first.` : "It's switched off on both pages, so nobody will see it until you switch one on.", "Publish")) return;
+  if (STORY_DIRTY && !await saveStory(true)) return;
+  try { SB.st = await api("POST", `/api/events/${SB.eid}/story/publish`); paintSBState(); toast("Published."); } catch (x) { fail(x); }
+}
+function importStory() {
+  modal(`<h2>Import a story</h2><p class="muted small">Paste a story in the JSON format from <b>docs/landing-page-playbook.md</b>, or choose a .json file. Photos can be named by their file name (IMG_0412.JPG). Importing replaces what is in the builder; nothing is published.</p>
+    <textarea id="im-t" rows="12" style="font-family:ui-monospace,Consolas,monospace;font-size:.8rem" placeholder='{"title": "Srini &amp; Megha", "intro": "…", "chapters": [ … ]}'></textarea>
+    <div class="row" style="justify-content:space-between;margin-top:12px"><label class="btn sm">Choose file<input type="file" id="im-f" accept=".json,application/json" hidden></label>
+      <div class="row"><button class="btn" data-close>Cancel</button><button class="btn primary" id="im-go">Import</button></div></div>`, {
+    onMount: (ov, close) => {
+      ov.querySelector("#im-f").onchange = async e => { const f = e.target.files[0]; if (f) ov.querySelector("#im-t").value = await f.text(); };
+      ov.querySelector("#im-go").onclick = async () => {
+        let s; try { s = JSON.parse(ov.querySelector("#im-t").value); } catch (x) { return toast("That isn't valid JSON: " + x.message, true); }
+        const prev = SB.s; SB.s = normStory(s);
+        if (await saveStory(true)) { close(); toast("Imported and saved as the draft. Check the preview, then publish."); } else SB.s = prev;  // file names become photos on the server
+      };
+    },
+  });
+}
+
+/* the builder's form: one input per field; data-k is the field's path in the story (ch.0.it.2.pair.1.caption) */
+const SB_KEY = { ch: "chapters", it: "items" };
+function sbGet(k) { return !k ? SB.s : k.split(".").reduce((o, p) => o == null ? o : o[SB_KEY[p] || p], SB.s); }
+function sbSet(k, v) { const ps = k.split("."), last = ps.pop(); sbGet(ps.join("."))[SB_KEY[last] || last] = v; }
+function sbChanged(repaint) { STORY_DIRTY = true; if (repaint) paintSB(); else paintSBState(); postPreview(); }
+const sbThumb = (pid, cls = "sb-th") => pid ? `<img class="${cls}" loading="lazy" alt="" title="${esc(SB.names[pid] || "")}" src="/api/events/${SB.eid}/photos/${encodeURIComponent(pid)}/thumb">` : `<span class="${cls} sb-none">No photo</span>`;
+const sbIn = (k, ph, max, v, cls = "") => `<input data-k="${k}" maxlength="${max}" placeholder="${esc(ph)}" value="${esc(v)}" class="${cls}">`;
+const sbBtn = (act, k, label, title, cls = "") => `<button type="button" class="btn sm ${cls}" data-act="${act}" data-k="${k}" title="${esc(title)}" aria-label="${esc(title)}">${label}</button>`;
+
+function focusPicker(k, shot) {
+  const [x, y] = (shot.focus || "50% 50%").split(" ").map(parseFloat);
+  return `<span class="sb-fp" title="Click the part of the photo to keep in view"><img data-focus="${k}" alt="" draggable="false" src="/api/events/${SB.eid}/photos/${encodeURIComponent(shot.file)}/thumb"><i style="left:${x}%;top:${y}%"></i></span>`;
+}
+function itemHtml(ci, ii, it, n) {
+  const k = `ch.${ci}.it.${ii}`;
+  const tools = `<div class="sb-tools">${sbBtn("up", k, "↑", "Move up")}${sbBtn("down", k, "↓", "Move down")}
+    ${it.pair ? sbBtn("split", k, "⇹", "Split the pair into two photos") : sbBtn("pairup", k, "+1", "Make a pair: add a second photo beside this one")}${sbBtn("del", k, "✕", "Remove from the story", "danger")}</div>`;
+  if (it.pair) return `<div class="sb-it pair"><div class="sb-pair">${it.pair.map((p, si) => `<div>
+      <div class="sb-fpw">${focusPicker(`${k}.pair.${si}`, p)}<button type="button" class="linkish small" data-act="change" data-k="${k}.pair.${si}">Change photo</button></div>
+      ${sbIn(`${k}.pair.${si}.caption`, si ? "So did he." : "She had a plan.", 300, p.caption)}</div>`).join("")}
+      <div class="sb-pcap">${sbIn(`${k}.caption`, "Optional line under the pair", 300, it.caption)}</div>
+      <p class="small muted sb-hint">Pairs sit side by side, cropped to the same shape: click a photo to choose the part kept in view.</p></div>${tools}</div>`;
+  return `<div class="sb-it"><button type="button" class="sb-thb" data-act="change" data-k="${k}" title="Change photo">${sbThumb(it.file)}</button>
+    <div>${sbIn(`${k}.caption`, ii === n - 1 ? "A caption that works as a last line" : "One line that adds the joke the photo sets up", 300, it.caption)}
+      <div class="small muted sb-name">${esc(SB.names[it.file] || "")}</div></div>${tools}</div>`;
+}
+function paintSB() {
+  const el = document.getElementById("sb-edit"); if (!el) return;
+  const s = SB.s, st = SB.st, ev = SB.ev, edit = can("events");
+  const missing = (st.missing || []).length;
+  el.innerHTML = `${missing ? `<div class="msg err" style="margin-bottom:14px">${plural(missing, "photo")} in the story ${missing === 1 ? "was" : "were"} deleted from the event. ${missing === 1 ? "It's" : "They're"} left out for guests; remove ${missing === 1 ? "it" : "them"} here before saving.</div>` : ""}
+    <div class="card"><h2>Where it appears</h2>
+      <label class="check"><input type="checkbox" id="sb-g" ${st.for_guests ? "checked" : ""} ${edit ? "" : "disabled"}> Guest page <span class="muted small" style="font-weight:400">after the PIN, before the selfie search${ev.status === "published" ? "" : ". The event isn't published for guests yet."}</span></label>
+      <label class="check" style="margin:0"><input type="checkbox" id="sb-c" ${st.for_client ? "checked" : ""} ${edit ? "" : "disabled"}> Client gallery <span class="muted small" style="font-weight:400">above all the photos${ev.client.enabled ? "" : ". The client gallery is turned off."}</span></label></div>
+    <div class="card"><h2>Opening</h2>
+      <label class="f"><span>Title <small>the couple's names, the way they write them</small></span>${sbIn("title", "Srini & Megha", 120, s.title)}</label>
+      <div class="f"><span class="lbl">Cover photo <small>(optional) a photo of the two of them, above the title</small></span>
+        <div class="row">${s.cover ? `<button type="button" class="sb-thb" data-act="cover" data-k="cover" title="Change">${sbThumb(s.cover)}</button>` : ""}
+          <button type="button" class="btn sm" data-act="cover" data-k="cover">${s.cover ? "Change" : "Choose a photo"}</button>${s.cover ? `<button type="button" class="btn sm" data-act="nocover" data-k="cover">Remove</button>` : ""}</div></div>
+      <label class="f" style="margin:0"><span>Intro <small>the first line of the thank-you note opens the story</small></span><textarea data-k="intro" rows="2" maxlength="1000" placeholder="Thank you for being part of our wedding. Here's how it really went.">${esc(s.intro)}</textarea></label></div>
+    ${s.chapters.map((c, ci) => `<div class="card sb-ch">
+      <div class="sb-chhead">${sbIn(`ch.${ci}.label`, `Chapter ${ci + 1}`, 60, c.label, "sb-lab")}${sbIn(`ch.${ci}.title`, ["Two villains meet", "The reception", "The wedding", "Happily ever after"][ci % 4], 120, c.title, "grow sb-ttl")}
+        <div class="sb-tools row">${sbBtn("chup", `ch.${ci}`, "↑", "Move the chapter up")}${sbBtn("chdown", `ch.${ci}`, "↓", "Move the chapter down")}${sbBtn("chdel", `ch.${ci}`, "✕", "Delete the chapter", "danger")}</div></div>
+      ${c.items.map((it, ii) => itemHtml(ci, ii, it, c.items.length)).join("") || `<p class="small muted" style="margin:12px 0 0">No photos in this chapter yet.</p>`}
+      <div class="row" style="margin-top:12px">${sbBtn("add", `ch.${ci}`, "+ Photos", "Add photos, one after another")}${sbBtn("addpair", `ch.${ci}`, "+ Pair", "Add two photos side by side: a setup and its punchline")}</div></div>`).join("")}
+    <div class="sb-addch"><button type="button" class="btn" data-act="addch" data-k="">+ Add a chapter</button><span class="small muted">One chapter per function (haldi, sangeet, wedding, reception), in the order the photos were taken.</span></div>
+    <div class="card"><h2>Finale</h2>
+      <label class="f"><span>Thank-you note <small>the rest of the note; a new line starts a new paragraph</small></span><textarea data-k="thanks" rows="4" maxlength="3000" placeholder="Thank you for the dancing, the blessings and for putting up with us.">${esc(s.thanks)}</textarea></label>
+      <div class="two"><label class="f"><span>Sign-off</span>${sbIn("signoff", "Srini & Megha", 120, s.signoff)}</label>
+        <label class="f"><span>Last line <small>leads into the button</small></span>${sbIn("cta", "Now find yourself in the photos.", 300, s.cta)}</label></div></div>
+    <details class="card"><summary><b>Writing tips</b> <span class="muted small">from the playbook</span></summary><ul class="small sb-tips">
+      <li><b>Order by when the photos were taken</b>, one chapter per function, each with a short title.</li>
+      <li><b>Look for pairs:</b> a setup and its punchline side by side, with linked captions ("She had a plan." / "So did he.").</li>
+      <li><b>Captions are one line</b> (two at most) and add the joke the photo sets up, instead of describing it.</li>
+      <li><b>Affectionately funny, never humiliating.</b> The couple will read every word, and so will their grandparents.</li>
+      <li><b>End on a photo that feels like a last line</b>, then let the thank-you note lead into the selfie search.</li>
+      <li>Pick the couple's own funny moments first; they set the taste better than any description. Check every photo at full size, and keep only the best frame of a burst.</li></ul></details>`;
+  if (!edit) el.querySelectorAll("input, textarea, button[data-act]").forEach(x => x.disabled = true);
+  paintSBState(); postPreview();
+}
+
+document.addEventListener("input", e => {
+  const k = e.target.dataset && e.target.dataset.k; if (!k || !SB || !e.target.closest("#sb-edit")) return;
+  sbSet(k, e.target.value); sbChanged(false);
+});
+document.addEventListener("change", async e => {
+  if (!SB || !e.target.closest("#sb-edit") || !["sb-g", "sb-c"].includes(e.target.id)) return;
+  const k = e.target.id === "sb-g" ? "for_guests" : "for_client";
+  try { const st = await api("PATCH", `/api/events/${SB.eid}/story`, { [k]: e.target.checked }); Object.assign(SB.st, { for_guests: st.for_guests, for_client: st.for_client, exists: st.exists });
+    toast(`${k === "for_guests" ? "Guest page" : "Client gallery"}: ${e.target.checked ? "the story is shown" : "the story is hidden"}${SB.st.published ? "." : " once it's published."}`); paintSBState(); }
+  catch (x) { fail(x); e.target.checked = !e.target.checked; }
+});
+document.addEventListener("click", async e => {
+  if (!SB || !e.target.closest || !e.target.closest("#sb-edit")) return;
+  const fi = e.target.closest("[data-focus]");
+  if (fi) {  // a pair's crop: the clicked point stays in view
+    const r = fi.getBoundingClientRect(), x = Math.round(Math.min(100, Math.max(0, (e.clientX - r.left) / r.width * 100))), y = Math.round(Math.min(100, Math.max(0, (e.clientY - r.top) / r.height * 100)));
+    sbGet(fi.dataset.focus).focus = `${x}% ${y}%`; fi.nextElementSibling.style.left = x + "%"; fi.nextElementSibling.style.top = y + "%"; sbChanged(false); return;
+  }
+  const b = e.target.closest("[data-act]"); if (!b || b.disabled) return;
+  const k = b.dataset.k, act = b.dataset.act;
+  const listOf = k => { const ps = k.split("."); const i = +ps.pop(); return [sbGet(ps.join(".")), i]; };
+  const move = (arr, i, d) => { const j = i + d; if (j < 0 || j >= arr.length) return false; [arr[i], arr[j]] = [arr[j], arr[i]]; return true; };
+  if (act === "addch") { SB.s.chapters.push({ label: `Chapter ${SB.s.chapters.length + 1}`, title: "", items: [] }); sbChanged(true); return; }
+  if (act === "chup" || act === "chdown") { const [arr, i] = listOf(k); if (move(arr, i, act === "chup" ? -1 : 1)) sbChanged(true); return; }
+  if (act === "chdel") {
+    const [arr, i] = listOf(k);
+    if (arr[i].items.length && !await confirmBox("Delete this chapter?", `Its ${plural(arr[i].items.length, "item")} are taken out of the story. The photos stay in the event.`, "Delete", true)) return;
+    arr.splice(i, 1); sbChanged(true); return;
+  }
+  if (act === "up" || act === "down") { const [arr, i] = listOf(k); if (move(arr, i, act === "up" ? -1 : 1)) sbChanged(true); return; }
+  if (act === "del") { const [arr, i] = listOf(k); arr.splice(i, 1); sbChanged(true); return; }
+  if (act === "split") { const [arr, i] = listOf(k), it = arr[i]; arr.splice(i, 1, ...it.pair.map((p, j) => ({ file: p.file, caption: p.caption || (j ? it.caption : ""), focus: "" }))); sbChanged(true); return; }
+  if (act === "nocover") { SB.s.cover = ""; sbChanged(true); return; }
+  if (act === "cover") { const got = await pickPhotos({ title: "Choose the cover photo", max: 1 }); if (got.length) { SB.s.cover = got[0].id; sbChanged(true); } return; }
+  if (act === "change") { const got = await pickPhotos({ title: "Choose a photo", max: 1 }); if (got.length) { sbGet(k).file = got[0].id; sbChanged(true); } return; }
+  if (act === "pairup") {
+    const got = await pickPhotos({ title: "Choose the second photo of the pair", max: 1 }); if (!got.length) return;
+    const [arr, i] = listOf(k), it = arr[i];
+    arr[i] = { pair: [{ file: it.file, caption: it.caption, focus: "" }, { file: got[0].id, caption: "", focus: "" }], caption: "" }; sbChanged(true); return;
+  }
+  if (act === "add" || act === "addpair") {
+    const pair = act === "addpair", got = await pickPhotos({ title: pair ? "Choose two photos: the setup, then the punchline" : "Add photos to the chapter", exact: pair ? 2 : 0 });
+    if (!got.length) return;
+    const items = sbGet(k).items;
+    if (pair) items.push({ pair: got.map(p => ({ file: p.id, caption: "", focus: "" })), caption: "" });
+    else got.forEach(p => items.push({ file: p.id, caption: "", focus: "" }));
+    sbChanged(true);
+  }
+});
+
+/* choose photos of the event: max 1 closes on the first click; exact 2 for a pair; otherwise any number, in click order */
+function pickPhotos({ title, max = 0, exact = 0 }) {
+  return new Promise(res => {
+    const P = { items: [], sel: [], filter: "all", more: true, loading: false }, inStory = new Set(storyRefs(SB.s));
+    let done = false; const end = v => { if (!done) { done = true; res(v); } };
+    const close = modal(`<div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">${esc(title)}</h2>
+        <div class="chips" id="pk-f"><button class="chip on" data-f="all">All photos</button><button class="chip" data-f="album">Album picks</button><button class="chip" data-f="edited">Edited</button></div></div>
+      <div class="sb-pk" id="pk-g"></div><div style="text-align:center"><button class="btn sm" id="pk-more" hidden>Load more</button></div>
+      <div class="row" style="justify-content:space-between;margin-top:12px"><span class="muted small" id="pk-n">${max === 1 ? "Click a photo." : exact ? `Choose ${exact}.` : "Click photos in the order you want them."}</span>
+        <div class="row"><button class="btn" data-close>Cancel</button>${max === 1 ? "" : `<button class="btn primary" id="pk-ok" disabled>Add</button>`}</div></div>`, {
+      cls: "sb-pick", onMount: ov => {
+        ov.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => end([])));
+        ov.querySelectorAll("#pk-f [data-f]").forEach(b => b.onclick = () => { P.filter = b.dataset.f; P.items = []; P.more = true; ov.querySelectorAll("#pk-f [data-f]").forEach(x => x.classList.toggle("on", x === b)); load(); });
+        ov.querySelector("#pk-more").onclick = load;
+        const ok = ov.querySelector("#pk-ok"); if (ok) ok.onclick = () => { close(); end(P.sel.map(id => P.items.find(p => p.id === id) || { id })); };
+        ov.querySelector("#pk-g").onclick = e => {
+          const t = e.target.closest("[data-pk]"); if (!t) return;
+          const id = t.dataset.pk, p = P.items.find(x => x.id === id);
+          if (max === 1) { close(); end([p]); return; }
+          const at = P.sel.indexOf(id); if (at >= 0) P.sel.splice(at, 1); else if (!exact || P.sel.length < exact) P.sel.push(id);
+          paint();
+        };
+        async function load() {
+          if (P.loading || !P.more) return; P.loading = true;
+          const q = P.filter === "album" ? "&album=any" : P.filter === "edited" ? "&edited=1" : "";
+          try { const rows = await api("GET", `/api/events/${SB.eid}/photos?status=ready&limit=200&offset=${P.items.length}${q}`); P.items.push(...rows); P.more = rows.length === 200; rows.forEach(r => SB.names[r.id] = r.name); }
+          catch (x) { fail(x); }
+          P.loading = false; paint();
+        }
+        function paint() {
+          const g = ov.querySelector("#pk-g");
+          g.innerHTML = P.items.map(p => { const n = P.sel.indexOf(p.id) + 1;
+            return `<button type="button" class="ph ${n ? "on" : ""}" data-pk="${esc(p.id)}" title="${esc(p.name)}"><img loading="lazy" alt="" src="/api/events/${SB.eid}/photos/${esc(p.id)}/thumb?v=${p.v || 0}">
+              <span class="pnm">${esc(p.name)}</span>${n ? `<b class="pk-n">${n}</b>` : ""}${inStory.has(p.id) ? `<span class="pk-in">In story</span>` : ""}</button>`; }).join("")
+            || `<p class="muted" style="grid-column:1/-1;text-align:center;padding:30px">${P.loading ? "Loading…" : "No photos here."}</p>`;
+          ov.querySelector("#pk-more").hidden = !P.more;
+          const okb = ov.querySelector("#pk-ok"); if (okb) { okb.disabled = exact ? P.sel.length !== exact : !P.sel.length; okb.textContent = P.sel.length ? `Add ${P.sel.length}` : "Add"; }
+        }
+        load();
+      },
+    });
+    const root = document.getElementById("modal-root"); new MutationObserver((m, o) => { if (!root.firstChild) { o.disconnect(); end([]); } }).observe(root, { childList: true });
+  });
+}
+const storyRefs = s => [s.cover, ...(s.chapters || []).flatMap(c => c.items.flatMap(it => it.pair ? it.pair.map(p => p.file) : [it.file]))].filter(Boolean);
 
 /* ------------------------------------------------------------------ videos: shown in the client gallery only */
 let VD = { items: [], sel: new Set(), busy: false };
@@ -2566,7 +2943,7 @@ function wire() {
   $app.querySelectorAll('[data-act="new-event"]').forEach(b => b.onclick = () => eventModal(b.dataset.client).catch(fail));
 }
 let LAST_HASH = location.hash;
-window.addEventListener("beforeunload", e => { if (EST_DIRTY) { e.preventDefault(); e.returnValue = ""; } });
+window.addEventListener("beforeunload", e => { if (EST_DIRTY || STORY_DIRTY) { e.preventDefault(); e.returnValue = ""; } });
 /* ------------------------------------------------------------------ live updates
    The server nudges this tab (Server-Sent Events, /api/live) when something changes: a teammate's edit, photos finishing
    processing, a camera or vendor upload, a client's album picks, a guest search. The page on screen asks for its data
@@ -2611,11 +2988,11 @@ async function liveRefresh() {
 }
 
 async function route() {
-  if (EST_DIRTY) {  // leaving an estimate or invoice with unsaved changes: stay put and ask in the app's own dialog
+  if (EST_DIRTY || STORY_DIRTY) {  // leaving an estimate, invoice or story with unsaved changes: stay put and ask in the app's own dialog
     const target = location.hash;
     history.replaceState(null, "", LAST_HASH);
     const go = await leaveDialog();
-    if (go) { EST_DIRTY = false; location.hash = target; }
+    if (go) { EST_DIRTY = STORY_DIRTY = false; location.hash = target; }
     return;
   }
   LAST_HASH = location.hash;
@@ -2644,7 +3021,7 @@ async function route() {
     if (!parts.length) return await viewHome();
     if (["login", "signup", "google-finish"].includes(parts[0])) { location.hash = "#/"; return; }
     if (parts[0] === "clients") return parts[1] ? await viewClient(parts[1]) : await viewClients();
-    if (parts[0] === "events") return parts[1] ? await viewEvent(parts[1]) : await viewEvents();
+    if (parts[0] === "events") return parts[2] === "story" ? await viewStory(parts[1]) : parts[1] ? await viewEvent(parts[1]) : await viewEvents();
     if (parts[0] === "settings") return await viewSettings();
     if (parts[0] === "team") return parts[1] === "inventory" ? await viewInventory() : await viewTeam();
     if (parts[0] === "calendar") return await viewCalendar(parts[1]);

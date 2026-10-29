@@ -4,7 +4,7 @@ import re
 import pytest
 
 from conftest import jpeg_bytes, upload, wait_idle
-from studio import config
+from studio import config, db
 
 
 # ------------------------------------------------------------------------------------------ accounts
@@ -185,9 +185,9 @@ def test_plan_photo_and_storage_limits(studio, monkeypatch):
     assert [x["status"] for x in r["results"]] == ["queued", "queued", "rejected"]
     assert "limit" in r["results"][2]["error"].lower()
     monkeypatch.setitem(config.PLANS["free"], "photos", 100)
-    monkeypatch.setitem(config.PLANS["free"], "storage", 10)  # 10 bytes
+    db.run("UPDATE accounts SET storage_quota=10")   # 10 bytes, as allocated by the platform admin
     r = upload(s, ev["id"], [("z.jpg", jpeg_bytes(seed=40))]).json()
-    assert r["results"][0]["status"] == "rejected" and "Storage" in r["results"][0]["error"]
+    assert r["results"][0]["status"] == "rejected" and "storage" in r["results"][0]["error"].lower()
 
 
 # ------------------------------------------------------------------------------------------ guest access
@@ -270,6 +270,7 @@ def test_photos_left_mid_processing_are_picked_up_after_a_restart(tmp_path, monk
     with TestClient(create_app(data_dir=data, workers=1)) as c:
         r = c.post("/api/auth/signup", headers={"X-PF": "1"}, json={"company": "S", "email": "s@x.test", "password": "longenough1"})
         s = Sess(c, r.cookies.get("pf_session"))
+        db.run("UPDATE accounts SET storage_quota=?", (config.GB,))   # allocated by the platform admin
         cid = s.post("/api/clients", json={"name": "C"}).json()["id"]
         eid = s.post("/api/events", json={"client_id": cid, "name": "E"}).json()["id"]
         upload(s, eid, [("a.jpg", jpeg_bytes(seed=51)), ("b.jpg", jpeg_bytes(seed=52))])

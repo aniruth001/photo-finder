@@ -62,10 +62,14 @@ def app_client(tmp_path, monkeypatch):
 
 @pytest.fixture()
 def make_user(app_client):
-    def make(email="a@studio.test", company="Studio A", password="correct horse"):
+    def make(email="a@studio.test", company="Studio A", password="correct horse", storage_gb=10):
         r = app_client.post("/api/auth/signup", headers={"X-PF": "1"},
                             json={"company": company, "name": "Owner", "email": email, "password": password})
         assert r.status_code == 200, r.text
+        if storage_gb:   # a new company has no storage until the platform admin allocates some: do that here
+            from studio import db
+            db.run("UPDATE accounts SET storage_quota=? WHERE id=(SELECT account_id FROM users WHERE email=?)",
+                   (storage_gb * 1024 ** 3, email.lower()))
         return Sess(app_client, r.cookies.get("pf_session"))
     return make
 

@@ -14,6 +14,7 @@ def test_old_events_are_reindexed_with_the_new_engine_on_start(tmp_path, monkeyp
     with TestClient(create_app(data_dir=data, workers=1)) as c:
         r = c.post("/api/auth/signup", headers={"X-PF": "1"}, json={"company": "S", "email": "s@x.test", "password": "longenough1"})
         s = Sess(c, r.cookies.get("pf_session"))
+        db.run("UPDATE accounts SET storage_quota=?", (config.GB,))   # allocated by the platform admin
         cid = s.post("/api/clients", json={"name": "C"}).json()["id"]
         old = s.post("/api/events", json={"client_id": cid, "name": "Old"}).json()["id"]
         purged = s.post("/api/events", json={"client_id": cid, "name": "Purged"}).json()["id"]

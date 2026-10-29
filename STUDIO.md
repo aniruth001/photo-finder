@@ -61,6 +61,13 @@ photo of the event, no selfie needed, with a full-screen viewer, single download
 - "Client can download" switches single downloads and "Download all" off or on (viewing stays on).
 - "Download all" sends one zip that is built while it downloads, so even a 20 GB wedding needs no space on the
   server. The dashboard shows how many times the gallery was opened.
+- Every download offers two sizes, in the client gallery and on the guest page: **Download original** (full quality,
+  exactly as delivered) and **Smaller size** (a JPEG at most 2,048 pixels long, several times smaller: quick on a
+  phone, fine for WhatsApp and social media). Download all asks which. On the event page, **Guests can download** (in
+  the guest link card) and **Client can download** (in the Client gallery card) switch downloads on or off for each,
+  and set which sizes they get: both, original only, or smaller size only (the server refuses any other size). A smaller copy is made the first time someone
+  asks for it and then kept; a photo that is already small comes as it is. Smaller copies leave out the camera data
+  (location included).
 - Only roles that can manage events (owner, admin, manager) can change these settings.
 
 **Open the dashboard using the computer's network address** (the one printed at start), not `localhost`:
@@ -243,7 +250,7 @@ are read with LibRaw (`pip install rawpy`, free); without it RAW uploads are ref
   the detail of the raw data. Start with **Auto fix** or your preset. Saved edits are JPEG copies, as always.
 - Thumbnails and face search use the RAW's embedded preview, so a RAW is processed about as fast as a JPEG.
 - Photos can be up to 100 MB each (lossless RAWs from 45-megapixel cameras are 60–80 MB); set `PF_MAX_FILE_MB` to
-  change that. RAW files count toward the plan's storage like any photo.
+  change that. RAW files count toward the company's storage like any photo.
 
 - **Save as copy** puts the edit back in the event as a new photo, `NAME (edited).jpg`. **The uploaded original is
   never changed.** From then on **Save** updates that copy; **Save as new copy** (Ctrl+Shift+S) makes another. Opening
@@ -275,6 +282,72 @@ whole team. Click a preset to apply it to the photo you're editing. To do a whol
 page and choose **✎ Apply preset**: the editor opens in a new tab and works through them, saving an edited copy of
 each (the originals don't change). Keep that tab open until it says done. Auto fix in a preset is worked out for
 each photo, so every photo gets its own brightness and colour.
+
+**Load settings…** (Presets panel, or File) adds presets made for Adobe Camera Raw or Lightroom: `.xmp` files,
+older `.lrtemplate` files, or a `.zip` of them as they're sold. Each becomes a preset of the team, made of the
+editor's own steps (white balance, exposure, contrast, highlights, shadows, whites, blacks, clarity, curves, the
+colour mixer, split toning / color grading, black & white, sharpening, vignette, grain), so it can be applied,
+batched and changed like any other. The editor's adjustments aren't Adobe's, so a look comes out close, not
+identical. Settings with no counterpart (camera profiles, lens corrections, noise reduction, masks) are left out,
+and the editor lists them. A name already taken gets a number; nothing is overwritten.
+
+### Opening big photos over a slow connection
+
+The editor always edits the original: its full size, its format. A big one (say 40 MB) can still take a while to
+arrive when Studio runs on a home line or a phone's hotspot behind a tunnel, so Studio gets it there early and fast:
+
+- **Started while you look.** In the event's photo viewer, after a second or two on a photo, its original starts
+  downloading in the background. When you choose **✎ Edit**, the editor tab picks up that same download (it never
+  downloads it twice), so the original is often already there.
+- **In pieces at once.** The original comes in several parts at the same time, which is much faster through a tunnel
+  that limits each connection.
+- **Kept.** The last few originals stay in the browser, so opening one again is instant. Signing out clears them.
+
+If the original still isn't there when the editor opens, it shows the picture the viewer was showing (no wait) and
+the status bar shows the original's size and how much has arrived. Adjustments, looks, presets, crop and straighten
+work meanwhile and are redone on the original when it arrives; painting, retouching and layers wait for it, and so do
+Save (the button says it will save when the full size is here) and Download.
+
+### Photoshop-style tools
+
+The editor has most of what photographers use in Photoshop, all in the browser (nothing to install, nothing sent
+anywhere except the AI tools, which run on your own server):
+
+- **Selections** (Select menu, and the marquee, lasso, magic wand and quick selection tools): rectangle and ellipse
+  marquee, freehand and polygonal lasso, magic wand (tolerance, contiguous, all layers), quick selection brush;
+  new / add (Shift) / subtract (Alt) / intersect; feather; Select → Subject and Sky (AI), Color range, Inverse,
+  Reselect, Load layer transparency or mask; Modify → Feather, Expand, Contract, Border, Smooth; **Select and mask**
+  (smooth, feather, contrast, shift edge, output to a selection, a layer mask or a new layer). Every tool, fill and
+  filter keeps to the selection's exact shape, softly at a feathered edge.
+- **Layers**: layer masks (paint black to hide, white to show; from the selection; disable, invert, apply), clipping
+  masks (Ctrl+Alt+G), **adjustment layers** (every adjustment, changeable any time, with a mask), **layer styles**
+  (drop shadow, outer glow, stroke, colour overlay; double-click a layer), fill opacity, lock transparency / lock all,
+  **groups** (Ctrl+G; folders with their own visibility, opacity and blend mode), align to the selection or photo,
+  blend modes including Linear Light.
+- **Transform** (Edit → Free transform, Ctrl+T): scale, rotate, skew, distort, perspective and **warp**, on a layer or
+  the selected pixels; the layer's mask goes along.
+- **Retouch and paint**: content-aware fill (Shift+F5), patch tool, spot healing, clone stamp, AI object eraser,
+  red eye, dodge / burn / sponge, smudge / blur / sharpen brushes, history brush (Alt-click a History step to paint
+  from it), **liquify** (push, bloat, pucker, twirl, reconstruct), frequency separation; brush flow, spacing and pen
+  pressure.
+- **Adjustments** (Image menu): Brightness/Contrast, Levels, Curves, Exposure, Vibrance, Hue/Saturation, Color
+  balance, Black & white mixer, Photo filter, Channel mixer, Gradient map, Selective color, Replace color, Equalize,
+  plus the editor's own Light & colour, Light & shadows, Colour mixer and White balance.
+- **Filters**: Gaussian, motion, radial, surface and box blur; sharpen, unsharp mask, high pass; reduce noise, dust &
+  scratches, median, despeckle, add noise; pinch, twirl, spherize, ripple, wave, lens correction; oil paint, emboss,
+  find edges, solarize, pixelate, posterize, threshold; clouds, lens flare.
+- **Text**: text layers stay editable (click them with the Type tool, or double-click in Layers): several lines,
+  any installed font, size, bold, italic, underline, alignment, tracking, leading, colour, and warp (arc, arch, wave,
+  flag). **Shapes**: rectangle, rounded rectangle, ellipse, polygon, star, line. **Pen tool** (P): paths made of
+  corners and curves, made into a selection, filled or stroked.
+- **View**: rulers (Ctrl+R), guides (drag them from the rulers; move them with the Move tool), snapping, grid,
+  and Navigator, Histogram and Info panels.
+- **Photoshop files**: File → Open a Photoshop file (PSD) brings in its layers, masks, groups, clipping, opacity and
+  blend modes; File → Download as Photoshop (PSD) saves your layers, masks and groups (styles and adjustment layers
+  are drawn into their layers). The PSD reader/writer is ag-psd (MIT), served by Studio itself.
+
+Not included: Generative Fill and other features that need Adobe's cloud, 3D, video timelines, and CMYK/16-bit
+colour (the editor works in 8-bit RGB, like the photos it saves).
 
 ### Upscale for print
 
@@ -324,6 +397,9 @@ the Photos card gets three extra chips:
 
 Nothing is changed or hidden automatically: these only help you choose.
 
+Clients get **Similar shots** in their gallery too: the same groups side by side, the best of each marked, and
+**Choose the best of each** to select one per group in a tap, ready to change and send for the album or download.
+
 ## Vendor uploads
 
 On the event page, **Vendor uploads** (under Upload photos) makes an upload link for each vendor: a second shooter,
@@ -334,7 +410,7 @@ Videos card. Every file is tagged with the vendor's name: a label on the photo, 
 filters, and **View photos** on each vendor. The vendor sees only the names of what they sent, never other photos.
 
 **Turn off** stops a link at once; **New link** replaces the address (sent to the wrong person); **Delete** removes
-the link but keeps what they sent. Vendor uploads count towards your plan's photo and storage limits. Only roles
+the link but keeps what they sent. Vendor uploads count towards your plan's photo limit and your storage. Only roles
 that manage events see the card.
 
 ## Album selection (client gallery)
@@ -361,6 +437,29 @@ and Slideshow follow the chip. In the full-screen viewer the album button says "
 picks. The client can keep or remove the studio's picks until you Finalise. Finalise stops
 the client's changes, not yours. Taking a photo out of the album takes it out whoever chose it. Only roles that manage
 events (owner, admin, manager) add or remove the studio's picks.
+
+## Landing page story (guest page and client gallery)
+
+A short story of the couple: a title and cover photo, chapters of photos with captions (single photos, or pairs side by
+side for a setup and its punchline), and a thank-you note. On the **guest page** it appears after the PIN and leads into
+the selfie search; a pinned **📷 Find my photos** button keeps the search one tap away, and a guest's search results
+replace the story (**Back to the story** returns to it). On the **client gallery** it sits above the photos, with a
+**See all the photos** button. Photos are shown as tilted prints with serif captions and fade in as you scroll (no
+animation on phones set to reduce motion). See `docs/landing-page-playbook.md` for how to choose the photos and write
+the captions.
+
+On the event page, the **Landing page story** card opens the builder (**Create a story** / **Edit story**). The
+builder has a live preview at phone width (Guest page or Client gallery) that changes as you type. Add chapters, then
+**+ Photos** (several in a row) or **+ Pair**; **+1** turns a photo into a pair and **⇹** splits one. Click a pair's
+photo to choose the part kept in view when it's cropped. **Save draft** keeps your work; guests and the client see
+nothing until you **Publish**, and later edits stay in the draft until you **Publish changes**. **Where it appears**
+switches the story on or off for each page. **Import JSON** takes the playbook's `story.json` format (photos may be
+named by their file name, such as `IMG_0412.JPG`); **Export JSON** saves the draft.
+
+Guests see the story only after the event's guest PIN, and on the guest page a story photo is served only if the
+published story names it, so the story never makes the rest of the event reachable without a selfie. A photo deleted
+from the event drops out of the story (a pair missing one photo becomes a single photo). Only roles that manage events
+can edit, publish or switch it.
 
 ## Videos (client gallery only)
 
@@ -638,9 +737,16 @@ the hardest cases; "Relaxed" finds more of them at the cost of a few wrong photo
 
 ## Plans and limits
 
-`studio/config.py` has a `PLANS` table (events, photos and storage per company). **The numbers are placeholders:
-set the tiers and prices you want to sell.** Limits are enforced on every upload and when creating events, also when several uploads run at once. New
-accounts start on `free`. There is no payment system yet; you move a company between plans with `set-plan`
+`studio/config.py` has a `PLANS` table (events, photos, team seats and price per company). **The numbers are
+placeholders: set the tiers and prices you want to sell.** Limits are enforced on every upload and when creating events, also when several uploads run at once. New
+accounts start on `free`.
+
+Storage is not part of a plan. Every new company gets **1 GB free** (`NEW_COMPANY_STORAGE` in `studio/config.py`), and
+the platform admin sets each company's storage by hand: Admin → Companies → the company → **Storage allocated**, in
+GB (decimals are fine; 0 stops uploads). Photos, RAW files, edited copies and videos all count. Setting less than a
+company already uses deletes nothing: it just can't add more until it's under again. Every change is in the admin
+activity log. Companies that existed before this change kept what their plan gave them (Free 1 GB, Pro 100 GB,
+Studio 500 GB). There is no payment system yet; you move a company between plans with `set-plan`
 (see "Before you charge money").
 
 ## Where things live

@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from . import config, db
-from .ingest import PlanLimit, photo_usage
+from .ingest import PlanLimit, photo_usage, storage_full, storage_quota
 from .storage import get_storage
 
 VIDEO_EXTS = {".mp4", ".m4v", ".mov", ".webm"}
@@ -79,8 +79,9 @@ def add_video(account_id: int, event_id: int, plan: dict, name: str, stream, ven
         return res
     try:
         with db.tx():  # counted inside the write lock, like photos
-            if plan["storage"] is not None and photo_usage(account_id)["storage"] + size > plan["storage"]:
-                raise PlanLimit(f"Storage limit of the {plan['label']} plan reached.")
+            quota = storage_quota(account_id)
+            if photo_usage(account_id)["storage"] + size > quota:
+                raise PlanLimit(storage_full(quota))
             db.ex("""INSERT INTO videos(public_id, account_id, event_id, orig_name, ext, size, sha256, created_at, vendor_id)
                      VALUES(?,?,?,?,?,?,?,?,?)""", (pub, account_id, event_id, name, ext, size, h.hexdigest(), int(time.time()), vendor_id))
     except PlanLimit as e:

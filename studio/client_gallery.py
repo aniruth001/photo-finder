@@ -16,8 +16,8 @@ from fastapi import Depends, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from . import branding, db, live, security
-from .storage import delivery_name, get_storage
+from . import branding, culling, db, live, security
+from .storage import delivery_name, download_file, get_storage
 
 STATIC = Path(__file__).parent / "static"
 PIN_RE = re.compile(r"^\d{4,8}$")
@@ -62,14 +62,15 @@ class _Sink(io.RawIOBase):
 
 
 def zip_stream(files):
-    """Yield a zip of [(path, name in zip)] as it is written, so a 20 GB wedding never sits on the server's disk."""
+    """Yield a zip of [(path, name in zip)] as it is written, so a 20 GB wedding never sits on the server's disk.
+    A path may be a function giving the path (a smaller copy, made only when its turn comes)."""
     sink = _Sink()
     with zipfile.ZipFile(sink, "w", zipfile.ZIP_STORED, allowZip64=True) as z:  # JPEGs don't compress further
         for path, name in files:
             try:
-                src = open(path, "rb")
-            except OSError:
-                continue  # deleted since the list was made
+                src = open(path() if callable(path) else path, "rb")
+            except Exception:
+                continue  # deleted since the list was made, or its smaller copy couldn't be made
             with src, z.open(name, "w", force_zip64=True) as dst:
                 while True:
                     chunk = src.read(1 << 20)
@@ -81,17 +82,61 @@ def zip_stream(files):
     yield sink.take()
 
 
-def unique_names(rows):
+def unique_names(rows, size: str = "original"):
     """(row, file name) with no name twice; a camera RAW file is named as the JPEG it is delivered as."""
     used = set()
     for r in rows:
         ext = r["ext"] if "ext" in r.keys() else Path(r["orig_name"]).suffix
-        name = delivery_name(r["orig_name"], ext)
+        name = delivery_name(r["orig_name"], ext, size)
         if name.lower() in used:
             stem, dot, ext = name.rpartition(".")
             name = f"{stem or name}-{r['public_id'][:6]}{dot}{ext}" if dot else f"{name}-{r['public_id'][:6]}"
         used.add(name.lower())
         yield r, name
+
+
+SIZES = ("original", "small")   # what clients and guests can download: as delivered, or at most 2048 pixels
+
+
+def check_size(size: str) -> str:
+    if size not in SIZES:
+        from .server import err
+        raise err(422, "Choose original or small.", "size")
+    return size
+
+
+def pick_size(size: str, offered: str) -> str:
+    """The size to send: the one asked for, which the studio must offer for this gallery (offered: both, original or
+    small). Nothing asked for: the original, or the only size offered."""
+    offered = offered if offered in SIZES else "both"
+    size = size or ("original" if offered == "both" else offered)
+    check_size(size)
+    if offered != "both" and size != offered:
+        from .server import err
+        raise err(403, "This size isn't offered for this gallery.", "size_off")
+    return size
+
+
+def sized_file(row, size: str):
+    """(path, download name) for one photo; a 404 when its smaller copy can't be made."""
+    try:
+        return download_file(row, check_size(size))
+    except OSError:
+        from .server import err
+        raise err(404, "This photo couldn't be prepared. Try the original.", "not_found")
+
+
+def zip_files(rows, size: str):
+    """[(path or function, name)] for zip_stream: smaller copies are made one by one as the zip is written."""
+    check_size(size)
+    store = get_storage()
+    if size == "small":
+        return [((lambda r=r: store.small_path(r)), name) for r, name in unique_names(rows, "small")]
+    return [(store.delivery_path(r), name) for r, name in unique_names(rows)]
+
+
+def zip_suffix(size: str) -> str:
+    return "-small" if size == "small" else ""
 
 
 def mount_client(app, h):
@@ -170,8 +215,10 @@ def mount_client(app, h):
         busy = db.q1("SELECT COUNT(*) n FROM photos WHERE event_id=? AND status IN ('uploading','uploaded','processing')",
                      (e["id"],))["n"] if ok else None
         videos = db.q1("SELECT COUNT(*) n FROM videos WHERE event_id=?", (e["id"],))["n"] if ok else None
+        groups = len({g for g, _ in culling.similar(e["id"]).values()}) if ok else None
         return {"name": e["name"], "has_pin": bool(e["client_pin"]), "unlocked": ok, "photos": n, "processing": busy, "videos": videos,
-                "allow_download": bool(e["client_download"]), "searchable": not e["faces_purged"]}
+                "allow_download": bool(e["client_download"]), "download_sizes": e["client_dl_sizes"],
+                "searchable": not e["faces_purged"], "similar": groups}
 
     @app.post("/c/{token}/unlock")
     def unlock(token: str, body: UnlockIn, request: Request):
@@ -194,6 +241,27 @@ def mount_client(app, h):
         rows = db.q("""SELECT public_id, orig_name, width, height, edited FROM photos WHERE event_id=? AND status='ready'
                        ORDER BY orig_name COLLATE NOCASE, id LIMIT ? OFFSET ?""", (e["id"], limit, max(0, offset)))
         return [{"id": r["public_id"], "name": r["orig_name"], "w": r["width"], "h": r["height"], "edited": bool(r["edited"])} for r in rows]
+
+    @app.get("/c/{token}/similar")
+    def similar(token: str, request: Request):
+        """Bursts and repeats, grouped, so the client can choose one of each. The best of each (eyes open, sharpest)
+        is marked."""
+        e = open_event(token, request)
+        sim = culling.similar(e["id"])
+        if not sim:
+            return {"groups": []}
+        ids = list(sim)
+        rows = []
+        for i in range(0, len(ids), 500):
+            part = ids[i:i + 500]
+            rows += db.q(f"""SELECT id, public_id, orig_name, width, height, edited FROM photos WHERE event_id=? AND status='ready'
+                             AND id IN ({','.join('?' * len(part))})""", [e["id"]] + part)
+        groups = {}
+        for r in sorted(rows, key=lambda r: (r["orig_name"].lower(), r["id"])):
+            g, best = sim[r["id"]]
+            groups.setdefault(g, []).append({"id": r["public_id"], "name": r["orig_name"], "w": r["width"], "h": r["height"],
+                                             "edited": bool(r["edited"]), "best": best})
+        return {"groups": [{"photos": p} for _, p in sorted(groups.items(), key=lambda x: x[1][0]["name"].lower()) if len(p) > 1]}
 
     @app.post("/c/{token}/search")
     def search(token: str, request: Request, file: UploadFile = File(...)):
@@ -218,16 +286,16 @@ def mount_client(app, h):
         return file_or_404(get_storage().photo_path(r, "web"), headers={"Cache-Control": "private, max-age=3600"})
 
     @app.get("/c/{token}/download/{pid}")
-    def download(token: str, pid: str, request: Request):
+    def download(token: str, pid: str, request: Request, size: str = ""):
+        """size: original (as delivered) or small (at most 2048 pixels, quick to download and share)."""
         e = open_event(token, request)
         if not e["client_download"]:
             raise err(403, "Downloads are turned off for this gallery.", "no_download")
-        r = photo(e, pid)
-        return file_or_404(get_storage().delivery_path(r), filename=delivery_name(r["orig_name"], r["ext"]),
-                           content_disposition_type="attachment")
+        path, name = sized_file(photo(e, pid), pick_size(size, e["client_dl_sizes"]))
+        return file_or_404(path, filename=name, content_disposition_type="attachment")
 
     @app.post("/c/{token}/zip")
-    def zip_all(token: str, request: Request, ids: str = Form("")):
+    def zip_all(token: str, request: Request, ids: str = Form(""), size: str = Form("")):
         e = open_event(token, request)
         if not e["client_download"]:
             raise err(403, "Downloads are turned off for this gallery.", "no_download")
@@ -245,9 +313,9 @@ def mount_client(app, h):
                         (e["id"],))
         if not rows:
             raise err(400, "No photos to download.", "empty")
-        store = get_storage()
-        files = [(store.delivery_path(r), name) for r, name in unique_names(rows)]
+        size = pick_size(size, e["client_dl_sizes"])
+        files = zip_files(rows, size)
         fname = re.sub(r"[^A-Za-z0-9]+", "-", e["name"]).strip("-").lower() or "photos"
         return StreamingResponse(zip_stream(files), media_type="application/zip",
-                                 headers={"Content-Disposition": f'attachment; filename="{fname}-all-photos.zip"'})
+                                 headers={"Content-Disposition": f'attachment; filename="{fname}-all-photos{zip_suffix(size)}.zip"'})
 

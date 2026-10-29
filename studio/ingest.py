@@ -31,8 +31,22 @@ def remove_leftovers() -> int:
     return n
 
 
+def storage_quota(account_id: int) -> int:
+    """The storage the platform admin allocated to this company, in bytes (0: none yet)."""
+    r = db.q1("SELECT storage_quota FROM accounts WHERE id=?", (account_id,))
+    return int(r["storage_quota"] or 0) if r else 0
+
+
+def storage_full(quota: int) -> str:
+    """Why a file doesn't fit."""
+    if not quota:
+        return "No storage has been allocated to your company yet. Ask the platform administrator to allocate storage."
+    gb = quota / 1024 ** 3
+    return f"Your storage ({gb:g} GB) is full. Ask the platform administrator to allocate more."
+
+
 def photo_usage(account_id: int) -> dict:
-    """Photos count, and storage: photos plus videos (both count towards the plan's storage)."""
+    """Photos count, and storage: photos plus videos (both count towards the company's allocated storage)."""
     p = db.q1("""SELECT COUNT(*) c, COALESCE(SUM(size),0) + (SELECT COALESCE(SUM(size),0) FROM videos WHERE account_id=?) s
                  FROM photos WHERE account_id=?""", (account_id, account_id))
     return {"photos": p["c"], "storage": p["s"]}
@@ -83,9 +97,10 @@ def add_photo(account_id: int, event_id: int, plan: dict, name: str, stream, use
         part.unlink(missing_ok=True)
         res["error"] = f"File is larger than {cfg.max_file_mb} MB." if too_big else "File is empty."
         return res
-    if plan["storage"] is not None and used["storage"] + size > plan["storage"]:
+    quota = storage_quota(account_id)
+    if used["storage"] + size > quota:
         part.unlink(missing_ok=True)
-        res["error"] = f"Storage limit of the {plan['label']} plan reached."
+        res["error"] = storage_full(quota)
         return res
     replaced = None
     try:
@@ -99,8 +114,8 @@ def add_photo(account_id: int, event_id: int, plan: dict, name: str, stream, use
             now_used = photo_usage(account_id)
             if plan["photos"] is not None and now_used["photos"] >= plan["photos"]:
                 raise PlanLimit(f"Photo limit of the {plan['label']} plan reached.")
-            if plan["storage"] is not None and now_used["storage"] + size > plan["storage"]:
-                raise PlanLimit(f"Storage limit of the {plan['label']} plan reached.")
+            if now_used["storage"] + size > quota:
+                raise PlanLimit(storage_full(quota))
             now = int(time.time())
             db.ex("""INSERT INTO photos(public_id, account_id, event_id, orig_name, ext, size, sha256, status,
                      created_at, vendor_id, edited, edited_of, edited_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",

@@ -57,9 +57,9 @@ def test_videos_count_towards_storage_and_have_a_size_limit(studio, monkeypatch)
     s, _, ev = studio
     up(s, ev["id"], [("a.mp4", VIDEO)])
     assert s.get("/api/auth/me").json()["usage"]["storage"] == len(VIDEO)
-    monkeypatch.setitem(config.PLANS["free"], "storage", len(VIDEO) + 1000)
+    db.run("UPDATE accounts SET storage_quota=?", (len(VIDEO) + 1000,))   # what the platform admin allocated
     r = up(s, ev["id"], [("b.mp4", VIDEO + b"\x01")]).json()["results"][0]
-    assert r["status"] == "rejected" and "Storage limit" in r["error"]
+    assert r["status"] == "rejected" and "storage" in r["error"] and "is full" in r["error"]
     monkeypatch.setattr(config.settings, "max_video_mb", 0)
     assert "up to" in up(s, ev["id"], [("c.mov", VIDEO + b"\x02")]).json()["results"][0]["error"]
 

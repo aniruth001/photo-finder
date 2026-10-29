@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en" data-studio-theme="__THEME__" data-theme="__THEME_INITIAL__">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="robots" content="noindex">
+<title>Story preview · __TITLE__</title>
+__THEME_HEAD__
+<style>
+  /* The studio's preview of the landing-page story, framed by the dashboard: the guest page or the client gallery as
+     they will look, with the draft. The selfie box and the gallery are stand-ins. */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; min-height: 100vh; }
+  main { max-width: 720px; margin: 0 auto; padding: 36px 16px 90px; }
+  .by { text-align: center; color: var(--accent-text); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; margin: 0 0 6px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .card p { margin: 0 0 14px; color: var(--muted); font-size: .92rem; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px 16px; border-radius: 10px;
+         border: 1.5px solid var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 1rem;
+         font-family: inherit; cursor: pointer; }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin-top: 10px; }
+  .grid span { aspect-ratio: 1; background: var(--tile); opacity: .5; }
+  .empty { text-align: center; color: var(--muted); padding: 60px 10px; }
+  .themebtn { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <p class="by">__MARK__</p>
+  <div id="story"></div>
+  <p class="empty" id="empty" hidden>Nothing to preview yet. Add a title or some photos.</p>
+  <section id="tail" class="card"></section>
+</main>
+__STORY__
+<script>
+const EID = "__EID__", PAGE = "__PAGE__", tail = document.getElementById("tail");
+if (PAGE === "client") { tail.innerHTML = '<p><b>Your photos</b> appear here: the whole gallery, below the story.</p><div class="grid"><span></span><span></span><span></span><span></span><span></span><span></span></div>'; }
+else { tail.innerHTML = '<p>Your selfie is used <b>only to find your photos</b>. It is not saved, and nobody else sees it.</p><button class="btn" disabled>📷 Take selfie</button>'; }
+let view = null;
+function draw(data) {
+  if (view) view.destroy();
+  const s = data.story || {}, has = !!(s.title || s.intro || s.cover || (s.chapters || []).length || s.thanks);
+  document.getElementById("empty").hidden = has;
+  view = pfStory(document.getElementById("story"), data, {
+    src: pid => `/api/events/${EID}/photos/${encodeURIComponent(pid)}/web`,
+    button: PAGE === "client" ? { label: "See all the photos", onClick: () => tail.scrollIntoView({ behavior: "smooth" }) } : null,
+    pin: { label: PAGE === "client" ? "See all the photos" : "📷 Find my photos", onClick: () => tail.scrollIntoView({ behavior: "smooth" }), target: tail },
+  });
+}
+// the story builder sends every change; opened on its own, the saved draft is shown
+addEventListener("message", e => { if (e.origin === location.origin && e.data && e.data.type === "pf-story") draw(e.data); });
+fetch(`/api/events/${EID}/story`, { credentials: "same-origin" }).then(r => r.json()).then(j => {
+  if (!view) draw({ story: j.draft || j.published || {}, photos: j.photos });
+}).catch(() => {});
+if (parent !== window) parent.postMessage({ type: "pf-story-ready" }, location.origin);
+</script>
+</body>
+</html>

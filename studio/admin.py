@@ -13,13 +13,13 @@ from typing import Optional
 from fastapi import Depends, Request, Response
 from pydantic import BaseModel, Field
 
-from . import branding, config, db, roles, security
+from . import branding, config, db, live, roles, security
 from .camera import server_info
 from .server import COOKIE, err, plan_of
 
 DAY = 86400
 
-ACCOUNT_SQL = """SELECT a.id, a.company, a.plan, a.brand_color, a.timezone, a.created_at, a.disabled_at, a.disabled_reason, a.logo,
+ACCOUNT_SQL = """SELECT a.id, a.company, a.plan, a.storage_quota, a.brand_color, a.timezone, a.created_at, a.disabled_at, a.disabled_reason, a.logo,
   (SELECT email FROM users WHERE account_id=a.id ORDER BY role != 'owner', id LIMIT 1) AS owner_email,
   (SELECT name FROM users WHERE account_id=a.id ORDER BY role != 'owner', id LIMIT 1) AS owner_name,
   (SELECT COUNT(*) FROM users WHERE account_id=a.id) AS n_users,
@@ -48,6 +48,10 @@ class PlanIn(BaseModel):
     plan: str = Field(max_length=40)
 
 
+class StorageIn(BaseModel):
+    gb: float = Field(ge=0, le=1_000_000)   # what the admin types, in GB
+
+
 class FtpIn(BaseModel):
     allowed: bool
 
@@ -60,7 +64,10 @@ def account_out(r) -> dict:
     plan = plan_of(r["plan"])
     now = time.time()
     use = {"events": r["n_events"], "photos": r["n_photos"], "storage": r["storage"]}
-    pct = {k: _pct(use[k], plan[k]) for k in use}
+    limits = {"events": plan.get("events"), "photos": plan.get("photos"), "storage": r["storage_quota"], "users": plan.get("users")}
+    pct = {k: _pct(use[k], limits[k]) for k in use}
+    if not r["storage_quota"] and not r["storage"]:
+        pct["storage"] = None   # nothing allocated, nothing used: not "full", just not set up yet
     return {
         "id": r["id"], "company": r["company"], "owner_email": r["owner_email"] or "", "owner_name": r["owner_name"] or "",
         "plan": r["plan"], "plan_label": plan["label"], "price": plan.get("price", 0),
@@ -73,7 +80,7 @@ def account_out(r) -> dict:
         "clients": r["n_clients"], "events": r["n_events"],
         "published": r["n_published"], "photos": r["n_photos"], "storage": r["storage"], "failed": r["n_failed"],
         "searches": r["n_searches"],
-        "limits": {k: plan.get(k) for k in ("events", "photos", "storage", "users")}, "usage_pct": pct,
+        "limits": limits, "usage_pct": pct, "storage_quota": r["storage_quota"],
         "near_limit": any(p is not None and p >= 80 for p in pct.values()),
     }
 
@@ -276,6 +283,20 @@ def mount_admin(app, user_dep):
         with db.tx():
             db.run("UPDATE accounts SET plan=? WHERE id=?", (body.plan, aid))
             log(u, aid, a["company"], "plan", f"{a['plan_label']} -> {config.PLANS[body.plan]['label']}")
+        return get_account(aid)
+
+    @app.post("/api/admin/accounts/{aid}/storage")
+    def allocate_storage(aid: int, body: StorageIn, u: dict = Depends(admin_dep)):
+        """The storage this company may use, in GB. Less than it already uses is allowed: it can't add more until it
+        is under again (nothing is deleted)."""
+        a = get_account(aid)
+        quota = round(body.gb * config.GB)
+        if quota == a["storage_quota"]:
+            return a
+        with db.tx():
+            db.run("UPDATE accounts SET storage_quota=? WHERE id=?", (quota, aid))
+            log(u, aid, a["company"], "storage", f"{a['storage_quota'] / config.GB:g} GB -> {body.gb:g} GB")
+        live.publish(aid, "settings")   # its dashboards show the new allocation
         return get_account(aid)
 
     @app.post("/api/admin/accounts/{aid}/signout")

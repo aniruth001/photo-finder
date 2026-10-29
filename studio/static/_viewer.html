@@ -27,6 +27,18 @@
   .pfv .vtools .pct, .pfv .vtools .speed { width: auto; min-width: 46px; height: 28px; border-radius: 8px; background: none; font-size: .8rem; font-variant-numeric: tabular-nums; }
   @media (max-width: 380px) { .pfv .vtools .pct { display: none; } }
   .pfv .vtools .noslides { display: none !important; }
+  /* pfChooseSize: original or smaller, before a download of many photos */
+  .pfsize { position: fixed; inset: 0; z-index: 30; background: rgba(0,0,0,.7); display: grid; place-items: center; padding: 16px; }
+  .pfsize .box { width: 100%; max-width: 420px; background: var(--card, #fff); color: var(--ink, #1d1b16); border: 1px solid var(--line, #ddd);
+                 border-radius: 14px; padding: 20px; display: grid; gap: 10px; text-align: left; }
+  .pfsize h2 { margin: 0; font-size: 1.15rem; }
+  .pfsize .n { margin: 0 0 4px; color: var(--muted, #6f6a5d); font-size: .92rem; }
+  .pfsize button { font: inherit; text-align: left; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--line, #ddd);
+                   background: transparent; color: inherit; cursor: pointer; display: grid; gap: 2px; }
+  .pfsize button:hover, .pfsize button:focus-visible { border-color: var(--accent, #f0c52f); outline: none; }
+  .pfsize button b { font-size: 1rem; }
+  .pfsize button span { color: var(--muted, #6f6a5d); font-size: .85rem; }
+  .pfsize button.c { border: 0; text-align: center; padding: 6px; color: var(--muted, #6f6a5d); }
 </style>
 <script>
   /* pfViewer({lb, stage, img, top, close, onSwipe, onNext, nextSrc, slides}): zoom in and out, pan and rotate the photo in the
@@ -36,6 +48,25 @@
      Slideshow: onNext() shows the next photo, nextSrc() is its address (preloaded). Zooming, panning or rotating pauses
      it; closing the viewer (stop()) or leaving full screen ends it. slides: false leaves the slideshow out (one photo).
      destroy() lets go of the window and document listeners when the viewer itself goes away (a dialog). */
+  /* pfChooseSize(title, note): ask original or smaller size before a download of many photos.
+     Resolves "original", "small", or null (cancelled). The smaller size is at most 2048 pixels (studio/storage.py). */
+  window.pfChooseSize = function (title, note) {
+    return new Promise(function (resolve) {
+      var ov = document.createElement("div"), last = document.activeElement;
+      ov.className = "pfsize"; ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true"); ov.setAttribute("aria-label", title);
+      ov.innerHTML = '<div class="box"><h2></h2><p class="n"></p>' +
+        '<button type="button" data-s="original"><b>↓ Original size</b><span>Full quality, exactly as delivered. Best for printing.</span></button>' +
+        '<button type="button" data-s="small"><b>↓ Smaller size</b><span>Up to 2048 pixels: much quicker to download, easy to share. Good for phones and social media.</span></button>' +
+        '<button type="button" class="c" data-s="">Cancel</button></div>';
+      ov.querySelector("h2").textContent = title; ov.querySelector(".n").textContent = note || ""; ov.querySelector(".n").hidden = !note;
+      function done(v) { document.removeEventListener("keydown", key, true); ov.remove(); if (last && last.focus) last.focus(); resolve(v); }
+      function key(e) { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); done(null); } }
+      ov.addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) done(b.dataset.s || null); else if (e.target === ov) done(null); });
+      document.addEventListener("keydown", key, true);
+      document.body.appendChild(ov); ov.querySelector("button").focus();
+    });
+  };
+
   window.pfViewer = function (o) {
     var stage = o.stage, img = o.img, lb = o.lb, MAX = 5;
     var s = 1, r = 0, x = 0, y = 0, fit = 1;

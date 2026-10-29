@@ -53,7 +53,9 @@ __THEME_HEAD__
   #lb .nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%;
              border: 0; background: rgba(255,255,255,.14); color: #fff; font-size: 1.4rem; cursor: pointer; }
   #lb .prev { left: 8px; } #lb .next { right: 8px; }
-  #lb .bar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
+  #lb .bar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
+  @media (max-width: 420px) { #lb .bar { grid-template-columns: 1fr 1fr; } #lb .bar #notme { grid-column: 1 / -1; } }
+  #lb .bar.two { grid-template-columns: 1fr 1fr; } #lb .bar.two #notme { grid-column: auto; }
   #lb .bar.single { grid-template-columns: 1fr; }
   #lb .x { background: none; border: 0; color: #fff; font-size: 1.6rem; cursor: pointer; padding: 4px 8px; }
   .btn.dark { background: #000; color: #fff; border-color: #444; }
@@ -62,6 +64,8 @@ __THEME_HEAD__
   .pin:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
   .card #perr { min-height: 1.3em; margin: 6px 0 10px; text-align: center; color: var(--err); }
   .hint { margin: 0; padding: 0 16px 4px; text-align: center; color: var(--muted); font-size: .82rem; }
+  body.has-story main > h1, body.has-story main > .sub { display: none; }   /* the story's own title takes their place */
+  body.has-story main > .by { margin-bottom: 6px; }
 </style>
 </head>
 <body>
@@ -78,6 +82,8 @@ __THEME_TOGGLE__
     <form id="pform"><input id="pin" class="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="8" pattern="\d{4,8}" required aria-label="PIN">
       <p class="err" id="perr"></p><button class="btn">Continue</button></form>
   </section>
+
+  <div id="story" hidden></div>
 
   <section id="start" class="card" hidden>
     <p>Your selfie is used <b>only to find your photos</b>. It is not saved, and nobody else sees it.</p>
@@ -104,6 +110,7 @@ __THEME_TOGGLE__
       <button class="btn ghost wide" id="slides">▶ Slideshow</button>
     </div>
     <div class="grid" id="grid"></div>
+    <button class="link" id="tostory" hidden>Back to the story</button>
   </section>
 </main>
 <footer>Photos by __FOOTER_MARK__</footer>
@@ -117,7 +124,8 @@ __THEME_TOGGLE__
   </div>
   <p class="hint" id="hint" hidden>Tip: touch and hold the photo, then tap Add to Photos.</p>
   <div class="bar" id="bar">
-    <a class="btn" id="dl" href="#" download>↓ Download</a>
+    <a class="btn" id="dl" href="#" download title="Full quality, exactly as delivered">↓ Original</a>
+    <a class="btn dark" id="dls" href="#" download title="Up to 2048 pixels: quick to download and share">↓ Smaller size</a>
     <button class="btn dark" id="notme">Not me</button>
   </div>
 </div>
@@ -126,13 +134,34 @@ __THEME_TOGGLE__
 <input type="file" id="gallery" accept="image/*" hidden>
 
 __VIEWER__
+__STORY__
 <script>
 const $ = id => document.getElementById(id);
 const BASE = location.pathname.replace(/\/+$/, "");   // /e/<event>
-let photos = [], cur = 0, canDownload = true, searchable = true;
+let photos = [], cur = 0, canDownload = true, searchable = true, sizes = "both";   // sizes offered: both, original or small
 if (/iPhone|iPad|iPod/.test(navigator.userAgent)) $("hint").hidden = false;  // iOS saves downloads to Files, not Photos
 
-const show = name => ["lock", "start", "busy", "msg", "results"].forEach(s => $(s).hidden = s !== name);
+let story = null, storyTitle = false;   // the couple's story (studio/story.py), when the studio made one
+const show = name => {
+  ["lock", "start", "busy", "msg", "results"].forEach(s => $(s).hidden = s !== name);
+  $("story").hidden = !story || name !== "start";   // a search's results replace the story
+  document.body.classList.toggle("has-story", !$("story").hidden && storyTitle);
+  $("tostory").hidden = !story;
+  if (story) story.update();
+};
+async function loadStory() {
+  if (story) return;
+  try {
+    const r = await fetch(BASE + "/story");
+    if (!r.ok) return;
+    const j = await r.json();
+    storyTitle = !!(j.story && j.story.title);
+    story = pfStory($("story"), j, { src: pid => `${BASE}/story/${encodeURIComponent(pid)}.jpg`,
+                                     pin: { label: "📷 Find my photos", onClick: toSelfie, target: $("start") } });
+  } catch (e) {}
+}
+const toSelfie = () => $("start").scrollIntoView({ behavior: "smooth", block: "center" });
+$("tostory").onclick = () => { show("start"); scrollTo(0, 0); };
 const consentOk = () => $("consent").checked;
 try { $("consent").checked = sessionStorage.getItem("consent") === "1"; } catch (e) {}
 function syncConsent() {
@@ -145,11 +174,14 @@ async function init() {
   let j = null;
   try { j = await (await fetch(BASE + "/info")).json(); } catch (e) {}
   if (j && j.has_pin && !j.unlocked) { show("lock"); $("pin").focus(); return; }
+  await loadStory();
   show("start");
   if (j) {
-    canDownload = j.allow_download; searchable = j.searchable;
+    canDownload = j.allow_download; searchable = j.searchable; sizes = j.download_sizes || "both";
     $("all").hidden = !canDownload; $("actions").classList.toggle("single", !canDownload);
-    $("dl").hidden = !canDownload; $("bar").classList.toggle("single", !canDownload);
+    $("dl").hidden = !canDownload || sizes === "small"; $("dls").hidden = !canDownload || sizes === "original";
+    if (sizes !== "both") { $("dl").textContent = $("dls").textContent = "↓ Download"; $("dls").className = "btn"; }
+    $("bar").classList.toggle("single", !canDownload); $("bar").classList.toggle("two", canDownload && sizes !== "both");
     const b = $("banner");
     if (!searchable) { b.textContent = "Photo search is switched off for this gallery."; b.hidden = false; }
     else if (j.ready === 0) { b.textContent = "The photos aren't ready yet. Please check back soon."; b.hidden = false; }
@@ -206,10 +238,12 @@ function render() {
   show("results");
 }
 
-$("all").onclick = () => {
+$("all").onclick = async () => {
+  const size = sizes !== "both" ? sizes : await pfChooseSize(`Download ${photos.length} photo${photos.length === 1 ? "" : "s"}`, "They come as one zip file.");
+  if (!size) return;
   const f = document.createElement("form"); f.method = "POST"; f.action = BASE + "/zip";
-  const i = document.createElement("input"); i.type = "hidden"; i.name = "ids"; i.value = photos.map(p => p.id).join(",");
-  f.appendChild(i); document.body.appendChild(f); f.submit(); f.remove();
+  for (const [k, v] of [["ids", photos.map(p => p.id).join(",")], ["size", size]]) { const i = document.createElement("input"); i.type = "hidden"; i.name = k; i.value = v; f.appendChild(i); }
+  document.body.appendChild(f); f.submit(); f.remove();
   const b = $("all"); b.disabled = true; b.textContent = "Preparing…";
   setTimeout(() => { b.disabled = false; b.textContent = "↓ Download all"; }, 5000);
 };
@@ -220,6 +254,7 @@ function paint() {
   const p = photos[cur];
   view.reset();
   $("big").src = `${BASE}/web/${p.id}.jpg`; $("dl").href = `${BASE}/download/${p.id}`; $("dl").setAttribute("download", p.name.replace(/\.(cr2|cr3|nef|nrw|arw|srf|sr2|dng|raf|orf|rw2|pef|srw|3fr|iiq)$/i, ".jpg"));   // camera RAW files come as JPEG
+  $("dls").href = `${BASE}/download/${p.id}?size=small`; $("dls").setAttribute("download", p.name.replace(/\.[^.]+$/, "") + " (small).jpg");
   $("pos").textContent = `${cur + 1} / ${photos.length}${p.edited ? "  ·  ✎ Edited" : ""}`;
 }
 const step = d => { cur = (cur + d + photos.length) % photos.length; paint(); };

@@ -29,6 +29,7 @@ def cam(tmp_path, monkeypatch):
     with TestClient(create_app(data_dir=tmp_path / "data", workers=1)) as c:
         r = c.post("/api/auth/signup", headers={"X-PF": "1"}, json={"company": "Lens", "email": "o@lens.test", "password": "longenough1"})
         s = Sess(c, r.cookies.get("pf_session"))
+        db.run("UPDATE accounts SET storage_quota=?", (config.GB,))   # allocated by the platform admin
         cid = s.post("/api/clients", json={"name": "C"}).json()["id"]
         ev = s.post("/api/events", json={"client_id": cid, "name": "Wedding"}).json()
         db.run("UPDATE events SET ftp_allowed=1 WHERE id=?", (ev["id"],))     # what the platform admin's switch does
@@ -168,6 +169,7 @@ def test_ftps(tmp_path, monkeypatch):
     with TestClient(create_app(data_dir=tmp_path / "data", workers=1)) as c:
         r = c.post("/api/auth/signup", headers={"X-PF": "1"}, json={"company": "L", "email": "t@l.test", "password": "longenough1"})
         s = Sess(c, r.cookies.get("pf_session"))
+        db.run("UPDATE accounts SET storage_quota=?", (config.GB,))   # allocated by the platform admin
         cid = s.post("/api/clients", json={"name": "C"}).json()["id"]
         eid = s.post("/api/events", json={"client_id": cid, "name": "E"}).json()["id"]
         db.run("UPDATE events SET ftp_allowed=1 WHERE id=?", (eid,))

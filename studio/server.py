@@ -33,11 +33,11 @@ from faces import LIMITS, PRESETS
 
 from . import branding, config, culling, db, google, live, mailer, roles, security
 from .processing import Processor, VectorIndex, switch_model, upgrade_events
-from .storage import delivery_name, get_storage
+from .storage import get_storage
 from .camera import CameraServer, mount_camera
-from .client_gallery import PIN_RE, PinIn, UnlockIn, mount_client, new_token, unique_names, zip_stream
+from .client_gallery import PIN_RE, PinIn, UnlockIn, mount_client, new_token, pick_size, sized_file, zip_files, zip_stream, zip_suffix
 from .estimates import mount_estimates
-from .ingest import add_photo, photo_usage, remove_leftovers
+from .ingest import add_photo, photo_usage, remove_leftovers, storage_quota
 from .team import mount_team, seats_used
 from .videos import mount_videos
 from .inventory import mount_inventory
@@ -48,9 +48,11 @@ from .clips import mount_clips
 from .editing import mount_editing
 from .ai import mount_ai
 from .album import mount_album
+from .story import mount_story
 from .vendors import mount_vendors
 
 STATIC = Path(__file__).parent / "static"
+ORIGCACHE = (STATIC / "origcache.js")   # the originals downloader, inlined into the dashboard and the editor
 COOKIE = "pf_session"
 EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,255}\.[^@\s]{2,}$")
 COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -255,6 +257,8 @@ class EventPatch(BaseModel):
     tolerance: Optional[float] = None  # range depends on the event's face engine (faces.LIMITS)
     client_enabled: Optional[bool] = None   # the client gallery: every photo, on its own private link
     client_download: Optional[bool] = None
+    guest_dl_sizes: Optional[str] = Field(None, pattern=r"^(both|original|small)$")   # sizes offered: both, or only one
+    client_dl_sizes: Optional[str] = Field(None, pattern=r"^(both|original|small)$")
 
 
 class AccountPatch(BaseModel):
@@ -425,7 +429,7 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
                         "logo_url": branding.logo_url(u["logo"]), "logo_size": u["logo_size"],
                         "logo_badge": bool(u["logo_badge"]), "logo_badge_light": bool(u["logo_badge_light"]),
                         "theme": u["theme"]},
-            "limits": {k: plan.get(k) for k in ("events", "photos", "storage", "users")},
+            "limits": {**{k: plan.get(k) for k in ("events", "photos", "users")}, "storage": storage_quota(u["account_id"])},
             "usage": usage(u["account_id"]),
             "public_url": config.settings.public_url,
             "max_file_mb": config.settings.max_file_mb,
@@ -452,8 +456,8 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         now = int(time.time())
         try:
             with db.tx():
-                aid = db.ex("INSERT INTO accounts(company, brand_color, plan, timezone, created_at) VALUES(?,?,?,?,?)",
-                            (company.strip(), config.DEFAULT_BRAND, "free", tz, now))
+                aid = db.ex("INSERT INTO accounts(company, brand_color, plan, timezone, storage_quota, created_at) VALUES(?,?,?,?,?,?)",
+                            (company.strip(), config.DEFAULT_BRAND, "free", tz, config.NEW_COMPANY_STORAGE, now))
                 return db.ex("""INSERT INTO users(account_id, email, name, pw_hash, role, google_sub, created_at)
                                 VALUES(?,?,?,?,?,?,?)""", (aid, email, name.strip(), pw_hash, "owner", google_sub, now))
         except sqlite3.IntegrityError:
@@ -784,7 +788,8 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         return {
             "id": r["id"], "client_id": r["client_id"], "client_name": r["client_name"], "name": r["name"],
             "subtitle": r["subtitle"], "event_date": r["event_date"], "expires_at": r["expires_at"],
-            "status": r["status"], "allow_download": bool(r["allow_download"]), "tolerance": r["tolerance"],
+            "status": r["status"], "allow_download": bool(r["allow_download"]), "download_sizes": r["guest_dl_sizes"],
+            "tolerance": r["tolerance"],
             "faces_purged": bool(r["faces_purged"]), "slug": r["slug"], "url": f"{public_base(request)}/e/{r['slug']}",
             "face_model": r["face_model"],
             "tolerance_presets": [[v, LEVEL_LABELS[k]] for k, v in PRESETS.get(r["face_model"], PRESETS["dlib"]).items()],
@@ -793,7 +798,7 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
             "videos": r["n_videos"], "album": r["n_album"], "album_locked": bool(r["album_locked"]),
             "searches": r["n_searches"], "found": r["n_found"], "guest_has_pin": bool(r["guest_pin"]),
             "client": {"enabled": bool(r["client_enabled"]), "has_pin": bool(r["client_pin"]),
-                       "download": bool(r["client_download"]), "views": r["client_views"],
+                       "download": bool(r["client_download"]), "download_sizes": r["client_dl_sizes"], "views": r["client_views"],
                        "url": f"{public_base(request)}/c/{r['client_token']}" if r["client_token"] else ""},
         }
 
@@ -1081,7 +1086,8 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         c = db.q1("""SELECT SUM(status='ready') ready, SUM(status IN ('uploading','uploaded','processing')) busy
                      FROM photos WHERE event_id=?""", (e["id"],))
         return {"name": e["name"], "has_pin": bool(e["guest_pin"]), "unlocked": True, "ready": c["ready"] or 0,
-                "processing": c["busy"] or 0, "allow_download": bool(e["allow_download"]), "searchable": not e["faces_purged"]}
+                "processing": c["busy"] or 0, "allow_download": bool(e["allow_download"]), "download_sizes": e["guest_dl_sizes"],
+                "searchable": not e["faces_purged"]}
 
     @app.post("/e/{slug}/unlock")
     def guest_unlock(slug: str, body: UnlockIn, request: Request):
@@ -1156,15 +1162,16 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
         return file_or_404(get_storage().photo_path(r, "web"), headers={"Cache-Control": "private, max-age=3600"})
 
     @app.get("/e/{slug}/download/{pid}")
-    def guest_download(slug: str, pid: str, request: Request):
+    def guest_download(slug: str, pid: str, request: Request, size: str = ""):
+        """size: original (as delivered) or small (at most 2048 pixels, quick to download and share)."""
         e, r = guest_photo(slug, pid, request)
         if not e["allow_download"]:
             raise err(403, "Downloads are turned off for this gallery.", "no_download")
-        return file_or_404(get_storage().delivery_path(r), filename=delivery_name(r["orig_name"], r["ext"]),
-                           content_disposition_type="attachment")
+        path, name = sized_file(r, pick_size(size, e["guest_dl_sizes"]))
+        return file_or_404(path, filename=name, content_disposition_type="attachment")
 
     @app.post("/e/{slug}/zip")
-    def guest_zip(slug: str, request: Request, ids: str = Form(...)):
+    def guest_zip(slug: str, request: Request, ids: str = Form(...), size: str = Form("")):
         e = guest_open(slug, request)
         if not e["allow_download"]:
             raise err(403, "Downloads are turned off for this gallery.", "no_download")
@@ -1179,16 +1186,17 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
                          [e["id"]] + part)
         if not rows:
             raise err(400, "No photos selected.", "empty")
-        store = get_storage()
-        files = [(store.delivery_path(r), name) for r, name in unique_names(rows)]
+        size = pick_size(size, e["guest_dl_sizes"])
+        files = zip_files(rows, size)
         fname = re.sub(r"[^A-Za-z0-9]+", "-", e["name"]).strip("-").lower() or "photos"
         return StreamingResponse(zip_stream(files), media_type="application/zip",
-                                 headers={"Content-Disposition": f'attachment; filename="{fname}-my-photos.zip"'})
+                                 headers={"Content-Disposition": f'attachment; filename="{fname}-my-photos{zip_suffix(size)}.zip"'})
 
     # ---------------------------------------------------------------- pages
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request):
         page = (STATIC / "app.html").read_text(encoding="utf-8").replace("__VIEWER__", (STATIC / "_viewer.html").read_text(encoding="utf-8"))
+        page = page.replace("<!--ORIGCACHE-->", "<script>" + ORIGCACHE.read_text(encoding="utf-8") + "</script>")
         return HTMLResponse(branding.with_nonce(page, request.state.nonce), headers={"Cache-Control": "no-store"})
 
     @app.get("/admin", response_class=HTMLResponse)
@@ -1218,6 +1226,8 @@ def create_app(data_dir=None, workers: Optional[int] = None) -> FastAPI:
     mount_clips(app, SimpleNamespace(err=err, client_open=app.state.client_open, client_ip=client_ip, limiter=limiter))
     mount_scenes(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, get_event=get_event, client_open=app.state.client_open,
                                       client_ip=client_ip, limiter=limiter))
+    mount_story(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, get_event=get_event, guest_open=guest_open,
+                                     client_open=app.state.client_open, ink_for=ink_for))
     mount_album(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, get_event=get_event, client_open=app.state.client_open,
                                      client_ip=client_ip, limiter=limiter))
     mount_vendors(app, SimpleNamespace(user_dep=user_dep, can=can, err=err, get_event=get_event, plan_of=plan_of,

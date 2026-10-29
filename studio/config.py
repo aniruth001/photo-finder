@@ -1,7 +1,8 @@
 """Settings and plan limits.
 
 The numbers in PLANS are placeholders: set the tiers and prices you actually want to sell.
-None means unlimited.
+None means unlimited. Storage isn't part of a plan: the platform admin allocates it to each company (accounts.storage_quota,
+set in the admin area). A new company starts with NEW_COMPANY_STORAGE, free.
 """
 import os
 from dataclasses import dataclass, field
@@ -12,10 +13,11 @@ GB = 1024 ** 3
 MB = 1024 ** 2
 
 PLANS = {
-    "free": {"label": "Free", "events": 2, "photos": 500, "storage": 1 * GB, "users": 2, "price": 0},
-    "pro": {"label": "Pro", "events": None, "photos": 50_000, "storage": 100 * GB, "users": 10, "price": 1999},
-    "studio": {"label": "Studio", "events": None, "photos": 250_000, "storage": 500 * GB, "users": 50, "price": 4999},
+    "free": {"label": "Free", "events": 2, "photos": 500, "users": 2, "price": 0},
+    "pro": {"label": "Pro", "events": None, "photos": 50_000, "users": 10, "price": 1999},
+    "studio": {"label": "Studio", "events": None, "photos": 250_000, "users": 50, "price": 4999},
 }
+NEW_COMPANY_STORAGE = 1 * GB  # what every new company gets to start with; the platform admin changes it per company
 CURRENCY = "INR"  # "price" is per month in this currency; used only for the admin revenue estimate
 ALLOWED_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 RAW_EXTS = {".cr2", ".cr3", ".nef", ".nrw", ".arw", ".srf", ".sr2", ".dng", ".raf", ".orf", ".rw2", ".pef", ".srw", ".3fr", ".iiq"}

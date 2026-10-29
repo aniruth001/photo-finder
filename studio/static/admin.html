@@ -74,6 +74,7 @@
   .badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 99px; font-size: .74rem; font-weight: 700; background: var(--soft); color: var(--muted); white-space: nowrap; }
   .badge.ok { background: #e3f4e8; color: var(--ok); } .badge.bad { background: #fbe4df; color: var(--danger); }
   .badge.warn { background: #fbefd0; color: var(--warn); }
+  .warn-text { color: var(--warn); font-weight: 600; }
   .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; display: inline-block; }
   .empty { text-align: center; padding: 30px 12px; color: var(--muted); }
 
@@ -308,7 +309,7 @@ async function viewCompanies(more) {
         <td>${esc(a.plan_label)}</td><td>${statusBadge(a)}</td>
         <td class="n" title="${num(a.users)} members${a.invites ? `, ${num(a.invites)} invited` : ""}">${num(a.users)}${a.invites ? `<div class="muted small">+${num(a.invites)} invited</div>` : ""}</td>
         <td class="n">${num(a.events)}</td><td class="n">${num(a.photos)}</td>
-        <td style="min-width:120px"><span class="small">${bytes(a.storage)}${a.limits.storage ? " / " + bytes(a.limits.storage) : ""}</span>${meterHtml(a.usage_pct.storage)}</td>
+        <td style="min-width:120px"><span class="small">${bytes(a.storage)}${a.limits.storage ? " / " + bytes(a.limits.storage) : " / not allocated"}</span>${meterHtml(a.usage_pct.storage)}</td>
         <td class="n">${num(a.searches)}</td><td class="small">${esc(ago(a.last_seen))}</td><td class="small muted">${esc(day(a.created_at))}</td></tr>`).join("")}
       </tbody></table></div>${r.items.length < r.total ? `<div style="text-align:center;padding:12px"><button class="btn" id="more">Show more</button></div>` : ""}`
       : `<div class="empty">No companies match.</div>`}</div>`, "companies");
@@ -325,17 +326,21 @@ async function viewCompanies(more) {
 async function viewCompany(id) {
   const a = await api("GET", "/api/admin/accounts/" + id); document.title = a.company + " · Platform Admin";
   const plans = (await api("GET", "/api/admin/accounts?limit=1")).plans, self = a.id === ME.account.id;
-  const use = (k, label, f) => `<div><div class="muted small">${label}</div><b>${f(a[k === "storage" ? "storage" : k])}</b><span class="muted small"> / ${a.limits[k] == null ? "Unlimited" : f(a.limits[k])}</span>${meterHtml(a.usage_pct[k])}</div>`;
+  const use = (k, label, f) => `<div><div class="muted small">${label}</div><b>${f(a[k === "storage" ? "storage" : k])}</b><span class="muted small"> / ${k === "storage" && !a.limits[k] ? "not allocated" : a.limits[k] == null ? "Unlimited" : f(a.limits[k])}</span>${meterHtml(a.usage_pct[k])}</div>`;
   shell(`<div class="crumbs"><a href="#/companies">Companies</a> /</div>
     <div class="head"><div>${a.logo_url ? `<img src="${esc(a.logo_url)}" alt="${esc(a.company)} logo" style="height:44px;max-width:220px;object-fit:contain;display:block;margin-bottom:8px">` : ""}<h1>${esc(a.company)}</h1><div class="row" style="margin-top:6px">${statusBadge(a)}<span class="badge">${esc(a.plan_label)} plan · ${money(a.price)}/mo</span>${self ? `<span class="badge warn">Your company</span>` : ""}</div></div>
       <div class="row">${a.status === "suspended" ? `<button class="btn good" id="enable">Enable account</button>` : `<button class="btn danger" id="disable" ${self ? "disabled title=\"You can't suspend your own company\"" : ""}>Suspend account</button>`}
         <button class="btn" id="signout">Sign out all devices</button></div></div>
     ${a.status === "suspended" ? `<div class="alert"><b>Suspended ${esc(when(a.disabled_at))}.</b> ${a.disabled_reason ? "Reason: " + esc(a.disabled_reason) + ". " : ""}Its users can't sign in and its guest links are offline. Nothing has been deleted.</div>` : ""}
-    <div class="card"><h2>Plan usage</h2><div class="usage">${use("events", "Events", num)}${use("photos", "Photos", num)}${use("storage", "Storage", bytes)}
+    <div class="card"><h2>Usage</h2><div class="usage">${use("events", "Events", num)}${use("photos", "Photos", num)}${use("storage", "Storage", bytes)}
         <div><div class="muted small">Team seats</div><b>${num(a.users + a.invites)}</b><span class="muted small"> / ${a.limits.users == null ? "Unlimited" : num(a.limits.users)}</span>${meterHtml(a.limits.users ? Math.round((a.users + a.invites) / a.limits.users * 100) : null)}</div></div>
       <form class="row" id="planf" style="margin-top:16px"><label class="small muted" for="plansel">Plan</label>
         <select id="plansel" name="plan">${plans.map(p => `<option value="${esc(p.plan)}" ${p.plan === a.plan ? "selected" : ""}>${esc(p.label)}</option>`).join("")}</select>
-        <button class="btn primary">Change plan</button></form></div>
+        <button class="btn primary">Change plan</button></form>
+      <form class="row" id="storef" style="margin-top:10px"><label class="small muted" for="storegb">Storage allocated</label>
+        <input id="storegb" name="gb" type="number" min="0" max="1000000" step="any" required value="${+(a.storage_quota / 1073741824).toFixed(2)}" style="width:110px" aria-describedby="storenote"><span class="small muted">GB</span>
+        <button class="btn primary">Save storage</button>
+        <span class="small ${a.storage_quota ? "muted" : "warn-text"}" id="storenote">${a.storage_quota ? `${bytes(a.storage)} used of ${bytes(a.storage_quota)}` : "Nothing allocated: this company can't upload until you set it."}</span></form></div>
     <div class="grid2 section">
       <div class="card"><h2>Details</h2><dl class="kv">
         <dt>Owner</dt><dd>${esc(a.owner_name || "—")} · <a href="mailto:${esc(a.owner_email)}">${esc(a.owner_email)}</a></dd>
@@ -376,10 +381,16 @@ async function viewCompany(id) {
   document.getElementById("planf").onsubmit = async e => { e.preventDefault(); const plan = new FormData(e.target).get("plan");
     if (plan === a.plan) return toast("That is already the plan.");
     try { await api("POST", `/api/admin/accounts/${a.id}/plan`, { plan }); toast("Plan changed."); viewCompany(id); } catch (x) { fail(x); } };
+  document.getElementById("storef").onsubmit = async e => { e.preventDefault();
+    const gb = Number(new FormData(e.target).get("gb"));
+    if (!(gb >= 0)) return toast("Enter the storage in GB, 0 or more.");
+    if (Math.round(gb * 1073741824) === a.storage_quota) return toast("That is already the allocation.");
+    if (gb * 1073741824 < a.storage && !await confirmBox(`Allocate less than ${a.company} uses?`, `They already use ${bytes(a.storage)}, more than ${gb} GB. Nothing is deleted, but they can't upload until they're under it.`, "Allocate anyway")) return;
+    try { await api("POST", `/api/admin/accounts/${a.id}/storage`, { gb }); toast(`Storage set to ${gb} GB.`); viewCompany(id); } catch (x) { fail(x); } };
 }
 
 /* ------------------------------------------------------------------ activity log */
-const ACTIONS = { suspend: ["bad", "Suspended"], enable: ["ok", "Enabled"], plan: ["warn", "Plan changed"], signout: ["", "Signed out"], ftp_on: ["ok", "Camera FTP on"], ftp_off: ["", "Camera FTP off"] };
+const ACTIONS = { suspend: ["bad", "Suspended"], enable: ["ok", "Enabled"], plan: ["warn", "Plan changed"], storage: ["warn", "Storage allocated"], signout: ["", "Signed out"], ftp_on: ["ok", "Camera FTP on"], ftp_off: ["", "Camera FTP off"] };
 function logTable(rows, withCompany, compact) {
   if (!rows.length) return `<div class="empty">No admin actions yet.</div>`;
   return `<div class="tbl"><table><thead><tr><th>When</th>${withCompany ? "<th>Company</th>" : ""}<th>Action</th><th>Detail</th>${compact ? "" : "<th>By</th>"}</tr></thead><tbody>

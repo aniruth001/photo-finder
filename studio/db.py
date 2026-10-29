@@ -408,6 +408,30 @@ MIGRATIONS = {
         ALTER TABLE photos ADD COLUMN edited_at INTEGER;                  -- last saved from the editor (also busts cached thumbnails)
     """,
     26: "UPDATE photos SET status='uploaded' WHERE edited=1 AND status='ready'",  # edited copies now get face data: redo them
+    30: """
+        -- the landing-page story (studio/story.py): a draft the studio edits and the copy guests and the client see
+        CREATE TABLE event_stories (
+            event_id INTEGER PRIMARY KEY REFERENCES events(id) ON DELETE CASCADE,
+            draft TEXT NOT NULL DEFAULT '',
+            published TEXT NOT NULL DEFAULT '',
+            for_guests INTEGER NOT NULL DEFAULT 1,
+            for_client INTEGER NOT NULL DEFAULT 1,
+            updated_at INTEGER,
+            updated_by TEXT NOT NULL DEFAULT '',
+            published_at INTEGER
+        );
+    """,
+    29: """
+        -- which download sizes guests and the client are offered: both, original (only) or small (only)
+        ALTER TABLE events ADD COLUMN guest_dl_sizes TEXT NOT NULL DEFAULT 'both';
+        ALTER TABLE events ADD COLUMN client_dl_sizes TEXT NOT NULL DEFAULT 'both';
+    """,
+    28: """
+        -- storage is no longer part of a plan: the platform admin allocates it to each company (bytes; 0 = none yet).
+        -- Companies that exist already keep what their plan gave them; new ones start with none.
+        ALTER TABLE accounts ADD COLUMN storage_quota INTEGER NOT NULL DEFAULT 0;
+        UPDATE accounts SET storage_quota = CASE plan WHEN 'studio' THEN 500 WHEN 'pro' THEN 100 ELSE 1 END * 1073741824;
+    """,
     27: """
         ALTER TABLE photos ADD COLUMN blur REAL;          -- culling (studio/culling.py): 0 crisp .. 1 soft; -1 = couldn't tell; NULL = not yet
         ALTER TABLE photos ADD COLUMN dhash INTEGER;      -- 64-bit picture fingerprint: near-duplicates

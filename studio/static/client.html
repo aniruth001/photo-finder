@@ -39,6 +39,11 @@ __THEME_HEAD__
   .tile .heart { position: absolute; right: 5px; bottom: 5px; padding: 3px 8px; border-radius: 99px; display: none; font-size: .72rem; font-weight: 700;
                  line-height: 1.2; pointer-events: none; white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,.35); background: #ffe4ea; color: #a3153a; }
   .tile.alb .heart { display: block; }
+  .tile .best { position: absolute; right: 5px; top: 5px; padding: 2px 8px; border-radius: 99px; font-size: .7rem; font-weight: 700;
+                line-height: 1.3; pointer-events: none; white-space: nowrap; background: #e3f6e8; color: #17663a; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+  .ghead { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; margin: 14px 2px 4px; font-size: .85rem; font-weight: 700; color: var(--muted); }
+  .ghead::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+  .ghead:first-child { margin-top: 2px; }
   .tile.alb.studio .heart { background: #e6f0ff; color: #1f55ad; }
   .tile.alb.both .heart { background: #f1e9ff; color: #5b34b0; }
   @media (max-width: 520px) { .tile .heart { font-size: .64rem; padding: 2px 6px; right: 3px; bottom: 3px; } }
@@ -83,7 +88,7 @@ __THEME_HEAD__
   #lb .nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%;
              border: 0; background: rgba(255,255,255,.14); color: #fff; font-size: 1.4rem; cursor: pointer; }
   #lb .prev { left: 8px; } #lb .next { right: 8px; }
-  #lb .actions { display: flex; gap: 12px; justify-content: center; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
+  #lb .actions { display: flex; gap: 10px 12px; justify-content: center; flex-wrap: wrap; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
   #lb .x { background: none; border: 0; color: #fff; font-size: 1.6rem; cursor: pointer; padding: 4px 8px; }
   .hint { margin: 0; padding: 0 16px 4px; text-align: center; color: var(--muted); font-size: .82rem; }
   .filter { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; background: var(--card);
@@ -130,6 +135,8 @@ __THEME_HEAD__
   .ctimes { font-variant-numeric: tabular-nums; font-size: .92rem; text-align: center; flex: 1; }
   .cnote { margin: 0; color: #999; font-size: .8rem; text-align: center; min-height: 1.2em; }
   .cnote.bad { color: #ff8a80; }
+  body.has-story header h1, body.has-story header .sub { display: none; }   /* the story's own title takes their place */
+  #story { padding: 0 4px; }
 </style>
 </head>
 <body>
@@ -148,10 +155,12 @@ __THEME_TOGGLE__
       <p class="err" id="perr"></p><button class="btn" style="width:100%">Open gallery</button></form>
   </section>
 
+  <div id="story" hidden></div>
   <section id="gallery" hidden>
     <div class="bar">
       <span class="count" id="count"></span>
       <button class="btn ghost" id="find" hidden>Find a person</button>
+      <button class="btn ghost" id="simbtn" hidden title="Bursts and repeats side by side, so you can choose one of each">Similar shots</button>
       <button class="btn ghost" id="albview" hidden>♥ My album</button>
       <button class="btn ghost" id="slides" hidden>▶ Slideshow</button>
       <button class="btn ghost" id="sel" hidden>Select</button>
@@ -161,7 +170,7 @@ __THEME_TOGGLE__
     <form class="dsearch" id="dform" role="search" hidden><input id="dq" type="search" maxlength="100" enterkeyhint="search" autocomplete="off"
       placeholder="Describe a moment: cake cutting, group photo, mehendi…" aria-label="Describe the photos you're looking for"><button class="btn" id="dgo">Search</button></form>
     <div class="dchips" id="dchips" hidden></div>
-    <div class="filter" id="filter" hidden><span id="ftext"></span><button class="linkbtn" id="clear">Show all photos</button></div>
+    <div class="filter" id="filter" hidden><span id="ftext"></span><button class="linkbtn" id="simbest" hidden>Choose the best of each</button><button class="linkbtn" id="clear">Show all photos</button></div>
     <div class="awho" id="awho" hidden></div>
     <div id="vids" hidden><h2 class="sec" id="vhead">Videos</h2><div class="vgrid" id="vgrid"></div><h2 class="sec" id="phead">Photos</h2></div>
     <div class="grid" id="grid"></div>
@@ -214,19 +223,22 @@ __THEME_TOGGLE__
     <button class="nav next" id="next" aria-label="Next">›</button>
   </div>
   <p class="hint" id="hint" hidden>Tip: touch and hold the photo, then tap Add to Photos.</p>
-  <div class="actions"><button class="btn inalb" id="lbalb" hidden>♡ Add to album</button><a class="btn" id="dl" href="#" download>↓ Download</a><button class="btn dark" id="notme" hidden>Not this person</button></div>
+  <div class="actions"><button class="btn inalb" id="lbalb" hidden>♡ Add to album</button><a class="btn" id="dl" href="#" download title="Full quality, exactly as delivered">↓ Download original</a><a class="btn dark" id="dls" href="#" download title="Up to 2048 pixels: quick to download and share">↓ Smaller size</a><button class="btn dark" id="notme" hidden>Not this person</button></div>
 </div>
 
 __VIEWER__
+__STORY__
 <script>
 const $ = id => document.getElementById(id);
 const BASE = location.pathname.replace(/\/+$/, "");   // /c/<link>
 // photos = what the grid shows: every photo (loaded page by page), or a filter loaded all at once: one person's photos
 // (person.kind "face") or the photos chosen for the album (person.kind "album")
+let sizes = "both";   // which download sizes the studio offers: both, original or small
 let photos = [], done = false, loading = false, cur = 0, canDownload = true, total = 0, selecting = false, person = null, videos = [];
 const picked = new Set();
 const album = { ids: new Set(), locked: false, note: "", photos: [], by: new Map() };   // by: photo id -> client | studio | both   // what this client has sent for the album
 const inAlbumView = () => !!person && person.kind === "album";
+const inSimilar = () => !!person && person.kind === "similar";
 let toastTimer = null;
 function say(msg, bad) {
   let t = document.querySelector(".toast"); if (!t) { t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
@@ -241,10 +253,12 @@ async function start() {
   let j;
   try { j = await (await fetch(BASE + "/info")).json(); } catch (e) { $("sub").textContent = "Can't reach the server. Check your connection."; return; }
   if (j.has_pin && !j.unlocked) { $("lock").hidden = false; $("pin").focus(); return; }
-  $("lock").hidden = true; $("gallery").hidden = false;
-  canDownload = j.allow_download; total = j.photos;
-  $("all").hidden = !canDownload || !total; $("sel").hidden = !total; $("dl").hidden = !canDownload;
+  $("lock").hidden = true; await loadStory(j.photos); $("gallery").hidden = false;
+  canDownload = j.allow_download; total = j.photos; sizes = j.download_sizes || "both";
+  $("all").hidden = !canDownload || !total; $("sel").hidden = !total; $("dl").hidden = !canDownload || sizes === "small"; $("dls").hidden = !canDownload || sizes === "original";
+  if (sizes !== "both") { $("dl").textContent = "↓ Download"; $("dls").textContent = "↓ Download"; $("dls").className = "btn"; }
   $("find").hidden = !j.searchable || !total;
+  $("simbtn").hidden = !j.similar; if (j.similar) $("simbtn").textContent = `Similar shots (${j.similar.toLocaleString()})`;
   $("count").dataset.more = j.processing ? ` · ${j.processing} more being added` : "";
   if (j.videos) loadVideos();
   if (!total) {
@@ -253,6 +267,21 @@ async function start() {
     return;
   }
   paintBar(); load(); loadAlbum(); loadScenes();
+}
+
+let story = null;   // the couple's story (studio/story.py), above the photos when the studio made one
+async function loadStory(n) {
+  if (story) return story.update();
+  try {
+    const r = await fetch(BASE + "/story");
+    if (!r.ok) return;
+    const j = await r.json(), label = n ? `See all ${plural(n, "photo")}` : "See the photos";
+    const toPhotos = () => $("gallery").scrollIntoView({ behavior: "smooth" });
+    $("story").hidden = false;
+    document.body.classList.toggle("has-story", !!(j.story && j.story.title));
+    story = pfStory($("story"), j, { src: pid => `${BASE}/web/${encodeURIComponent(pid)}.jpg`, button: { label, onClick: toPhotos },
+                                     pin: { label: "See all the photos", onClick: toPhotos, target: $("gallery") } });
+  } catch (e) {}
 }
 
 $("pform").onsubmit = async e => {
@@ -407,6 +436,11 @@ function addTile(p, i) {
   b.dataset.id = p.id;
   b.append(im, t, hr); markAlb(b, p.id);
   if (p.edited) { const g = document.createElement("span"); g.className = "edtag"; g.textContent = "✎ Edited"; g.title = "An edited version from the studio"; b.append(g); }
+  if (p.best && inSimilar()) { const g = document.createElement("span"); g.className = "best"; g.textContent = "★ Best"; g.title = "The best of these: eyes open, sharpest"; b.append(g); }
+  if (inSimilar() && (i === 0 || photos[i - 1].g !== p.g)) {   // a heading over each group
+    const n = photos.filter(x => x.g === p.g).length, hd = document.createElement("div"); hd.className = "ghead"; hd.textContent = `${n} similar shots`;
+    $("grid").appendChild(hd);
+  }
   b.onclick = () => selecting ? toggle(b, p) : openLb(i);
   $("grid").appendChild(b);
 }
@@ -438,8 +472,8 @@ function toggle(b, p) {
 }
 function paintBar() {
   const av = inAlbumView();
-  const dsc = !!person && person.kind === "describe";
-  $("count").textContent = (av ? plural(photos.length, "photo") + " in your album" : dsc ? plural(photos.length, "photo") + (person.clear ? ` for “${person.q}”` : " that come closest")
+  const dsc = !!person && person.kind === "describe", sim = inSimilar();
+  $("count").textContent = (av ? plural(photos.length, "photo") + " in your album" : sim ? `${plural(person.groups, "group")} of similar shots (${plural(photos.length, "photo")})` : dsc ? plural(photos.length, "photo") + (person.clear ? ` for “${person.q}”` : " that come closest")
     : person ? plural(photos.length, "photo") + " of this person" : plural(total, "photo"))
     + (person ? "" : $("count").dataset.more || "");
   $("sel").textContent = selecting ? "Cancel" : "Select";
@@ -465,12 +499,15 @@ function paintBar() {
       return (album.locked ? `The studio has finalised your album with these ${plural(all.length, "photo")}${split}.`
         : `${plural(all.length, "photo")} for your album${split}.`) + (album.note ? " Your note: “" + album.note + "”" : "");
     })();
+  else if (sim) $("ftext").textContent = photos.length ? "Bursts and repeats side by side. ★ Best has eyes open and is the sharpest. Pick the one you like from each."
+    : "No similar shots in this gallery.";
   else if (dsc) $("ftext").textContent = person.clear ? `Showing the photos that look like “${person.q}”.`
     : `No clear matches for “${person.q}”. These ${plural(photos.length, "photo")} come closest; try other words.`;
   else if (person) $("ftext").textContent = person.multiple
     ? `Showing ${plural(photos.length, "photo")} of the biggest face in your photo.`
     : `Showing ${plural(photos.length, "photo")} of the person in your photo.`;
   document.querySelectorAll("#dchips .dchip").forEach(c => c.classList.toggle("on", dsc && c.dataset.q.toLowerCase() === person.q.toLowerCase()));
+  $("simbest").hidden = !sim || !photos.length || selecting;
   paintWho();
 }
 function stopSelecting() {
@@ -482,11 +519,13 @@ $("sel").onclick = () => {
   if (!was) { selecting = true; $("grid").classList.add("selecting"); }
   paintBar();
 };
-$("all").onclick = () => {  // the server streams one zip; the browser saves it like any download
+$("all").onclick = async () => {  // the server streams one zip; the browser saves it like any download
   const ids = selecting ? [...picked] : person ? photos.map(p => p.id) : [];   // empty = every photo
+  const n = ids.length || total, size = sizes !== "both" ? sizes : await pfChooseSize(`Download ${plural(n, "photo")}`, "They come as one zip file.");
+  if (!size) return;
   const f = document.createElement("form"); f.method = "POST"; f.action = BASE + "/zip";
-  const i = document.createElement("input"); i.type = "hidden"; i.name = "ids"; i.value = ids.join(",");
-  f.appendChild(i); document.body.appendChild(f); f.submit(); f.remove();
+  for (const [k, v] of [["ids", ids.join(",")], ["size", size]]) { const i = document.createElement("input"); i.type = "hidden"; i.name = k; i.value = v; f.appendChild(i); }
+  document.body.appendChild(f); f.submit(); f.remove();
   const b = $("all"); b.disabled = true; b.textContent = "Starting download…";
   setTimeout(() => { b.disabled = false; paintBar(); }, 6000);
 };
@@ -553,6 +592,25 @@ $("lbalb").onclick = async () => {  // one photo, from the full-screen viewer
   say(had ? "Taken out of your album." : `Added to your album (${plural(j.count, "photo")}).`);
   paintBar();
   if (had && inAlbumView()) { photos.splice(cur, 1); closeLb(); redraw(); }
+};
+
+/* ---- similar shots: bursts and repeats grouped, so choosing one of each is easy */
+$("simbtn").onclick = async () => {
+  const b = $("simbtn"); b.disabled = true;
+  let j;
+  try { const r = await fetch(BASE + "/similar"); if (r.status === 401) return location.reload(); j = await r.json(); }
+  catch (e) { return say("Can't reach the server. Check your connection and try again.", true); }
+  finally { b.disabled = false; }
+  stopSelecting();
+  photos = []; j.groups.forEach((g, n) => g.photos.forEach(p => photos.push({ ...p, g: n })));
+  person = { kind: "similar", groups: j.groups.length }; redraw(); $("more").hidden = true;
+  window.scrollTo({ top: $("gallery").offsetTop - 8, behavior: "smooth" });
+};
+$("simbest").onclick = () => {   // select the best of each group; the client changes any, then sends them for the album or downloads them
+  stopSelecting(); selecting = true; $("grid").classList.add("selecting");
+  photos.forEach(p => { if (p.best) picked.add(p.id); });
+  document.querySelectorAll(".tile[data-id]").forEach(t => t.classList.toggle("on", picked.has(t.dataset.id)));
+  paintBar(); say(`${plural(picked.size, "photo")} selected, the best of each group. Tap to change, then Proceed for album.`);
 };
 
 /* ---- find a person: filter the gallery with a selfie or any photo of them */
@@ -629,6 +687,7 @@ function paint() {
   view.reset();
   $("big").src = `${BASE}/web/${encodeURIComponent(p.id)}.jpg`; $("big").alt = p.name;
   $("dl").href = `${BASE}/download/${encodeURIComponent(p.id)}`; $("dl").setAttribute("download", p.name.replace(/\.(cr2|cr3|nef|nrw|arw|srf|sr2|dng|raf|orf|rw2|pef|srw|3fr|iiq)$/i, ".jpg"));   // camera RAW files come as JPEG
+  $("dls").href = `${BASE}/download/${encodeURIComponent(p.id)}?size=small`; $("dls").setAttribute("download", p.name.replace(/\.[^.]+$/, "") + " (small).jpg");
   $("pos").textContent = `${cur + 1} / ${viewCount()}  ·  ${p.name}${p.edited ? "  ·  ✎ Edited" : ""}`;
   const ia = album.ids.has(p.id);
   const by = album.by.get(p.id);

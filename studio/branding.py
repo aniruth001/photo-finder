@@ -146,6 +146,7 @@ def render(page: str, e, ink: str, text: dict = None, nonce: str = "") -> str:
     page = page.replace("__THEME_HEAD__", (STATIC / "_theme.html").read_text(encoding="utf-8"))
     page = page.replace("__THEME_TOGGLE__", (STATIC / "_theme_toggle.html").read_text(encoding="utf-8"))
     page = page.replace("__VIEWER__", (STATIC / "_viewer.html").read_text(encoding="utf-8"))  # zoom, pan, rotate
+    page = page.replace("__STORY__", (STATIC / "_story.html").read_text(encoding="utf-8"))  # the landing-page story
     page = with_nonce(page, nonce)
     values = {**marks, "__THEME__": theme, "__THEME_INITIAL__": "light" if theme == "light" else "dark",
               "__ACCENT_DARK__": accent_text(e["brand_color"], DARK_BG),

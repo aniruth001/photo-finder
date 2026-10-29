@@ -1,0 +1,138 @@
+<style>
+  /* The landing-page story (studio/story.py): shared by the guest page, the client gallery and the studio's preview.
+     Colours come from the page's theme (--ink, --muted, --line, --accent…). */
+  .pfs { --pfs-serif: "Noto Serif", Georgia, "Times New Roman", serif; --pfs-paper: #fbfaf6;
+         --pfs-shadow: 0 14px 34px rgba(0,0,0,.45), 0 3px 8px rgba(0,0,0,.3); margin: 0 auto 30px; max-width: 680px; }
+  :root[data-theme="light"] .pfs { --pfs-shadow: 0 12px 30px rgba(60,45,20,.18), 0 2px 6px rgba(60,45,20,.12); }
+  .pfs-hero { text-align: center; padding: 4px 0 26px; }
+  .pfs-hero h1, .pfs-title { font: 700 clamp(2rem, 7vw, 2.8rem)/1.12 var(--pfs-serif); margin: 6px 0 14px; overflow-wrap: anywhere; text-wrap: balance; }
+  .pfs-intro { font: italic 1.15rem/1.55 var(--pfs-serif); color: var(--muted); margin: 0 auto; max-width: 30em; text-wrap: balance; white-space: pre-line; }
+  .pfs-down { display: block; margin: 22px auto 0; color: var(--muted); font-size: 1.3rem; animation: pfs-bob 2.4s ease-in-out infinite; }
+  @keyframes pfs-bob { 50% { transform: translateY(6px); } }
+  .pfs-print { display: inline-block; background: var(--pfs-paper); padding: 9px 9px 11px; box-shadow: var(--pfs-shadow);
+               transform: rotate(var(--tilt, 0deg)); max-width: 100%; vertical-align: top; }
+  .pfs-print img { display: block; max-width: 100%; max-height: min(78vh, 760px); width: auto; height: auto; background: #ddd; }
+  .pfs-cover { margin: 8px 0 26px; }
+  .pfs-cover img { max-height: min(70vh, 640px); }
+  .pfs-ch { padding: 34px 0 6px; text-align: center; }
+  .pfs-orn { color: var(--accent-text, var(--accent)); letter-spacing: .6em; margin: 0 0 10px; font-size: .9rem; }
+  .pfs-label { color: var(--accent-text, var(--accent)); font-size: .76rem; letter-spacing: .16em; text-transform: uppercase; margin: 0; font-weight: 600; }
+  .pfs-ch h2 { font: 700 clamp(1.5rem, 5vw, 1.95rem)/1.2 var(--pfs-serif); margin: 6px 0 4px; text-wrap: balance; overflow-wrap: anywhere; }
+  .pfs-item { margin: 30px 0 0; text-align: center; }
+  .pfs-cap { font: italic 1.08rem/1.5 var(--pfs-serif); margin: 16px auto 0; max-width: 28em; text-wrap: balance; overflow-wrap: anywhere; padding: 0 6px; }
+  .pfs-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+  .pfs-pair figure { margin: 0; min-width: 0; }
+  .pfs-pair .pfs-print { display: block; padding: 7px 7px 9px; }
+  .pfs-pair .pfs-print img { width: 100%; max-height: none; aspect-ratio: 4 / 5; object-fit: cover; }
+  .pfs-pair .pfs-cap { font-size: 1rem; margin-top: 12px; }
+  .pfs-pair + .pfs-cap { margin-top: 18px; }
+  @media (max-width: 420px) { .pfs-pair { gap: 11px; } .pfs-pair .pfs-print { padding: 5px 5px 7px; } .pfs-pair .pfs-cap { font-size: .9rem; } }
+  .pfs-end { text-align: center; padding: 44px 0 8px; }
+  .pfs-thanks p { font: 1.12rem/1.6 var(--pfs-serif); margin: 0 auto 12px; max-width: 30em; text-wrap: balance; overflow-wrap: anywhere; }
+  .pfs-sign { font: italic 600 1.25rem/1.4 var(--pfs-serif); margin: 18px 0 0; }
+  .pfs-cta { color: var(--accent-text, var(--accent)); font-weight: 600; margin: 26px auto 0; max-width: 28em; text-wrap: balance; }
+  .pfs-btn { margin-top: 16px; }
+  .pfs-scene.pfs-wait { opacity: 0; transform: translateY(22px); }
+  .pfs-scene { transition: opacity .8s ease, transform .8s ease; }
+  @media (prefers-reduced-motion: reduce) {
+    .pfs-scene, .pfs-scene.pfs-wait { opacity: 1; transform: none; transition: none; }
+    .pfs-down { animation: none; }
+  }
+  .pfs-pin { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translate(-50%, 0); z-index: 8;
+             padding: 13px 22px; border-radius: 99px; border: 0; background: var(--accent); color: var(--accent-ink);
+             font: 600 1rem/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+             cursor: pointer; white-space: nowrap; transition: opacity .25s, transform .25s; }
+  .pfs-pin.off { opacity: 0; transform: translate(-50%, 24px); pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { .pfs-pin { transition: none; } }
+</style>
+<script>
+/* pfStory(root, {story, photos}, opts): draw a story into root. Everything is built with textContent, so caption text
+   can never become markup. opts: src(pid) -> image URL; button {label, onClick} after the finale; pin {label, onClick,
+   target}: a button pinned to the bottom of the screen once the hero is scrolled past, hidden while target is on
+   screen. Returns {update(), destroy()}; update() after showing or hiding root. */
+window.pfStory = function (root, data, opts) {
+  opts = opts || {};
+  const s = data.story || {}, dims = data.photos || {}, src = opts.src || (p => p);
+  const TILT = [-1.6, 1.2, -0.7, 1.7, -1.1, 0.8, -1.9, 1.4];
+  let t = 0;
+  const tilt = () => TILT[t++ % TILT.length] + "deg";
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text) n.textContent = text; return n; };
+  const motion = !(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) && "IntersectionObserver" in window;
+  const scenes = [];
+  const scene = n => { n.classList.add("pfs-scene"); if (motion) n.classList.add("pfs-wait"); scenes.push(n); return n; };
+  function print(pid, focus, deg) {
+    const f = el("div", "pfs-print"); f.style.setProperty("--tilt", deg || tilt());
+    const im = el("img"); im.alt = ""; im.decoding = "async"; im.loading = "lazy"; im.src = src(pid);
+    const d = dims[pid]; if (d && d.w && d.h) { im.width = d.w; im.height = d.h; }
+    if (focus) im.style.objectPosition = focus;
+    f.appendChild(im); return f;
+  }
+  const cap = (text, cls) => text ? el("p", "pfs-cap" + (cls ? " " + cls : ""), text) : null;
+  const add = (parent, ...kids) => kids.forEach(k => k && parent.appendChild(k));
+
+  root.textContent = "";
+  const box = el("div", "pfs");
+  const hero = el("header", "pfs-hero");
+  if (s.cover) { const c = el("div", "pfs-cover"); c.appendChild(print(s.cover, "", "-1deg")); hero.appendChild(c); }
+  if (s.title) add(hero, el("h1", "pfs-title", s.title));
+  if (s.intro) add(hero, el("p", "pfs-intro", s.intro));
+  if ((s.chapters || []).some(c => c.items && c.items.length)) add(hero, el("span", "pfs-down", "↓"));
+  if (hero.childNodes.length) box.appendChild(scene(hero));
+
+  (s.chapters || []).forEach((ch, ci) => {
+    const sec = el("section", "pfs-chapter");
+    if (ch.label || ch.title) {
+      const head = scene(el("div", "pfs-ch"));
+      add(head, ci ? el("p", "pfs-orn", "✦ ✦ ✦") : null, ch.label ? el("p", "pfs-label", ch.label) : null, ch.title ? el("h2", "", ch.title) : null);
+      sec.appendChild(head);
+    }
+    (ch.items || []).forEach(it => {
+      const fig = scene(el("div", "pfs-item"));
+      if (it.pair) {
+        const pr = el("div", "pfs-pair");
+        it.pair.forEach((p, i) => { const f = el("figure"); add(f, print(p.file, p.focus, i ? "1.6deg" : "-1.8deg"), cap(p.caption)); pr.appendChild(f); });
+        add(fig, pr, cap(it.caption));
+      } else add(fig, print(it.file, it.focus), cap(it.caption));
+      sec.appendChild(fig);
+    });
+    box.appendChild(sec);
+  });
+
+  if (s.thanks || s.signoff || s.cta || opts.button) {
+    const end = scene(el("footer", "pfs-end"));
+    if (s.thanks || s.signoff) end.appendChild(el("p", "pfs-orn", "✦ ✦ ✦"));
+    if (s.thanks) { const th = el("div", "pfs-thanks"); s.thanks.split(/\n+/).filter(x => x.trim()).forEach(x => th.appendChild(el("p", "", x.trim()))); end.appendChild(th); }
+    if (s.signoff) end.appendChild(el("p", "pfs-sign", "— " + s.signoff));
+    if (s.cta) end.appendChild(el("p", "pfs-cta", s.cta));
+    if (opts.button) { const b = el("button", "btn pfs-btn", opts.button.label); b.type = "button"; b.onclick = opts.button.onClick; end.appendChild(b); }
+    box.appendChild(end);
+  }
+  root.appendChild(box);
+
+  let io = null;
+  if (motion) {
+    io = new IntersectionObserver(es => es.forEach(x => { if (x.isIntersecting) { x.target.classList.remove("pfs-wait"); io.unobserve(x.target); } }),
+                                  { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
+    scenes.forEach(n => io.observe(n));
+  }
+
+  let pin = null, pio = null, past = false, near = false;
+  const update = () => { if (pin) pin.classList.toggle("off", !past || near || root.hidden || !root.offsetParent); };
+  if (opts.pin) {
+    pin = el("button", "pfs-pin off", opts.pin.label); pin.type = "button"; pin.onclick = opts.pin.onClick;
+    document.body.appendChild(pin);
+    const top = hero.isConnected ? hero : box;
+    pio = new IntersectionObserver(es => es.forEach(x => {
+      if (x.target === top) past = !x.isIntersecting && x.boundingClientRect.top < 0;
+      else near = x.isIntersecting;
+      update();
+    }));
+    pio.observe(top);
+    if (opts.pin.target) pio.observe(opts.pin.target);
+  }
+  return {
+    update,
+    destroy() { if (io) io.disconnect(); if (pio) pio.disconnect(); if (pin) pin.remove(); root.textContent = ""; },
+  };
+};
+</script>

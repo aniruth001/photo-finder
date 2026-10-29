@@ -127,8 +127,8 @@ def cmd_create_account(a):
     now = int(time.time())
     try:
         with db.tx():
-            aid = db.ex("INSERT INTO accounts(company, brand_color, plan, created_at) VALUES(?,?,?,?)",
-                        (a.company, config.DEFAULT_BRAND, a.plan, now))
+            aid = db.ex("INSERT INTO accounts(company, brand_color, plan, storage_quota, created_at) VALUES(?,?,?,?,?)",
+                        (a.company, config.DEFAULT_BRAND, a.plan, config.NEW_COMPANY_STORAGE, now))
             db.ex("INSERT INTO users(account_id, email, name, pw_hash, role, created_at) VALUES(?,?,?,?,?,?)",
                   (aid, a.email.lower(), a.name or "", security.hash_password(pw), "owner", now))
     except Exception as e:
